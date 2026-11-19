@@ -1,0 +1,35 @@
+---
+import Base from '../../layouts/Base.astro';
+import JourneyNav from '../../components/JourneyNav.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import PostButton from '../../components/PostButton.astro';
+import { getSaved } from '../../lib/user';
+import { MATERIAL_TYPE } from '../../lib/labels';
+import { load } from '../../lib/page';
+const saved = await load(Astro.response, () => getSaved(Astro.locals.session!.token));
+---
+<Base title="المحفوظات" noindex>
+  {!saved ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head"><h1>المحفوظات</h1><JourneyNav /></header>
+      <section class="section" style="padding-block-start:1rem">
+        {saved.length ? (
+          <ul class="mats">{saved.map((s) => (
+            <li style="padding-block:.4rem">
+              {s.materials ? (
+                <div class="row" style="justify-content:space-between; align-items:flex-start">
+                  <a class="mat" href={`/library/${s.materials.slug}`} style="flex:1"><div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[s.materials.type]}</span></div><h3>{s.materials.title}</h3></a>
+                  <PostButton action="unsave-material" fields={{ material_id: s.material_id }} label="إزالة" />
+                </div>
+              ) : (
+                <div class="row" style="justify-content:space-between"><span class="unavailable">هذه المادة غير متاحة حاليًا</span>
+                  <PostButton action="unsave-material" fields={{ material_id: s.material_id }} label="إزالة" /></div>
+              )}
+            </li>))}</ul>
+        ) : (
+          <div class="empty"><h2>لم تحفظ مادة بعد</h2><p>احفظ ما تريد الرجوع إليه من صفحة أي مادة.</p><div class="actions"><a class="btn btn-primary" href="/library">تصفّح المواد</a></div></div>
+        )}
+      </section>
+    </div>
+  )}
+</Base>

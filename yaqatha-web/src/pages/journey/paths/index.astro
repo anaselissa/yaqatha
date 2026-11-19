@@ -1,0 +1,42 @@
+---
+import Base from '../../../layouts/Base.astro';
+import JourneyNav from '../../../components/JourneyNav.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import Progress from '../../../components/Progress.astro';
+import { getEnrollments, getProgress } from '../../../lib/user';
+import { load } from '../../../lib/page';
+const t = Astro.locals.session!.token;
+const data = await load(Astro.response, async () => {
+  const [active, archived] = await Promise.all([getEnrollments(t, 'active'), getEnrollments(t, 'archived')]);
+  return { active, archived, prog: await getProgress(t, [...active, ...archived].map((e) => e.id)) };
+});
+const REASON: Record<string, string> = { migrated: 'انتقلتَ منه إلى إصدار أحدث', restarted: 'بدأتَ المسار من جديد', user: 'أخفيتَه من رحلتك' };
+---
+<Base title="مساراتي" noindex>
+  {!data ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head"><h1>مساراتي</h1><JourneyNav /></header>
+      <section class="section" style="padding-block-start:1rem">
+        {data.active.length ? (
+          <><h2 class="sr-only">مساراتي الجارية</h2><div class="grid grid-2">{data.active.map((e) => {
+            const p = data.prog.get(e.id);
+            return <article class="journey-card"><h3><a href={`/journey/paths/${e.id}`}>{e.path_versions?.title}</a></h3>{p && <Progress done={p.completed_steps} total={p.total_steps} />}<span class="chip">الإصدار {e.path_versions?.version_no}</span></article>;
+          })}</div></>
+        ) : (
+          <div class="empty"><h2>لم تبدأ مسارًا بعد</h2><p>المسار تجربة مرتّبة بخطوات واضحة. اختر ما يناسبك.</p>
+            <div class="actions"><a class="btn btn-primary" href="/paths">تصفّح المسارات</a><a class="btn btn-ghost" href="/discover">اكتشف احتياجك</a></div></div>
+        )}
+      </section>
+      {data.archived.length > 0 && (
+        <section class="section" style="padding-block-start:0">
+          <details class="fold"><summary>مسارات مؤرشفة ({data.archived.length})</summary>
+            <ul class="mats" style="margin-top:1rem">{data.archived.map((e) => {
+              const p = data.prog.get(e.id);
+              return <li><a class="mat" href={`/journey/paths/${e.id}`}><h3>{e.path_versions?.title} <span class="faint" style="font-size:1rem">(الإصدار {e.path_versions?.version_no})</span></h3><p>{REASON[e.archive_reason ?? ''] ?? ''}{p ? ` · ${p.completed_steps} من ${p.total_steps} خطوات مكتملة` : ''}</p></a></li>;
+            })}</ul>
+          </details>
+        </section>
+      )}
+    </div>
+  )}
+</Base>

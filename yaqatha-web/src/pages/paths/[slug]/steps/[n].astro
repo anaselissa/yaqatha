@@ -1,0 +1,53 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import Breadcrumbs from '../../../../components/Breadcrumbs.astro';
+import ErrorState from '../../../../components/ErrorState.astro';
+import { getPath } from '../../../../lib/data';
+import { MATERIAL_TYPE, STEP_TYPE } from '../../../../lib/labels';
+import { load } from '../../../../lib/page';
+
+const { slug, n } = Astro.params;
+const num = Number(n);
+const data = await load(Astro.response, () => getPath(slug!));
+if (data === null && Astro.response.status !== 503) return Astro.rewrite('/404');
+const step = data?.steps.find((s) => s.position === num);
+if (data && !step) return Astro.rewrite('/404');
+const prev = data?.steps.find((s) => s.position === num - 1);
+const next = data?.steps.find((s) => s.position === num + 1);
+---
+<!-- صفحة الخطوة لا تُفهرس (canonical إلى صفحة المسار) لتجنب تكرار المحتوى -->
+<Base title={step && data ? `${step.title} — ${data.path.title}` : undefined} canonical={`/paths/${slug}`} noindex>
+  {!data || !step ? <ErrorState /> : (
+    <div class="container narrow">
+      <header class="page-head">
+        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المسارات', href: '/paths' }, { label: data.path.title, href: `/paths/${data.path.slug}` }, { label: `الخطوة ${step.position}` }]} />
+        <div class="meta" style="margin-bottom:0.9rem">
+          <span class="chip chip-gold">{STEP_TYPE[step.type] ?? step.type}</span>
+          <span class="chip">الخطوة {step.position} من {data.steps.length}</span>
+        </div>
+        <h1>{step.title}</h1>
+      </header>
+      <div class="stack" style="--space:1.5rem; padding-block:1rem 2rem">
+        {step.instructions && <p class="prose" style="font-size:1.3rem">{step.instructions}</p>}
+        {step.step_materials.length > 0 && (
+          <div>
+            <h2 style="font-size:1.4rem; margin-bottom:0.8rem">المواد المرتبطة بهذه الخطوة</h2>
+            <ul class="mats">
+              {step.step_materials.map((sm) => sm.materials ? (
+                <li><a class="mat" href={`/library/${sm.materials.slug}`}>
+                  <div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[sm.materials.type]}</span></div>
+                  <h3>{sm.materials.title}</h3>{sm.materials.description && <p>{sm.materials.description}</p>}
+                </a></li>
+              ) : <li class="mat unavailable">هذه المادة غير متاحة حاليًا</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
+      <nav class="pager" aria-label="التنقل بين الخطوات" style="padding-bottom:2rem">
+        {prev ? <a href={`/paths/${data.path.slug}/steps/${prev.position}`} rel="prev">الخطوة السابقة</a> : <span class="off">الخطوة السابقة</span>}
+        <a href={`/paths/${data.path.slug}`}>كل الخطوات</a>
+        {next ? <a href={`/paths/${data.path.slug}/steps/${next.position}`} rel="next">الخطوة التالية</a> : <span class="off">الخطوة التالية</span>}
+      </nav>
+    </div>
+  )}
+</Base>

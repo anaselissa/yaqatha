@@ -1,0 +1,55 @@
+---
+import '@fontsource/amiri/arabic-400.css';
+import '@fontsource/amiri/arabic-700.css';
+import '@fontsource/ibm-plex-sans-arabic/arabic-400.css';
+import '@fontsource/ibm-plex-sans-arabic/arabic-500.css';
+import '@fontsource/ibm-plex-sans-arabic/arabic-600.css';
+import '@fontsource/ibm-plex-sans-arabic/latin-400.css';
+import '@fontsource/ibm-plex-sans-arabic/latin-600.css';
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { SITE } from '../config';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** المسار القانوني (canonical)؛ الافتراضي مسار الصفحة بلا استعلام */
+  canonical?: string;
+  noindex?: boolean;
+  type?: 'website' | 'article';
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+}
+const { title, description = SITE.description, canonical, noindex = false, type = 'website', jsonLd } = Astro.props;
+const fullTitle = title ? `${title} | ${SITE.name}` : `${SITE.name} — ${SITE.tagline}`;
+const canonicalUrl = new URL(canonical ?? Astro.url.pathname, Astro.site).toString();
+const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    {noindex && <meta name="robots" content="noindex, follow" />}
+    <meta name="theme-color" content="#081824" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:locale" content="ar_AR" />
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta name="twitter:card" content="summary" />
+    {ld.map((o) => <script type="application/ld+json" set:html={JSON.stringify(o).replace(/</g, '\\u003c')} />)}
+  </head>
+  <body>
+    <a class="skip" href="#main">تخطَّ إلى المحتوى</a>
+    <Header />
+    <main id="main"><slot /></main>
+    <Footer />
+    <script>import '../scripts/ui.ts';</script>
+  </body>
+</html>

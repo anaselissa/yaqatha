@@ -1,0 +1,10 @@
+---
+import { stepsLabel } from '../lib/labels';
+interface Props { done: number; total: number }
+const { done, total } = Astro.props;
+const pct = total ? Math.round((done / total) * 100) : 0;
+---
+<div class="progress">
+  <span class="dim">{done} من {stepsLabel(total)} مكتملة</span>
+  <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax={total} aria-valuenow={done} aria-label="التقدم"><i style={`width:${pct}%`}></i></div>
+</div>

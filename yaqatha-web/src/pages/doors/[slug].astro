@@ -1,0 +1,56 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import NeedList from '../../components/NeedList.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import SearchForm from '../../components/SearchForm.astro';
+import { getDoor, getDoors, getNeedsByDoor } from '../../lib/data';
+import { load } from '../../lib/page';
+
+const slug = Astro.params.slug!;
+const data = await load(Astro.response, async () => {
+  const door = await getDoor(slug);
+  if (!door) return { door: null, needs: [], doors: [] };
+  const [needs, doors] = await Promise.all([getNeedsByDoor(door.id), getDoors()]);
+  return { door, needs, doors };
+});
+if (data && !data.door) return Astro.rewrite('/404');
+const door = data?.door;
+---
+<Base title={door?.title} description={door?.description ?? undefined}>
+  {!data || !door ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'اكتشف احتياجك', href: '/discover' }, { label: door.title }]} />
+        <h1>{door.title}</h1>
+        {door.description && <p class="lead">{door.description}</p>}
+      </header>
+
+      <section class="section" style="padding-block-start:1rem" aria-labelledby="needs-h">
+        <h2 id="needs-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">اختر ما يعبّر عنك</h2>
+        {data.needs.length > 0 ? <NeedList needs={data.needs} /> : (
+          <EmptyState title="لم ننشر بعد احتياجات لهذا الباب" text="نعمل على إعداد المحتوى بعناية. يمكنك في الأثناء البحث أو تصفّح الأبواب الأخرى.">
+            <a class="btn btn-primary" href="/search">ابحث</a>
+            <a class="btn btn-ghost" href="/discover">الأبواب الأخرى</a>
+          </EmptyState>
+        )}
+      </section>
+
+      <section class="section" style="padding-block-start:0" aria-labelledby="find-h">
+        <div class="notice">
+          <h2 id="find-h" style="font-size:1.35rem; margin-bottom:0.6rem;">لم تجد ما يعبّر عنك؟</h2>
+          <p style="margin-bottom:1rem;">اكتب ما يشغلك بكلماتك.</p>
+          <SearchForm />
+        </div>
+      </section>
+
+      <section class="section" style="padding-block-start:0" aria-labelledby="other-h">
+        <h2 id="other-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">الأبواب الأخرى</h2>
+        <div class="filters">
+          {data.doors.filter((d) => d.id !== door.id).map((d) => <a href={`/doors/${d.slug}`}>{d.title}</a>)}
+        </div>
+      </section>
+    </div>
+  )}
+</Base>

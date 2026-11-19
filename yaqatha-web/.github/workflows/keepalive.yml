@@ -1,0 +1,15 @@
+# يمنع إيقاف مشروع Supabase المجاني بسبب قلة النشاط [تحقق من سياسة الإيقاف الحالية].
+# ملاحظة: ينبغي أن يكون هذا الملف في .github/workflows بجذر المستودع (انقله إن كان الجذر أعلى من yaqatha-web).
+# أضف في Settings ← Secrets and variables ← Actions: SUPABASE_URL و SUPABASE_ANON_KEY (قيم عامة، لا السرية).
+name: keepalive
+on:
+  schedule: [{ cron: '17 5 * * 1,4' }]   # الاثنين والخميس
+  workflow_dispatch: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping REST
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "${{ secrets.SUPABASE_URL }}/rest/v1/doors?select=id&limit=1" -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}")
+          echo "status=$code"; test "$code" = 200

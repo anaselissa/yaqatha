@@ -1,0 +1,57 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import NeedList from '../../components/NeedList.astro';
+import PathCard from '../../components/PathCard.astro';
+import MaterialList from '../../components/MaterialList.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import { getDomain, getDomainContent, resolveRedirect } from '../../lib/data';
+import { load } from '../../lib/page';
+const slug = Astro.params.slug!;
+const data = await load(Astro.response, async () => {
+  const domain = await getDomain(slug);
+  if (!domain) return { domain: null, redirect: await resolveRedirect('domain', slug) };
+  return { domain, redirect: null, content: await getDomainContent(domain.id) };
+});
+if (data && !data.domain) {
+  if (data.redirect) return Astro.redirect(`/domains/${data.redirect}`, 301);
+  return Astro.rewrite('/404');
+}
+const domain = data?.domain;
+const c = data && 'content' in data ? data.content : null;
+const empty = !!c && !c.paths.length && !c.materials.length && !c.needs.length && !c.topics.length;
+---
+<Base title={domain?.title} description={domain?.description ?? (domain ? `مسارات ومواد في مجال ${domain.title}.` : undefined)}>
+  {!data || !domain || !c ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المجالات', href: '/domains' }, { label: domain.title }]} />
+        <h1>{domain.title}</h1>
+        {domain.description && <p class="lead">{domain.description}</p>}
+      </header>
+      {c.needs.length > 0 && (
+        <section class="section" style="padding-block-start:1rem"><div class="section-title"><h2>احتياجات في هذا المجال</h2></div><NeedList needs={c.needs} /></section>
+      )}
+      {c.paths.length > 0 && (
+        <section class="section" style="padding-block-start:1rem"><div class="section-title"><h2>مسارات</h2><a href={`/paths?domain=${domain.slug}`}>كل المسارات</a></div>
+          <div class="grid grid-2">{c.paths.map((p) => <PathCard path={p} />)}</div></section>
+      )}
+      {c.materials.length > 0 && (
+        <section class="section" style="padding-block-start:1rem"><div class="section-title"><h2>مواد</h2>{c.hasMoreMaterials && <a href={`/library?domain=${domain.slug}`}>عرض كل المواد</a>}</div>
+          <MaterialList items={c.materials} /></section>
+      )}
+      {c.topics.length > 0 && (
+        <section class="section" style="padding-block-start:0"><h2 class="section-title" style="font-size:1.4rem; color:var(--dim)">موضوعات</h2>
+          <div class="filters">{c.topics.map((t) => <a href={`/topics/${t.slug}`}>{t.title}</a>)}</div></section>
+      )}
+      {empty && (
+        <section class="section" style="padding-block-start:1rem">
+          <EmptyState title="لم ننشر محتوى في هذا المجال بعد" text="نعمل على إعداده بعناية.">
+            <a class="btn btn-primary" href="/discover">اكتشف احتياجك</a><a class="btn btn-ghost" href="/domains">المجالات الأخرى</a>
+          </EmptyState>
+        </section>
+      )}
+    </div>
+  )}
+</Base>

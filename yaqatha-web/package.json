@@ -1,0 +1,35 @@
+{
+  "name": "yaqatha-web",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "test": "node --test tests/site.test.mjs",
+    "test:a11y": "node tests/a11y.mjs",
+    "test:resilience": "tests/resilience.sh",
+    "dev:up": "dev/up.sh",
+    "build:cloudflare": "ASTRO_ADAPTER=cloudflare astro build",
+    "test:admin": "node --test tests/admin-api.test.mjs",
+    "test:e2e": "tests/e2e.sh",
+    "smoke:remote": "node scripts/smoke-remote.mjs"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/cloudflare": "^14.4.7",
+    "@astrojs/node": "^11.1.11",
+    "@fontsource/amiri": "^5.3.0",
+    "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
+    "@types/markdown-it": "^14.2.0",
+    "astro": "^7.4.8",
+    "markdown-it": "^15.0.3",
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "axe-core": "^4.14.0",
+    "playwright-core": "^1.65.0"
+  }
+}

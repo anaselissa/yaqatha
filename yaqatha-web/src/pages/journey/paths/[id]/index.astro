@@ -1,0 +1,132 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import JourneyNav from '../../../../components/JourneyNav.astro';
+import ErrorState from '../../../../components/ErrorState.astro';
+import Progress from '../../../../components/Progress.astro';
+import StepControls from '../../../../components/StepControls.astro';
+import PostButton from '../../../../components/PostButton.astro';
+import { getEnrollment, getEnrollmentSteps, getGoals, getLatestVersions, getProgress, planMigration, getGoalLinks } from '../../../../lib/user';
+import { rest } from '../../../../lib/api';
+import { STEP_TYPE, durationLabel } from '../../../../lib/labels';
+import { load } from '../../../../lib/page';
+
+const id = Astro.params.id!;
+if (!/^[0-9a-f-]{36}$/i.test(id)) return Astro.rewrite('/404');
+const t = Astro.locals.session!.token;
+const wantMigrate = Astro.url.searchParams.get('migrate') === '1';
+const isNew = Astro.url.searchParams.get('new') === '1';
+
+const data = await load(Astro.response, async () => {
+  const e = await getEnrollment(t, id);
+  if (!e) return { e: null };
+  const [{ steps, state }, prog, latest, goals, linked] = await Promise.all([
+    getEnrollmentSteps(t, e), getProgress(t, [e.id]), getLatestVersions([e.path_id]), getGoals(t, ['not_started', 'in_progress', 'paused']),
+    rest<{ goal_id: string; goals: { id: string; title: string } | null }>('goal_enrollments', { select: 'goal_id,goals(id,title)', enrollment_id: `eq.${e.id}` }, { token: t }).then((r) => r.rows),
+  ]);
+  const newer = latest.get(e.path_id);
+  const hasUpdate = e.status === 'active' && !!newer && !!e.path_versions && newer.version_no > e.path_versions.version_no;
+  const plan = hasUpdate && wantMigrate ? await planMigration(t, e.id) : null;
+  return { e, steps, state, prog: prog.get(e.id), newer, hasUpdate, plan, goals, linked };
+});
+if (data && !data.e) return Astro.rewrite('/404');
+const d = data && data.e ? data : null;
+const e = d?.e;
+const here = `/journey/paths/${id}`;
+const withdrawn = e?.path_versions?.status === 'withdrawn';
+const active = e?.status === 'active';
+const linkedIds = new Set(d?.linked.map((l) => l.goal_id));
+const KIND: Record<string, string> = { carried: 'سيُنقل تقدمها', new: 'خطوة جديدة', removed: 'لن تظهر في الإصدار الجديد (تبقى في سجل إصدارك)' };
+---
+<Base title={e?.path_versions?.title ?? 'مسار'} noindex>
+  {!d || !e ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <h1>{e.path_versions?.title}</h1>
+        <div class="meta" style="margin-top:.8rem">
+          <span class="chip">الإصدار {e.path_versions?.version_no}</span>
+          <span class="chip chip-gold">{durationLabel(e.path_versions?.duration_days)}</span>
+          {!active && <span class="chip">مؤرشف</span>}
+        </div>
+        <JourneyNav />
+      </header>
+
+      <div class="stack" style="--space:1.2rem; padding-block:1rem">
+        {isNew && active && (
+          <div class="notice">
+            <strong>هل تريد ربط هذا المسار بهدف؟</strong> اختياري تمامًا.
+            <div class="row" style="margin-top:.8rem">
+              {d.goals.length > 0 && (
+                <form method="post" action="/api/goal-link" class="row">
+                  <input type="hidden" name="enrollment_id" value={e.id} /><input type="hidden" name="next" value={here} />
+                  <label class="sr-only" for="goal_id">هدف</label>
+                  <select id="goal_id" name="goal_id" class="input" style="width:auto">{d.goals.map((g) => <option value={g.id}>{g.title}</option>)}</select>
+                  <button class="btn btn-ghost btn-sm" type="submit">اربطه</button>
+                </form>
+              )}
+              <a class="btn btn-ghost btn-sm" href={`/journey/goals/new?enrollment=${e.id}&title=${encodeURIComponent(e.path_versions?.title ?? '')}`}>أنشئ هدفًا جديدًا منه</a>
+              <a class="btn btn-ghost btn-sm" href={here}>ليس الآن</a>
+            </div>
+          </div>
+        )}
+
+        {withdrawn && (
+          <div class="notice" role="alert"><strong>سُحب هذا الإصدار مؤقتًا للمراجعة.</strong> تقدمك محفوظ ولم يضِع منه شيء، وسيتاح المحتوى حين تنتهي المراجعة{d.hasUpdate ? ' أو يمكنك الانتقال إلى الإصدار المحدَّث أدناه' : ''}.</div>
+        )}
+
+        {d.hasUpdate && !wantMigrate && (
+          <div class="notice">
+            <strong>يتوفر إصدار محدَّث من هذا المسار (الإصدار {d.newer!.version_no}).</strong> لن يتغير شيء في مسارك ما لم تنتقل أنت.
+            <div class="row" style="margin-top:.8rem"><a class="btn btn-ghost btn-sm" href={`${here}?migrate=1`}>اطّلع على الجديد</a></div>
+          </div>
+        )}
+
+        {d.plan && (
+          <section class="journey-card" aria-labelledby="mig-h">
+            <h2 id="mig-h" style="font-size:1.6rem">الانتقال إلى الإصدار {d.newer!.version_no}</h2>
+            {d.newer!.description && <p class="dim">{d.newer!.description}</p>}
+            <ul class="diff" style="list-style:none; padding:0; margin:0">
+              {d.plan.map((p) => <li><span class="chip" style="margin-inline-end:.5rem">{KIND[p.kind]}</span>{p.title}</li>)}
+            </ul>
+            <p class="faint" style="font-size:.95rem">يُؤرشف إصدارك الحالي بتقدمه ويبقى للاطلاع، ولا يُحذف شيء.</p>
+            <div class="row">
+              <PostButton action="migrate" fields={{ enrollment_id: e.id }} label="انتقل إلى الإصدار الجديد" kind="primary" small={false} />
+              <a class="btn btn-ghost" href={here}>أبقَ على إصداري</a>
+            </div>
+          </section>
+        )}
+
+        {d.prog && !withdrawn && <Progress done={d.prog.completed_steps} total={d.prog.total_steps} />}
+        {d.linked.length > 0 && (
+          <p class="dim">مرتبط بالأهداف: {d.linked.map((l, i) => <>{i > 0 && '، '}{l.goals ? <a href={`/journey/goals/${l.goals.id}`}>{l.goals.title}</a> : null}</>)}</p>
+        )}
+      </div>
+
+      {!withdrawn && (
+        <section class="section" style="padding-block-start:0" aria-labelledby="steps-h">
+          <div class="section-title"><h2 id="steps-h">الخطوات</h2></div>
+          {d.steps.map((s) => (
+            <div class="step-row">
+              <div class="meta"><span class="chip chip-gold">{STEP_TYPE[s.type]}</span></div>
+              <h3><a href={`/journey/paths/${e.id}/steps/${s.id}`}>{s.position}. {s.title}</a></h3>
+              <StepControls enrollmentId={e.id} stepId={s.id} state={d.state(s.id)} next={here} readonly={!active} />
+            </div>
+          ))}
+          {d.prog && d.prog.total_steps > 0 && d.prog.completed_steps === d.prog.total_steps && (
+            <div class="notice" style="margin-top:1.5rem">سجّلتَ أنك أنهيت خطوات هذا المسار. وهذا تسجيل شخصي منك، ولا يحكم على أثره في حياتك. يمكنك تحديث هدفك المرتبط، أو تصفّح مسار آخر. <a href="/paths">المسارات</a></div>
+          )}
+        </section>
+      )}
+
+      {active && (
+        <section class="section" style="padding-block-start:0">
+          <details class="fold"><summary>خيارات المسار</summary>
+            <div class="stack" style="--space:.8rem; margin-top:1rem">
+              <div class="row"><PostButton action="restart" fields={{ enrollment_id: e.id }} label="ابدأ من جديد" /><span class="faint">يُؤرشف تقدمك الحالي ويبدأ مسار جديد على آخر إصدار.</span></div>
+              <div class="row"><PostButton action="archive-enrollment" fields={{ enrollment_id: e.id }} label="أخفِ من رحلتي" /><span class="faint">يُحفظ في الأرشيف ولا يُحذف.</span></div>
+            </div>
+          </details>
+        </section>
+      )}
+    </div>
+  )}
+</Base>

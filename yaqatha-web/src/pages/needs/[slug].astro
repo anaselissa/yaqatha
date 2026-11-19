@@ -1,0 +1,84 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import PathCard from '../../components/PathCard.astro';
+import MaterialList from '../../components/MaterialList.astro';
+import NeedList from '../../components/NeedList.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import { getDoors, getNeed, getNeedContent, getNeedsByDoor, resolveRedirect } from '../../lib/data';
+import { CHANGE_TYPE } from '../../lib/labels';
+import { load } from '../../lib/page';
+
+const slug = Astro.params.slug!;
+const data = await load(Astro.response, async () => {
+  const need = await getNeed(slug);
+  if (!need) return { need: null, redirect: await resolveRedirect('need', slug) };
+  const [content, doors, siblings] = await Promise.all([getNeedContent(need.id), getDoors(), getNeedsByDoor(need.door_id)]);
+  return { need, redirect: null, content, door: doors.find((d) => d.id === need.door_id), siblings: siblings.filter((n) => n.id !== need.id) };
+});
+if (data && !data.need) {
+  if (data.redirect) return Astro.redirect(`/needs/${data.redirect}`, 301);
+  return Astro.rewrite('/404');
+}
+const need = data?.need;
+const content = data && 'content' in data ? data.content : null;
+const door = data && 'door' in data ? data.door : undefined;
+const hasContent = !!content && (content.paths.length > 0 || content.materials.length > 0);
+---
+<Base title={need?.title} description={need?.description ?? (need ? `${need.title}: مسارات عملية ومواد موثوقة تعينك على ذلك.` : undefined)}>
+  {!data || !need || !content ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <Breadcrumbs items={[
+          { label: 'الرئيسية', href: '/' }, { label: 'اكتشف احتياجك', href: '/discover' },
+          ...(door ? [{ label: door.title, href: `/doors/${door.slug}` }] : []), { label: need.title },
+        ]} />
+        <h1>{need.title}</h1>
+        {need.description && <p class="lead">{need.description}</p>}
+        <p style="margin-top:1.2rem"><a class="btn btn-ghost" href={`/journey/goals/new?need=${need.slug}`}>أنشئ هدفًا لهذا الاحتياج</a></p>
+        {need.change_type && <div class="meta" style="margin-top:1rem"><span class="chip chip-gold">{CHANGE_TYPE[need.change_type]}</span></div>}
+      </header>
+
+      {content.paths.length > 0 && (
+        <section class="section" style="padding-block-start:1rem" aria-labelledby="paths-h">
+          <div class="section-title"><h2 id="paths-h">مسارات عملية لهذا الاحتياج</h2></div>
+          <div class="grid grid-2">{content.paths.map((p) => <PathCard path={p} />)}</div>
+        </section>
+      )}
+
+      {content.materials.length > 0 && (
+        <section class="section" style="padding-block-start:1rem" aria-labelledby="mats-h">
+          <div class="section-title">
+            <h2 id="mats-h">مواد تعينك</h2>
+            {content.hasMoreMaterials && <a href={`/library?need=${need.slug}`}>عرض كل المواد</a>}
+          </div>
+          <MaterialList items={content.materials} />
+        </section>
+      )}
+
+      {!hasContent && (
+        <section class="section" style="padding-block-start:1rem">
+          <EmptyState title="لم ننشر مواد لهذا الاحتياج بعد" text="نعمل على إعداده بعناية، ولن نعرض إلا ما راجعناه. يمكنك البحث أو تصفّح احتياجات أخرى.">
+            <a class="btn btn-primary" href="/search">ابحث</a>
+            {door && <a class="btn btn-ghost" href={`/doors/${door.slug}`}>احتياجات أخرى في «{door.title}»</a>}
+          </EmptyState>
+        </section>
+      )}
+
+      {content.topics.length > 0 && (
+        <section class="section" style="padding-block-start:0" aria-labelledby="topics-h">
+          <h2 id="topics-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">موضوعات ذات صلة</h2>
+          <div class="filters">{content.topics.map((t) => <a href={`/topics/${t.slug}`}>{t.title}</a>)}</div>
+        </section>
+      )}
+
+      {data.siblings && data.siblings.length > 0 && (
+        <section class="section" style="padding-block-start:0" aria-labelledby="more-h">
+          <h2 id="more-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">احتياجات أخرى في هذا الباب</h2>
+          <NeedList needs={data.siblings} />
+        </section>
+      )}
+    </div>
+  )}
+</Base>

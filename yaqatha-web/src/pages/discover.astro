@@ -1,0 +1,56 @@
+---
+import Base from '../layouts/Base.astro';
+import Star from '../components/Star.astro';
+import PathCard from '../components/PathCard.astro';
+import SearchForm from '../components/SearchForm.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import ErrorState from '../components/ErrorState.astro';
+import { getDoors, getHomepage } from '../lib/data';
+import { load } from '../lib/page';
+
+const data = await load(Astro.response, async () => {
+  const [doors, home] = await Promise.all([getDoors(), getHomepage()]);
+  return { doors, startHere: home.startHere };
+});
+---
+<Base title="اكتشف احتياجك" description="لا تعرف من أين تبدأ؟ اختر الباب الأقرب إلى حالك: اقترب من الله، غيّر من نفسك، أصلح حياتك وعلاقاتك، أو تعلّم وانفع غيرك.">
+  {!data ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'اكتشف احتياجك' }]} />
+        <h1>اكتشف احتياجك</h1>
+        <p class="lead">لا تحتاج أن تعرف الاسم الدقيق لما تمرّ به. اختر الباب الأقرب إلى حالك، ثم الجملة التي تعبّر عنك.</p>
+      </header>
+
+      <section id="start" class="section" style="padding-block-start:1rem" aria-labelledby="doors-h">
+        <h2 id="doors-h" class="sr-only">الأبواب</h2>
+        <div class="doors">
+          {data.doors.map((d) => (
+            <a class="door" href={`/doors/${d.slug}`}>
+              <span class="num"><Star /></span>
+              <h3>{d.title}</h3>
+              {d.description && <p>{d.description}</p>}
+              <span class="go">ادخل هذا الباب</span>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      {data.startHere.length > 0 && (
+        <section class="section" style="padding-block-start:0" aria-labelledby="sh-h">
+          <div class="section-title"><h2 id="sh-h">أو ابدأ بمسار للمبتدئ</h2><a href="/paths">كل المسارات</a></div>
+          <div class="grid grid-2">{data.startHere.map((p) => <PathCard path={p} />)}</div>
+        </section>
+      )}
+
+      <section class="section" style="padding-block-start:0" aria-labelledby="find-h">
+        <div class="notice">
+          <h2 id="find-h" style="font-size:1.4rem; margin-bottom:0.6rem;">لم تجد ما يعبّر عنك؟</h2>
+          <p style="margin-bottom:1rem;">اكتب ما يشغلك بكلماتك، وسنبحث لك في الاحتياجات والمسارات والمواد.</p>
+          <SearchForm />
+          <p style="margin-top:1.2rem" class="dim">أو <a href="/journey/goals/new">أنشئ هدفك بنفسك مباشرة</a> دون الحاجة إلى مسار جاهز.</p>
+        </div>
+      </section>
+    </div>
+  )}
+</Base>

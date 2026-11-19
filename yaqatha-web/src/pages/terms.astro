@@ -1,0 +1,22 @@
+---
+import Base from '../layouts/Base.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+---
+<Base title="الشروط" description="شروط استخدام موقع يقظة.">
+  <div class="container narrow">
+    <header class="page-head">
+      <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'الشروط' }]} />
+      <h1>الشروط</h1>
+    </header>
+    <div class="prose stack legal" style="padding-block:1rem 3rem; --space:1.1rem">
+      <ul>
+        <li>المحتوى توعوي وتعليمي عام، ولا يغني عن سؤال أهل العلم فيما يخصك من مسائل.</li>
+        <li>نحرص على إسناد كل مادة إلى مصدرها، وقد نعدّل المحتوى أو نخفيه أو نسحبه عند ثبوت خطأ أو الحاجة إلى مراجعة.</li>
+        <li>الحساب اختياري ويُستخدم لحفظ أهدافك وتقدمك. وأنت مسؤول عن حسابك في Google، وتستطيع حذف حسابك وبياناتك في أي وقت.</li>
+        <li>الروابط الخارجية خارج سيطرتنا، ولا نتحمل مسؤولية محتواها.</li>
+        <li>يُقدَّم الموقع كما هو، دون ضمان بخلوّه من الأخطاء أو انقطاع الخدمة.</li>
+        <li>لا يجوز استخدام الموقع لأي غرض يخالف النظام أو يضر بغيرك أو يعطّل الخدمة.</li>
+      </ul>
+    </div>
+  </div>
+</Base>

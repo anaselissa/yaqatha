@@ -1,0 +1,9 @@
+---
+interface Props { q?: string; autofocus?: boolean }
+const { q = '', autofocus = false } = Astro.props;
+---
+<form class="search" action="/search" method="get" role="search">
+  <label class="sr-only" for="q">ابحث في يقظة</label>
+  <input id="q" name="q" type="search" value={q} placeholder="ابحث: الغضب، الصلاة، بر الوالدين…" maxlength="80" autocomplete="off" autofocus={autofocus} />
+  <button class="btn btn-primary" type="submit">بحث</button>
+</form>

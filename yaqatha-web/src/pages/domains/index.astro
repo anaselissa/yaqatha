@@ -1,0 +1,34 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import Star from '../../components/Star.astro';
+import { getDomains } from '../../lib/data';
+import { load } from '../../lib/page';
+const domains = await load(Astro.response, getDomains);
+---
+<Base title="المجالات" description="تصفّح محتوى يقظة بحسب الجانب الذي يتعلق به التغيير: العبادة، ضبط النفس، الأخلاق، الأسرة، الوقت، العلم والوعي، الدعوة وخدمة المجتمع.">
+  {!domains ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المجالات' }]} />
+        <h1>المجالات</h1>
+        <p class="lead">المجال هو الجانب الذي يتعلق به التغيير. اختر مجالًا لترى موضوعاته ومساراته ومواده.</p>
+      </header>
+      <section class="section" style="padding-block-start:1rem">
+        {domains.length ? (
+          <ul class="statements">
+            {domains.map((d) => (
+              <li><a href={`/domains/${d.slug}`}><Star /><span>{d.title}{d.description && <small class="dim" style="display:block; font-family:var(--font-ui); font-size:1rem; line-height:1.7">{d.description}</small>}</span></a></li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState title="لم تُنشر مجالات بعد" text="نعمل على إعداد المحتوى بعناية.">
+            <a class="btn btn-primary" href="/discover">اكتشف احتياجك</a>
+          </EmptyState>
+        )}
+      </section>
+    </div>
+  )}
+</Base>

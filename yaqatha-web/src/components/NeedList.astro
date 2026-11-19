@@ -1,0 +1,8 @@
+---
+import Star from './Star.astro';
+interface Props { needs: { slug: string; title: string }[] }
+const { needs } = Astro.props;
+---
+<ul class="statements">
+  {needs.map((n) => <li><a href={`/needs/${n.slug}`}><Star /><span>{n.title}</span></a></li>)}
+</ul>

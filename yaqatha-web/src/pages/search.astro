@@ -1,0 +1,58 @@
+---
+import Base from '../layouts/Base.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import SearchForm from '../components/SearchForm.astro';
+import EmptyState from '../components/EmptyState.astro';
+import ErrorState from '../components/ErrorState.astro';
+import { getDoors, search, type SearchHit } from '../lib/data';
+import { load } from '../lib/page';
+
+const q = (Astro.url.searchParams.get('q') ?? '').trim().slice(0, 80);
+const data = await load(Astro.response, async () => ({
+  hits: q ? await search(q) : [],
+  doors: await getDoors(),
+}));
+const GROUPS: { kind: SearchHit['kind']; label: string; href: (s: string) => string }[] = [
+  { kind: 'need', label: 'احتياجات', href: (s) => `/needs/${s}` },
+  { kind: 'path', label: 'مسارات', href: (s) => `/paths/${s}` },
+  { kind: 'material', label: 'مواد', href: (s) => `/library/${s}` },
+  { kind: 'topic', label: 'موضوعات', href: (s) => `/topics/${s}` },
+];
+---
+<Base title={q ? `بحث: ${q}` : 'بحث'} description="ابحث في احتياجات يقظة ومساراتها ومواده." noindex>
+  {!data ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'بحث' }]} />
+        <h1>بحث</h1>
+        <div style="margin-top:1.2rem"><SearchForm q={q} autofocus={!q} /></div>
+      </header>
+      <section class="section" style="padding-block-start:1rem" aria-live="polite">
+        {!q ? (
+          <p class="dim">اكتب ما يشغلك بكلماتك: «الغضب»، «الصلاة»، «بر الوالدين»…</p>
+        ) : data.hits.length === 0 ? (
+          <EmptyState title="لا نتائج لهذا البحث" text="جرّب كلمة أبسط أو مرادفًا، أو ابدأ من أحد الأبواب.">
+            {data.doors.map((d) => <a class="btn btn-ghost" href={`/doors/${d.slug}`}>{d.title}</a>)}
+          </EmptyState>
+        ) : (
+          <div class="stack" style="--space:2.2rem">
+            <p class="faint">{data.hits.length} نتيجة لـ«{q}»</p>
+            {GROUPS.map((g) => {
+              const items = data.hits.filter((h) => h.kind === g.kind);
+              return items.length ? (
+                <div>
+                  <h2 class="section-title" style="font-size:1.5rem">{g.label}</h2>
+                  <ul class="mats">
+                    {items.map((h) => (
+                      <li><a class="mat" href={g.href(h.slug)}><h3>{h.title}</h3>{h.description && <p>{h.description}</p>}</a></li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null;
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  )}
+</Base>

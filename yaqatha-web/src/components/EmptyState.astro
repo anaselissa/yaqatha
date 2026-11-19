@@ -1,0 +1,9 @@
+---
+interface Props { title: string; text?: string }
+const { title, text } = Astro.props;
+---
+<div class="empty">
+  <h2>{title}</h2>
+  {text && <p>{text}</p>}
+  <div class="actions"><slot /></div>
+</div>

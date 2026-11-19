@@ -1,0 +1,105 @@
+---
+import Base from '../../layouts/Base.astro';
+import JourneyNav from '../../components/JourneyNav.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import Progress from '../../components/Progress.astro';
+import Star from '../../components/Star.astro';
+import { getEnrollments, getGoals, getLatestVersions, getProgress, getRecentActivity, getSaved, getStepTitles } from '../../lib/user';
+import { GOAL_STATUS, MATERIAL_TYPE } from '../../lib/labels';
+import { load } from '../../lib/page';
+
+const t = Astro.locals.session!.token;
+const data = await load(Astro.response, async () => {
+  const [enrs, goals, saved, activity] = await Promise.all([getEnrollments(t), getGoals(t, ['not_started', 'in_progress', 'paused']), getSaved(t, 5), getRecentActivity(t)]);
+  const [prog, latest] = await Promise.all([getProgress(t, enrs.map((e) => e.id)), getLatestVersions(enrs.map((e) => e.path_id))]);
+  const steps = await getStepTitles(t, [...prog.values()].map((p) => p.resume_step_id ?? ''));
+  return { enrs, goals, saved, activity, prog, latest, steps };
+});
+const active = data?.goals.filter((g) => g.status !== 'paused') ?? [];
+const paused = data?.goals.filter((g) => g.status === 'paused') ?? [];
+const empty = !!data && !data.enrs.length && !data.goals.length && !data.saved.length;
+---
+<Base title="رحلتي في يقظة" noindex>
+  {!data ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head"><h1>رحلتي في يقظة</h1><JourneyNav /></header>
+
+      {empty && (
+        <section class="section" style="padding-block-start:1rem">
+          <div class="empty">
+            <h2>ابدأ رحلتك من أي طرف</h2>
+            <p>اختر الأقرب إليك، ولا شيء ملزِم.</p>
+            <div class="actions">
+              <a class="btn btn-primary" href="/discover">اكتشف احتياجك</a>
+              <a class="btn btn-ghost" href="/paths">اختر مسارًا جاهزًا</a>
+              <a class="btn btn-ghost" href="/journey/goals/new">أنشئ هدفًا بنفسك</a>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {data.enrs.length > 0 && (
+        <section class="section" style="padding-block-start:1rem" aria-labelledby="paths-h">
+          <div class="section-title"><h2 id="paths-h">مساراتي الجارية</h2><a href="/journey/paths">كل مساراتي</a></div>
+          <div class="grid grid-2">
+            {data.enrs.map((e) => {
+              const p = data.prog.get(e.id), next = p?.resume_step_id ? data.steps.get(p.resume_step_id) : null;
+              const newer = data.latest.get(e.path_id);
+              const hasUpdate = newer && e.path_versions && newer.version_no > e.path_versions.version_no;
+              return (
+                <article class="journey-card">
+                  <h3><a href={`/journey/paths/${e.id}`}>{e.path_versions?.title ?? 'مسار'}</a></h3>
+                  {p && <Progress done={p.completed_steps} total={p.total_steps} />}
+                  {e.path_versions?.status === 'withdrawn' ? <p class="dim">سُحب هذا الإصدار مؤقتًا للمراجعة، وتقدمك محفوظ.</p>
+                    : next ? <p class="dim">الخطوة التالية: <strong>{next.title}</strong></p>
+                    : p && p.total_steps > 0 && p.completed_steps === p.total_steps ? <p class="dim">أنهيت خطوات هذا المسار.</p> : null}
+                  <div class="row">
+                    {next && <a class="btn btn-primary btn-sm" href={`/journey/paths/${e.id}/steps/${next.id}`}>تابع</a>}
+                    <a class="btn btn-ghost btn-sm" href={`/journey/paths/${e.id}`}>التفاصيل</a>
+                    {hasUpdate && <span class="chip chip-gold">إصدار محدَّث متاح</span>}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {(active.length > 0 || data.enrs.length > 0 || !empty) && (
+        <section class="section" style="padding-block-start:1rem" aria-labelledby="goals-h">
+          <div class="section-title"><h2 id="goals-h">أهدافي النشطة</h2><a href="/journey/goals/new">هدف جديد</a></div>
+          {active.length ? (
+            <ul class="mats">{active.map((g) => (
+              <li><a class="mat" href={`/journey/goals/${g.id}`}><div class="meta"><span class="state">{GOAL_STATUS[g.status]}</span></div><h3>{g.title}</h3></a></li>
+            ))}</ul>
+          ) : <p class="dim">لا أهداف نشطة الآن. <a href="/journey/goals/new">أنشئ هدفًا</a>.</p>}
+        </section>
+      )}
+
+      {paused.length > 0 && (
+        <section class="section" style="padding-block-start:0" aria-labelledby="paused-h">
+          <h2 id="paused-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">أهداف متوقفة مؤقتًا</h2>
+          <ul class="mats">{paused.map((g) => <li><a class="mat" href={`/journey/goals/${g.id}`}><h3>{g.title}</h3></a></li>)}</ul>
+        </section>
+      )}
+
+      {data.saved.length > 0 && (
+        <section class="section" style="padding-block-start:0" aria-labelledby="saved-h">
+          <div class="section-title"><h2 id="saved-h" style="font-size:1.4rem">آخر ما حفظت</h2><a href="/journey/saved">كل المحفوظات</a></div>
+          <ul class="mats">{data.saved.map((s) => s.materials
+            ? <li><a class="mat" href={`/library/${s.materials.slug}`}><div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[s.materials.type]}</span></div><h3>{s.materials.title}</h3></a></li>
+            : <li class="mat unavailable">مادة غير متاحة حاليًا</li>)}</ul>
+        </section>
+      )}
+
+      {data.activity.length > 0 && (
+        <section class="section" style="padding-block-start:0" aria-labelledby="act-h">
+          <h2 id="act-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">آخر ما أنجزت</h2>
+          <ul style="list-style:none; padding:0; margin:0" class="dim">{data.activity.map((a) => (
+            <li style="display:flex; gap:.6rem; align-items:baseline; padding-block:.3rem"><Star /><span>{a.steps?.title ?? 'خطوة'} — {a.enrollments?.path_versions?.title ?? ''}</span></li>
+          ))}</ul>
+        </section>
+      )}
+    </div>
+  )}
+</Base>

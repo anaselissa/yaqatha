@@ -1,0 +1,48 @@
+---
+import Base from '../layouts/Base.astro';
+import Star from '../components/Star.astro';
+import { safeNext } from '../lib/auth';
+
+const next = safeNext(Astro.url.searchParams.get('next'));
+if (Astro.locals.session) return Astro.redirect(next);
+const reason = Astro.url.searchParams.get('reason') ?? '';
+const error = Astro.url.searchParams.get('error');
+const WHY: Record<string, string> = {
+  'start-path': 'لنبدأ المسار ونحفظ تقدمك فيه',
+  'save-material': 'لنحفظ هذه المادة لك',
+  goal: 'لنحفظ هدفك',
+  'goal-create': 'لنحفظ هدفك',
+  journey: 'لتدخل إلى رحلتك',
+  expired: 'انتهت جلستك، فسجّل الدخول لتكمل من حيث توقفت',
+};
+const ERRORS: Record<string, string> = {
+  denied: 'لم يكتمل تسجيل الدخول لأنك لم تأذن به في Google. لا بأس، يمكنك المحاولة متى شئت.',
+  expired: 'انتهت مهلة محاولة الدخول. ابدأ من جديد.',
+  failed: 'تعذّر إكمال تسجيل الدخول. جرّب مرة أخرى بعد قليل.',
+};
+// المتصفحات المدمجة في تطبيقات التواصل: Google ترفض OAuth داخلها
+const ua = Astro.request.headers.get('user-agent') ?? '';
+const inApp = /FBAN|FBAV|Instagram|Line\/|MicroMessenger|Snapchat|TikTok|Twitter|; wv\)|WhatsApp|Telegram/i.test(ua);
+---
+<Base title="تسجيل الدخول" noindex>
+  <div class="container narrow section">
+    <p class="gold" style="display:flex; gap:.6rem; align-items:center; font-family:var(--font-display); font-size:1.3rem"><Star />رحلتي في يقظة</p>
+    <h1 style="margin-block:.6rem 1rem; font-size:clamp(1.9rem,6vw,2.6rem)">سجّل دخولك</h1>
+    <div class="stack" style="--space:1.2rem">
+      {WHY[reason] && <p class="lead dim" style="font-size:1.15rem">{WHY[reason]}.</p>}
+      {error && <div class="notice" role="alert">{ERRORS[error] ?? ERRORS.failed}</div>}
+      {inApp && (
+        <div class="notice" role="alert">
+          <strong>افتح الرابط في متصفحك.</strong> قد ترفض Google تسجيل الدخول من داخل هذا التطبيق. افتح الصفحة في Chrome أو Safari ثم أكمل.
+          <p style="margin-top:.6rem"><button type="button" class="btn btn-ghost" data-copy>انسخ الرابط</button></p>
+        </div>
+      )}
+      <form method="post" action="/auth/login">
+        <input type="hidden" name="next" value={next} />
+        <button class="btn btn-primary" type="submit" style="width:100%; max-width:22rem">المتابعة عبر Google</button>
+      </form>
+      <p class="faint" style="font-size:.95rem; max-width:34rem">نستخدم الحساب لحفظ أهدافك وتقدمك فقط. لا نطلب كلمة مرور، ولا نشارك بياناتك، ولا يرى أحد أهدافك. يمكنك حذف حسابك وكل بياناتك متى شئت. <a href="/privacy">الخصوصية</a></p>
+      <p><a href={next === '/journey' ? '/' : next}>متابعة التصفح دون حساب</a></p>
+    </div>
+  </div>
+</Base>

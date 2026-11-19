@@ -1,0 +1,21 @@
+---
+import Base from '../layouts/Base.astro';
+import SearchForm from '../components/SearchForm.astro';
+import Star from '../components/Star.astro';
+import { getDoors } from '../lib/data';
+import { load } from '../lib/page';
+Astro.response.status = 404;
+const doors = (await load({}, getDoors)) ?? [];
+---
+<Base title="الصفحة غير موجودة" noindex>
+  <div class="container narrow section">
+    <p class="gold" style="font-family:var(--font-display); font-size:1.3rem; display:flex; gap:.6rem; align-items:center"><Star />٤٠٤</p>
+    <h1 style="margin-block:.6rem 1rem">لم نجد هذه الصفحة</h1>
+    <p class="dim" style="margin-bottom:1.5rem">ربما تغيّر الرابط أو لم تعد المادة متاحة. ابحث عمّا تريد أو ابدأ من أحد الأبواب.</p>
+    <SearchForm />
+    {doors.length > 0 && (
+      <div class="filters" style="margin-top:1.8rem">{doors.map((d) => <a href={`/doors/${d.slug}`}>{d.title}</a>)}</div>
+    )}
+    <p style="margin-top:1.5rem"><a class="btn btn-ghost" href="/">الرئيسية</a></p>
+  </div>
+</Base>

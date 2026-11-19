@@ -1,0 +1,21 @@
+---
+import Star from './Star.astro';
+import { SITE } from '../config';
+const p = Astro.url.pathname;
+const links = [
+  { href: '/discover', label: 'اكتشف احتياجك', match: ['/discover', '/doors', '/needs'] },
+  { href: '/paths', label: 'المسارات', match: ['/paths'] },
+  { href: '/library', label: 'المواد', match: ['/library'] },
+  { href: '/search', label: 'بحث', match: ['/search'] },
+  { href: '/journey', label: 'رحلتي', match: ['/journey', '/login'] },
+];
+const current = (m: string[]) => m.some((x) => p === x || p.startsWith(x + '/'));
+---
+<header class="site-header">
+  <div class="container bar">
+    <a class="brand" href="/" aria-label={`${SITE.name} — الرئيسية`}><Star />{SITE.name}</a>
+    <nav class="nav" aria-label="التنقل الرئيسي">
+      {links.map((l) => <a href={l.href} aria-current={current(l.match) ? 'page' : undefined}>{l.label}</a>)}
+    </nav>
+  </div>
+</header>

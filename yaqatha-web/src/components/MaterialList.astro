@@ -1,0 +1,17 @@
+---
+import { MATERIAL_TYPE } from '../lib/labels';
+import type { MaterialCard } from '../lib/data';
+interface Props { items: MaterialCard[] }
+const { items } = Astro.props;
+---
+<ul class="mats">
+  {items.map((m) => (
+    <li>
+      <a class="mat" href={`/library/${m.slug}`}>
+        <div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[m.type] ?? m.type}</span>{m.author && <span class="chip">{m.author}</span>}</div>
+        <h3>{m.title}</h3>
+        {m.description && <p>{m.description}</p>}
+      </a>
+    </li>
+  ))}
+</ul>

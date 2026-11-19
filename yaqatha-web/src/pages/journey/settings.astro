@@ -1,0 +1,30 @@
+---
+import Base from '../../layouts/Base.astro';
+import JourneyNav from '../../components/JourneyNav.astro';
+const s = Astro.locals.session!;
+---
+<Base title="الإعدادات" noindex>
+  <div class="container narrow">
+    <header class="page-head"><h1>الإعدادات</h1><JourneyNav /></header>
+    <div class="stack" style="--space:2rem; padding-block:1rem 3rem">
+      <section>
+        <h2 style="font-size:1.5rem; margin-bottom:.6rem">حسابك</h2>
+        <p class="dim">{s.name ? `${s.name} · ` : ''}<span dir="ltr">{s.email}</span></p>
+        <p class="faint" style="font-size:.95rem; margin-block:.4rem 1rem">يأتي الاسم والبريد من حساب Google، ولا نخزّن غيرهما عنك سوى أهدافك وتقدمك ومحفوظاتك.</p>
+        <form method="post" action="/auth/logout"><button class="btn btn-ghost" type="submit">تسجيل الخروج</button></form>
+      </section>
+      <section>
+        <details class="fold"><summary>حذف الحساب والبيانات</summary>
+          <div class="stack" style="--space:.9rem; margin-top:1rem">
+            <p>سيُحذف حسابك وكل ما يتصل به نهائيًا: أهدافك، ومساراتك وتقدمك، ومحفوظاتك. لا يمكن التراجع عن ذلك. أما المحتوى العام للموقع فلا يتأثر.</p>
+            <form method="post" action="/api/delete-account" class="stack" style="--space:.8rem">
+              <input type="hidden" name="next" value="/journey/settings" />
+              <div class="field"><label for="confirm">للتأكيد اكتب: احذف</label><input id="confirm" name="confirm" type="text" autocomplete="off" required /></div>
+              <div><button class="btn btn-danger" type="submit">احذف حسابي وبياناتي</button></div>
+            </form>
+          </div>
+        </details>
+      </section>
+    </div>
+  </div>
+</Base>

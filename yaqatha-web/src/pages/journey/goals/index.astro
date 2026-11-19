@@ -1,0 +1,37 @@
+---
+import Base from '../../../layouts/Base.astro';
+import JourneyNav from '../../../components/JourneyNav.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import { getGoals } from '../../../lib/user';
+import { GOAL_STATUS } from '../../../lib/labels';
+import { load } from '../../../lib/page';
+const t = Astro.locals.session!.token;
+const TABS: Record<string, [string, string[]]> = {
+  active: ['النشطة', ['not_started', 'in_progress']], paused: ['المتوقفة مؤقتًا', ['paused']],
+  completed: ['المكتملة', ['completed']], archived: ['المؤرشفة', ['archived']],
+};
+const tab = Astro.url.searchParams.get('status') ?? 'active';
+const cur = TABS[tab] ? tab : 'active';
+const goals = await load(Astro.response, () => getGoals(t, TABS[cur][1]));
+---
+<Base title="أهدافي" noindex>
+  {!goals ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head"><h1>أهدافي</h1><JourneyNav /></header>
+      <section class="section" style="padding-block-start:1rem">
+        <div class="section-title"><div class="filters" style="margin:0" role="group" aria-label="الحالة">
+          {Object.entries(TABS).map(([k, [l]]) => <a href={`/journey/goals?status=${k}`} aria-current={cur === k ? 'true' : undefined}>{l}</a>)}
+        </div><a class="btn btn-primary btn-sm" href="/journey/goals/new">هدف جديد</a></div>
+        {goals.length ? (
+          <><h2 class="sr-only">قائمة الأهداف</h2>
+          <ul class="mats">{goals.map((g) => (
+            <li><a class="mat" href={`/journey/goals/${g.id}`}><div class="meta"><span class="state">{GOAL_STATUS[g.status]}</span>{g.target_date && <span class="chip">الموعد: {g.target_date}</span>}</div><h3>{g.title}</h3>{g.description && <p>{g.description}</p>}</a></li>
+          ))}</ul></>
+        ) : (
+          <div class="empty"><h2>{cur === 'active' ? 'لا أهداف نشطة' : 'لا أهداف هنا'}</h2><p>الهدف جملة تكتبها بكلماتك لما تريد أن تعمل عليه، ولا تحتاج إلى موعد.</p>
+            <div class="actions"><a class="btn btn-primary" href="/journey/goals/new">أنشئ هدفًا</a></div></div>
+        )}
+      </section>
+    </div>
+  )}
+</Base>

@@ -1,0 +1,116 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import NeedList from '../../components/NeedList.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import { getMaterial, getMaterialRelations, resolveRedirect } from '../../lib/data';
+import { MATERIAL_TYPE, NATURE, formatDate } from '../../lib/labels';
+import { renderMarkdown, youtubeId } from '../../lib/markdown';
+import { FEATURES } from '../../config';
+import { load } from '../../lib/page';
+
+const slug = Astro.params.slug!;
+const data = await load(Astro.response, async () => {
+  const material = await getMaterial(slug);
+  if (!material) return { material: null, redirect: await resolveRedirect('material', slug) };
+  return { material, redirect: null, rel: await getMaterialRelations(material.id) };
+});
+if (data && !data.material) {
+  if (data.redirect) return Astro.redirect(`/library/${data.redirect}`, 301);
+  return Astro.rewrite('/404');
+}
+const m = data?.material;
+const rel = data && 'rel' in data ? data.rel : null;
+const html = m ? renderMarkdown(m.body) : '';
+const yt = m?.type === 'video' ? youtubeId(m.url) : null;
+const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
+  '@context': 'https://schema.org', '@type': 'Article', headline: m.title, inLanguage: 'ar',
+  description: m.description ?? undefined, dateModified: m.updated_at,
+  ...(m.author ? { author: { '@type': 'Person', name: m.author } } : {}),
+} : undefined;
+---
+<Base title={m?.title} description={m?.description ?? undefined} type="article" jsonLd={ld}>
+  {!data || !m || !rel ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المواد والمحتوى', href: '/library' }, { label: m.title }]} />
+        <div class="meta" style="margin-bottom:0.9rem">
+          <span class="chip chip-gold">{MATERIAL_TYPE[m.type] ?? m.type}</span>
+          <span class="chip">{NATURE[m.nature]}</span>
+        </div>
+        <h1>{m.title}</h1>
+        {m.description && <p class="lead">{m.description}</p>}
+      </header>
+
+      <div class="stack" style="--space:2rem; padding-block: 1rem 2rem">
+        {yt && (
+          <div class="video-shell" data-yt={yt}>
+            <button type="button" aria-label="تشغيل الفيديو">
+              <span class="play" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg></span>
+              <span>تشغيل الفيديو</span>
+            </button>
+          </div>
+        )}
+        {yt && <p class="faint" style="font-size:0.9rem; max-width:var(--measure)">لا يُحمَّل الفيديو من الخارج إلا حين تنقر التشغيل، حفاظًا على خصوصيتك وسرعة الصفحة.</p>}
+        {!yt && m.url && <p><a class="btn btn-primary" href={m.url} target="_blank" rel="noopener nofollow">افتح المصدر ↗</a></p>}
+        {html && <div class="prose" set:html={html} />}
+
+        <dl class="source-box">
+          {(m.source_title || m.source_url) && (<><dt>المصدر الأصلي</dt><dd>{m.source_url ? <a href={m.source_url} target="_blank" rel="noopener nofollow">{m.source_title ?? m.source_url}</a> : m.source_title}</dd></>)}
+          {m.author && (<><dt>{m.type === 'video' ? 'المحاضر' : 'المؤلف'}</dt><dd>{m.author}</dd></>)}
+          <dt>طبيعة المادة</dt><dd>{NATURE[m.nature]}</dd>
+          <dt>آخر تحديث</dt><dd>{formatDate(m.updated_at)}</dd>
+        </dl>
+      </div>
+
+      {FEATURES.accounts && (
+        <section class="section" style="padding-block-start:0" aria-label="إجراءات المادة">
+          <div class="row">
+            <form method="post" action="/api/save-material" data-material-state={m.id}>
+              <input type="hidden" name="material_id" value={m.id} />
+              <input type="hidden" name="next" value={`/library/${m.slug}`} />
+              <button class="btn btn-primary btn-sm" type="submit">احفظ للرجوع إليها</button>
+            </form>
+          </div>
+          <details class="fold" style="margin-top:1rem; max-width:var(--measure)"><summary>أبلغ عن مشكلة في هذه المادة</summary>
+            <form method="post" action="/api/report-material" class="stack" style="--space:.8rem; margin-top:1rem">
+              <input type="hidden" name="material_id" value={m.id} />
+              <input type="hidden" name="next" value={`/library/${m.slug}`} />
+              <div class="field"><label for="note">ما المشكلة؟ (رابط لا يعمل، خطأ في المحتوى…)</label><textarea id="note" name="note" maxlength="1000" required></textarea></div>
+              <div><button class="btn btn-ghost btn-sm" type="submit">أرسل البلاغ</button></div>
+            </form>
+          </details>
+        </section>
+      )}
+
+      {rel.needs.length > 0 && (
+        <section class="section" style="padding-block-start:1rem">
+          <div class="section-title"><h2>احتياجات ترتبط بهذه المادة</h2></div>
+          <NeedList needs={rel.needs} />
+        </section>
+      )}
+      {rel.topics.length > 0 && (
+        <section class="section" style="padding-block-start:0">
+          <h2 class="section-title" style="font-size:1.4rem; color:var(--dim)">موضوعات</h2>
+          <div class="filters">{rel.topics.map((t) => <a href={`/topics/${t.slug}`}>{t.title}</a>)}</div>
+        </section>
+      )}
+    </div>
+  )}
+</Base>
+<script>
+  // تحميل الفيديو بالنقر فقط (youtube-nocookie)
+  document.querySelectorAll<HTMLElement>('.video-shell[data-yt]').forEach((box) => {
+    box.querySelector('button')?.addEventListener('click', () => {
+      const id = box.dataset.yt;
+      if (!id || !/^[\w-]{6,20}$/.test(id)) return;
+      const f = document.createElement('iframe');
+      f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+      f.title = 'مشغّل الفيديو';
+      f.allow = 'accelerometer; autoplay; encrypted-media; picture-in-picture';
+      f.allowFullscreen = true;
+      f.referrerPolicy = 'strict-origin-when-cross-origin';
+      box.replaceChildren(f);
+    });
+  });
+</script>

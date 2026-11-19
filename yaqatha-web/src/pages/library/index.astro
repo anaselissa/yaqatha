@@ -1,0 +1,76 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import MaterialList from '../../components/MaterialList.astro';
+import Pager from '../../components/Pager.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import { getDomains, listMaterials } from '../../lib/data';
+import { MATERIAL_TYPE } from '../../lib/labels';
+import { load } from '../../lib/page';
+
+const q = Astro.url.searchParams;
+const f = {
+  type: q.get('type') && q.get('type')! in MATERIAL_TYPE ? q.get('type')! : undefined,
+  domain: q.get('domain')?.slice(0, 80) || undefined,
+  need: q.get('need')?.slice(0, 80) || undefined,
+  topic: q.get('topic')?.slice(0, 80) || undefined,
+};
+const page = Math.max(1, parseInt(q.get('page') ?? '1', 10) || 1);
+const filtered = Boolean(f.type || f.domain || f.need || f.topic);
+const data = await load(Astro.response, async () => {
+  const [list, domains] = await Promise.all([listMaterials({ ...f, page }), getDomains()]);
+  return { list, domains };
+});
+if (data && data.list.items.length === 0 && data.list.total > 0 && page > 1) {
+  const u = new URLSearchParams(Astro.url.searchParams);
+  u.set('page', String(data.list.pages));
+  return Astro.redirect(`/library?${u}`, 302);
+}
+const link = (over: Record<string, string | undefined>) => {
+  const u = new URLSearchParams();
+  const merged: Record<string, string | undefined> = { ...f, ...over };
+  for (const [k, v] of Object.entries(merged)) if (v) u.set(k, v);
+  const s = u.toString();
+  return s ? `/library?${s}` : '/library';
+};
+---
+<Base title="المواد والمحتوى" description="مقالات ومحاضرات وتوجيهات وتمارين، لكل منها مصدرها الأصلي، ويُميَّز فيها ما أعدّه فريق يقظة."
+  canonical={filtered || page > 1 ? (filtered ? '/library' : `/library?page=${page}`) : '/library'} noindex={filtered}>
+  {!data ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المواد والمحتوى' }]} />
+        <h1>المواد والمحتوى</h1>
+        <p class="lead">لكل مادة مصدرها الأصلي. ونميّز بين المادة الأصلية وما أعدّه فريق يقظة.</p>
+      </header>
+      <section class="section" style="padding-block-start:1rem">
+        <div class="filters" role="group" aria-label="النوع">
+          <a href={link({ type: undefined, page: undefined })} aria-current={!f.type ? 'true' : undefined}>كل الأنواع</a>
+          {Object.entries(MATERIAL_TYPE).map(([k, v]) => <a href={link({ type: k })} aria-current={f.type === k ? 'true' : undefined}>{v}</a>)}
+        </div>
+        {data.domains.length > 0 && (
+          <div class="filters" role="group" aria-label="المجال">
+            <a href={link({ domain: undefined })} aria-current={!f.domain ? 'true' : undefined}>كل المجالات</a>
+            {data.domains.map((d) => <a href={link({ domain: d.slug })} aria-current={f.domain === d.slug ? 'true' : undefined}>{d.title}</a>)}
+          </div>
+        )}
+        {(f.need || f.topic) && <p class="dim" style="margin-bottom:1rem">تصفية حسب {f.need ? 'احتياج' : 'موضوع'} محدد. <a href={link({ need: undefined, topic: undefined })}>إزالة التصفية</a></p>}
+
+        {data.list.items.length ? (
+          <>
+            <p class="faint" style="margin-bottom:0.8rem" aria-live="polite">{data.list.total} {data.list.total === 1 ? 'مادة' : 'مواد'}</p>
+            <h2 class="sr-only">قائمة المواد</h2>
+            <MaterialList items={data.list.items} />
+            <Pager page={data.list.page} pages={data.list.pages} base="/library" params={f} />
+          </>
+        ) : (
+          <EmptyState title={filtered ? 'لا توجد مواد بهذه التصفية' : 'لم تُنشر مواد بعد'} text={filtered ? 'جرّب تصفية أوسع.' : 'نعمل على إعداد المحتوى بعناية.'}>
+            {filtered && <a class="btn btn-primary" href="/library">مسح التصفية</a>}
+            <a class="btn btn-ghost" href="/discover">اكتشف احتياجك</a>
+          </EmptyState>
+        )}
+      </section>
+    </div>
+  )}
+</Base>

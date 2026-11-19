@@ -1,0 +1,20 @@
+---
+import { STEP_STATE } from '../lib/labels';
+interface Props { enrollmentId: string; stepId: string; state: string; next: string; readonly?: boolean }
+const { enrollmentId, stepId, state, next, readonly = false } = Astro.props;
+const actions = state === 'completed' ? [['not_started', 'أعد فتحها', 'ghost'], ['in_progress', 'قيد التنفيذ', 'ghost']]
+  : state === 'in_progress' ? [['completed', 'أكملتها', 'primary'], ['not_started', 'لم أبدأ', 'ghost']]
+  : [['in_progress', 'بدأت', 'ghost'], ['completed', 'أكملتها', 'primary']];
+---
+<div class="row">
+  <span class={`state state-${state}`}>{STEP_STATE[state]}</span>
+  {!readonly && actions.map(([s, label, kind]) => (
+    <form method="post" action="/api/set-step">
+      <input type="hidden" name="enrollment_id" value={enrollmentId} />
+      <input type="hidden" name="step_id" value={stepId} />
+      <input type="hidden" name="state" value={s} />
+      <input type="hidden" name="next" value={next} />
+      <button class={`btn btn-sm btn-${kind}`} type="submit">{label}</button>
+    </form>
+  ))}
+</div>

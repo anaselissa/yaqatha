@@ -1,0 +1,8 @@
+---
+const p = Astro.url.pathname;
+const tabs = [['/journey', 'رحلتي'], ['/journey/goals', 'أهدافي'], ['/journey/paths', 'مساراتي'], ['/journey/saved', 'المحفوظات'], ['/journey/settings', 'الإعدادات']];
+const cur = (h: string) => (h === '/journey' ? p === '/journey' : p === h || p.startsWith(h + '/'));
+---
+<nav class="filters" aria-label="أقسام رحلتي" style="margin-top:1rem">
+  {tabs.map(([h, l]) => <a href={h} aria-current={cur(h) ? 'true' : undefined}>{l}</a>)}
+</nav>
