@@ -152,3 +152,37 @@ test('مستخدم عادي يزوّر طلب إدارة: القاعدة ترف�
   assert.ok(status < 500, `بلا خطأ خادم: ${status}`);
   assert.equal(sql(`select count(*) from materials where title='مزوّر ${run}'`), '0');
 });
+
+test('الفريق: المدير يضيف عضوًا جديدًا وعضوًا مسجّلًا من قبل، والمحرر لا يرى الفريق', async () => {
+  const MGR = `mgr-${run}@admin.test`, NEWB = `new-${run}@admin.test`;
+  const mgr = await as(MGR); makeStaff(MGR, 'manager');
+  // المحرر لا يرى تبويب الفريق ولا صفحته
+  await editor.goto(`${BASE}/admin`);
+  assert.equal(await editor.getByRole('link', { name: 'الفريق' }).count(), 0);
+  assert.equal((await editor.goto(`${BASE}/admin/team`)).status(), 404);
+  // إضافة شخص لم يسجّل بعد: يصبح محررًا بمجرد أول دخول
+  await mgr.goto(`${BASE}/admin/team`);
+  await mgr.fill('#email', NEWB.toUpperCase());
+  await mgr.selectOption('#role', 'editor');
+  await mgr.getByRole('button', { name: 'إضافة' }).click();
+  await mgr.waitForLoadState();
+  assert.match(await toast(mgr), /بمجرد دخوله/);
+  assert.match(await mgr.locator('main').innerText(), new RegExp(NEWB));
+  const nb = await as(NEWB);
+  assert.equal((await nb.goto(`${BASE}/admin`)).status(), 200, 'الدعوة طُبّقت عند أول دخول');
+  // إضافة مستخدم مسجّل من قبل: تُطبَّق عند زيارته اللوحة
+  const user = await as(USR);
+  assert.equal((await user.goto(`${BASE}/admin`)).status(), 404);
+  await mgr.goto(`${BASE}/admin/team`);
+  await mgr.fill('#email', USR); await mgr.selectOption('#role', 'manager');
+  await mgr.getByRole('button', { name: 'إضافة' }).click(); await mgr.waitForLoadState();
+  assert.equal((await user.goto(`${BASE}/admin`)).status(), 200);
+  assert.equal(sql(`select role from staff_roles where email='${USR}'`), 'manager');
+  // تغيير الدور ثم الإزالة
+  await mgr.goto(`${BASE}/admin/team`);
+  await mgr.locator('.adm-row', { hasText: USR }).getByRole('button', { name: 'اجعله محررًا' }).click(); await mgr.waitForLoadState();
+  assert.equal(sql(`select role from staff_roles where email='${USR}'`), 'editor');
+  await mgr.locator('.adm-row', { hasText: USR }).getByRole('button', { name: 'إزالة' }).click(); await mgr.waitForLoadState();
+  assert.equal(sql(`select count(*) from staff_roles where email='${USR}'`), '0');
+  assert.equal((await user.goto(`${BASE}/admin`)).status(), 404, 'بعد الإزالة لا يدخل');
+});

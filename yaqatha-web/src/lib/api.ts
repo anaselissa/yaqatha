@@ -94,9 +94,9 @@ export async function rpc<T>(fn: string, args: Record<string, unknown>, token?: 
 /** كتابة عبر REST بصلاحيات المستخدم (RLS تحكم). ignoreDuplicates يجعل الإدراج متكافئًا. */
 export async function mutate<T = unknown>(
   method: 'POST' | 'PATCH' | 'DELETE', table: string, token: string,
-  o: { params?: Params; body?: unknown; ignoreDuplicates?: boolean; returning?: boolean } = {},
+  o: { params?: Params; body?: unknown; ignoreDuplicates?: boolean; merge?: boolean; returning?: boolean } = {},
 ): Promise<T[]> {
-  const prefer = [o.ignoreDuplicates ? 'resolution=ignore-duplicates' : '', o.returning ? 'return=representation' : 'return=minimal'].filter(Boolean).join(',');
+  const prefer = [o.merge ? 'resolution=merge-duplicates' : o.ignoreDuplicates ? 'resolution=ignore-duplicates' : '', o.returning ? 'return=representation' : 'return=minimal'].filter(Boolean).join(',');
   const res = await call(buildUrl(table, o.params ?? {}), {
     method, headers: headers(token, { 'Content-Type': 'application/json', Prefer: prefer }),
     body: o.body === undefined ? undefined : JSON.stringify(o.body),

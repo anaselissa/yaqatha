@@ -1,0 +1,86 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import { ROLE, listTeam } from '../../lib/admin';
+import { formatDate } from '../../lib/labels';
+import { load } from '../../lib/page';
+
+const s = Astro.locals.session!;
+if (Astro.locals.staffRole !== 'manager') return Astro.rewrite('/404');
+const team = await load(Astro.response, () => listTeam(s.token));
+---
+<Admin title="الفريق">
+  {!team ? <ErrorState /> : (
+    <div class="stack" style="--space:2rem">
+      <section class="stack" style="--space:.9rem">
+        <h2 style="font-size:1.35rem">أضف عضوًا</h2>
+        <form method="post" action="/api/admin/team-invite" class="adm-form">
+          <div class="field">
+            <label for="email">بريد Google الخاص به</label>
+            <input id="email" name="email" type="email" dir="ltr" required maxlength="200" placeholder="name@gmail.com" autocomplete="off" />
+            <span class="hint">يصبح عضوًا بمجرد دخوله الموقع بحساب Google بهذا البريد، حتى لو كان مسجّلًا من قبل.</span>
+          </div>
+          <div class="field">
+            <label for="role">الدور</label>
+            <select id="role" name="role">
+              <option value="editor">محرر محتوى: يضيف المحتوى وينشره ويعدّله</option>
+              <option value="manager">مدير: كل شيء، ومنه إدارة الفريق</option>
+            </select>
+          </div>
+          <div><button class="btn btn-primary" type="submit">إضافة</button></div>
+        </form>
+      </section>
+
+      {team.invites.length > 0 && (
+        <section class="stack" style="--space:.6rem">
+          <h2 style="font-size:1.35rem">بانتظار أول دخول</h2>
+          <ul class="adm-list">
+            {team.invites.map((i) => (
+              <li class="adm-row">
+                <div class="grow">
+                  <span dir="ltr" style="font-weight:600">{i.email}</span>
+                  <div class="meta"><span class="chip">{ROLE[i.role]}</span><span class="faint" style="font-size:.85rem">أُضيف {formatDate(i.created_at)}</span></div>
+                </div>
+                <form method="post" action="/api/admin/team-uninvite" class="acts">
+                  <input type="hidden" name="email" value={i.email} />
+                  <button class="btn btn-ghost btn-sm" type="submit">إلغاء</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section class="stack" style="--space:.6rem">
+        <h2 style="font-size:1.35rem">أعضاء الفريق</h2>
+        <ul class="adm-list">
+          {team.members.map((m) => {
+            const me = m.user_id === s.userId;
+            return (
+              <li class="adm-row">
+                <div class="grow">
+                  <span dir="ltr" style="font-weight:600">{m.email}</span>
+                  <div class="meta"><span class="chip chip-gold">{ROLE[m.role]}</span>{me && <span class="chip">أنت</span>}</div>
+                </div>
+                <div class="acts">
+                  <form method="post" action="/api/admin/team-role">
+                    <input type="hidden" name="user_id" value={m.user_id} />
+                    <input type="hidden" name="role" value={m.role === 'manager' ? 'editor' : 'manager'} />
+                    <button class="btn btn-ghost btn-sm" type="submit">{m.role === 'manager' ? 'اجعله محررًا' : 'اجعله مديرًا'}</button>
+                  </form>
+                  {!me && (
+                    <form method="post" action="/api/admin/team-remove">
+                      <input type="hidden" name="user_id" value={m.user_id} />
+                      <button class="btn btn-danger btn-sm" type="submit">إزالة</button>
+                    </form>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <p class="faint" style="margin:0">الإزالة لا تحذف حسابه في الموقع؛ يعود مستخدمًا عاديًا.</p>
+      </section>
+    </div>
+  )}
+</Admin>

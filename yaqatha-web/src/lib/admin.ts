@@ -2,7 +2,7 @@
  * لوحة الإدارة: القراءة والعمليات بجلسة الموظف نفسه (لا مفتاح خدمة).
  * الحماية الحقيقية في القاعدة (RLS + منح الأعمدة + مشغّلات شروط النشر)؛ هنا التحقق من المدخلات وترجمة الأخطاء فقط.
  */
-import { DataError, UnauthorizedError, inList, mutate, rest } from './api';
+import { DataError, UnauthorizedError, inList, mutate, rest, rpc } from './api';
 
 export type StaffRole = 'manager' | 'editor';
 
@@ -10,6 +10,21 @@ export type StaffRole = 'manager' | 'editor';
 export async function getStaffRole(token: string, userId: string): Promise<StaffRole | null> {
   const { rows } = await rest<{ role: StaffRole }>('staff_roles', { select: 'role', user_id: `eq.${userId}`, limit: 1 }, { token });
   return rows[0]?.role ?? null;
+}
+
+/** دعوة معلّقة لمستخدم سجّل قبل دعوته: تُطبَّق عند زيارته اللوحة (الدالة تتحقق من البريد المؤكَّد) */
+export async function claimStaffInvite(token: string): Promise<StaffRole | null> {
+  return (await rpc<StaffRole | null>('claim_staff_invite', {}, token)) ?? null;
+}
+
+export const ROLE: Record<StaffRole, string> = { manager: 'مدير', editor: 'محرر محتوى' };
+
+export async function listTeam(token: string) {
+  const [members, invites] = await Promise.all([
+    rest<{ user_id: string; email: string; role: StaffRole; created_at: string }>('staff_roles', { select: 'user_id,email,role,created_at', order: 'created_at' }, { token }).then((r) => r.rows),
+    rest<{ email: string; role: StaffRole; created_at: string }>('staff_invites', { select: 'email,role,created_at', order: 'created_at' }, { token }).then((r) => r.rows),
+  ]);
+  return { members, invites };
 }
 
 export const PUBLISH_STATUS: Record<string, string> = { draft: 'مسودة', published: 'منشورة', hidden: 'مخفية', archived: 'مؤرشفة' };
@@ -212,6 +227,29 @@ export const ADMIN_HANDLERS: Record<string, Handler> = {
     await mutate('PATCH', 'domains', token, { params: { id: `eq.${uuid(form, 'id')}` }, body: { status } });
     return { to: '/admin/taxonomy', flash: status === 'published' ? 'نُشر المجال' : 'أُخفي المجال عن الزوار' };
   },
+
+  'team-invite': async ({ token, form }) => {
+    const email = str(form, 'email', 200).toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadInput('email');
+    const role = oneOf(form, 'role', ['manager', 'editor']);
+    const { rows } = await rest<{ role: string }>('staff_roles', { select: 'role', email: `eq.${email}` }, { token });
+    if (rows.length) return { to: '/admin/team', flash: 'هذا البريد عضو في الفريق فعلًا. غيّر دوره من القائمة', error: true };
+    await mutate('POST', 'staff_invites', token, { body: { email, role }, merge: true });
+    return { to: '/admin/team', flash: `أُضيف ${email}. يصبح ${ROLE[role as StaffRole]} بمجرد دخوله الموقع بحساب Google بهذا البريد` };
+  },
+  'team-role': async ({ token, form }) => {
+    const role = oneOf(form, 'role', ['manager', 'editor']);
+    await mutate('PATCH', 'staff_roles', token, { params: { user_id: `eq.${uuid(form, 'user_id')}` }, body: { role } });
+    return { to: '/admin/team', flash: `تغيّر الدور إلى: ${ROLE[role as StaffRole]}` };
+  },
+  'team-remove': async ({ token, form }) => {
+    await mutate('DELETE', 'staff_roles', token, { params: { user_id: `eq.${uuid(form, 'user_id')}` } });
+    return { to: '/admin/team', flash: 'أُزيل من الفريق. حسابه في الموقع باقٍ كمستخدم عادي' };
+  },
+  'team-uninvite': async ({ token, form }) => {
+    await mutate('DELETE', 'staff_invites', token, { params: { email: `eq.${str(form, 'email', 200).toLowerCase()}` } });
+    return { to: '/admin/team', flash: 'أُلغيت الإضافة' };
+  },
 };
 
 const MESSAGES: [RegExp, string][] = [
@@ -220,6 +258,7 @@ const MESSAGES: [RegExp, string][] = [
   [/original source/, 'أضف المصدر الأصلي (عنوانه أو رابطه)'],
   [/link the material/, 'اربط المادة باحتياج أو مجال واحد على الأقل'],
   [/slug .* was used before|duplicate key.*slug|materials_slug_key/, 'هذا الرابط مستخدم من قبل. غيّر حقل «الرابط»'],
+  [/last manager/, 'لا يمكن إزالة آخر مدير أو تغيير دوره. أضف مديرًا آخر أولًا'],
   [/staff only|row-level security|permission denied/, 'ليست لديك صلاحية لهذه العملية'],
 ];
 const translate = (m: string) => MESSAGES.find(([re]) => re.test(m))?.[1] ?? 'تعذر تنفيذ العملية';
@@ -229,7 +268,7 @@ export async function runAdminAction(name: string, form: FormData, token: string
   const id = str(form, 'id', 40);
   const fallback = name === 'material-save' && !UUID.test(id) ? '/admin/materials/new'
     : name.startsWith('material') ? (UUID.test(id) ? `/admin/materials/${id}` : '/admin/materials')
-    : name.endsWith('-status') ? '/admin/taxonomy' : '/admin';
+    : name.endsWith('-status') ? '/admin/taxonomy' : name.startsWith('team') ? '/admin/team' : '/admin';
   if (!h) return { to: '/admin', flash: 'عملية غير معروفة', error: true };
   try {
     return await h({ token, form });
@@ -243,5 +282,5 @@ export async function runAdminAction(name: string, form: FormData, token: string
     throw e;
   }
 }
-const FIELD: Record<string, string> = { title: 'العنوان', slug: 'الرابط', url: 'رابط المادة', source_url: 'رابط المصدر', type: 'النوع', status: 'الحالة', id: 'المعرّف' };
+const FIELD: Record<string, string> = { email: 'البريد', role: 'الدور', user_id: 'العضو', title: 'العنوان', slug: 'الرابط', url: 'رابط المادة', source_url: 'رابط المصدر', type: 'النوع', status: 'الحالة', id: 'المعرّف' };
 

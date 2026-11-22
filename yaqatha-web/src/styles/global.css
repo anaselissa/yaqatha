@@ -275,7 +275,7 @@ details.fold summary { cursor: pointer; font-weight: 600; }
 .adm-form { display: grid; gap: 1.3rem; max-width: 44rem; }
 .adm-form fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.1rem 1.2rem; margin: 0; display: grid; gap: 1.1rem; min-width: 0; }
 .adm-form legend { padding-inline: .4rem; color: var(--gold-hi); font-weight: 600; }
-.field input[type='url'], .field input[type='search'] { width: 100%; min-height: 3rem; padding: .55rem 1rem; background: var(--surface); color: var(--text); border: 1.5px solid var(--line-strong); border-radius: var(--radius); font: 1.05rem/1.7 var(--font-ui); }
+.field input[type='url'], .field input[type='search'], .field input[type='email'] { width: 100%; min-height: 3rem; padding: .55rem 1rem; background: var(--surface); color: var(--text); border: 1.5px solid var(--line-strong); border-radius: var(--radius); font: 1.05rem/1.7 var(--font-ui); }
 .checks { display: grid; gap: .1rem; }
 .checks label { display: flex; gap: .6rem; align-items: flex-start; font-weight: 400; padding: .35rem 0; cursor: pointer; }
 .checks input { width: 1.2rem; height: 1.2rem; margin-top: .3rem; accent-color: var(--gold); flex: none; }

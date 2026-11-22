@@ -1,7 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { UnauthorizedError } from './lib/api';
 import { clearSession, getSession } from './lib/auth';
-import { getStaffRole } from './lib/admin';
+import { claimStaffInvite, getStaffRole } from './lib/admin';
 
 // صفحة الدخول وحدها تحتاج أن يعيد نموذجها التوجيه إلى Supabase ثم Google؛ Chrome يطبّق form-action على كل تحويلة
 const SUPABASE_ORIGIN = (() => { try { return new URL(import.meta.env.PUBLIC_SUPABASE_URL).origin; } catch { return ''; } })();
@@ -37,7 +37,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (isAdmin) {
     if (!context.locals.session) return context.redirect(`/login?next=${encodeURIComponent(p + context.url.search)}&reason=admin`);
     try {
-      context.locals.staffRole = await getStaffRole(context.locals.session.token, context.locals.session.userId);
+      const { token, userId } = context.locals.session;
+      // من أُضيف للفريق بعد تسجيله تُطبَّق إضافته عند أول زيارة للوحة
+      context.locals.staffRole = (await getStaffRole(token, userId)) ?? (await claimStaffInvite(token));
     } catch (e) {
       if (e instanceof UnauthorizedError) {
         clearSession(context.cookies);
