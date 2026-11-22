@@ -1,10 +1,11 @@
 ---
 import Base from './Base.astro';
+import { ROLE } from '../lib/admin';
 interface Props { title: string }
 const { title } = Astro.props;
 const p = Astro.url.pathname;
 const role = Astro.locals.staffRole;
-const tabs = [['/admin', 'الرئيسية'], ['/admin/materials', 'المواد'], ['/admin/paths', 'المسارات'], ['/admin/series', 'السلاسل'], ['/admin/taxonomy', 'الاحتياجات والمجالات'], ...(role === 'manager' ? [['/admin/team', 'الفريق']] : [])];
+const tabs = role === 'mentor' ? [['/admin/requests', 'طلبات المتابعة']] : [['/admin', 'الرئيسية'], ['/admin/materials', 'المواد'], ['/admin/paths', 'المسارات'], ['/admin/series', 'السلاسل'], ['/admin/taxonomy', 'الاحتياجات والمجالات'], ...(role === 'manager' ? [['/admin/requests', 'طلبات المتابعة'], ['/admin/team', 'الفريق'], ['/admin/settings', 'الإعدادات']] : [])];
 const cur = (h: string) => (h === '/admin' ? p === '/admin' : p === h || p.startsWith(h + '/'));
 ---
 <Base title={`${title} — الإدارة`} noindex>
@@ -12,7 +13,7 @@ const cur = (h: string) => (h === '/admin' ? p === '/admin' : p === h || p.start
     <header class="page-head">
       <p class="row" style="gap:.5rem; margin:0">
         <span class="chip chip-gold">لوحة الإدارة</span>
-        <span class="chip">{role === 'manager' ? 'مدير' : 'محرر محتوى'}</span>
+        <span class="chip">{role ? ROLE[role] : ''}</span>
       </p>
       <h1>{title}</h1>
       <nav class="filters" aria-label="أقسام الإدارة" style="margin-top:1rem">

@@ -1,0 +1,75 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import { assignees, listRequests } from '../../lib/admin-followup';
+import { REQUEST_STATUS, TOPICS, waLink } from '../../lib/support';
+import { formatDate } from '../../lib/labels';
+import { load } from '../../lib/page';
+
+const s = Astro.locals.session!;
+const role = Astro.locals.staffRole;
+if (role !== 'manager' && role !== 'mentor') return Astro.rewrite('/404');
+const status = Astro.url.searchParams.get('status') ?? '';
+const data = await load(Astro.response, () => Promise.all([listRequests(s.token, status), role === 'manager' ? assignees(s.token) : Promise.resolve([] as string[])]));
+const [items, people] = data ?? [null, []];
+const back = status ? `?status=${status}` : '';
+const tabs: [string, string][] = [['', 'المفتوحة'], ['new', 'جديدة'], ['contacted', 'تم التواصل'], ['active', 'مستمرة'], ['closed', 'منتهية']];
+---
+<Admin title="طلبات المتابعة">
+  <div class="stack" style="--space:1.2rem">
+    <nav class="filters" aria-label="الحالة" style="margin:0">
+      {tabs.map(([k, l]) => <a href={k ? `/admin/requests?status=${k}` : '/admin/requests'} aria-current={status === k ? 'true' : undefined}>{l}</a>)}
+    </nav>
+    {role === 'mentor' && <p class="faint" style="margin:0">تظهر هنا الطلبات المسندة إليك فقط.</p>}
+    {!items ? <ErrorState /> : items.length === 0 ? (
+      <EmptyState title="لا طلبات هنا" text={role === 'mentor' ? 'حين يُسند إليك المدير طلبًا يظهر هنا.' : 'حين يطلب أحد متابعة من الفريق يظهر هنا.'} />
+    ) : (
+      <ul class="adm-list">
+        {items.map((r) => {
+          const wa = waLink(r.phone, `السلام عليكم ${r.name}، معك فريق يقظة بخصوص طلب المتابعة`);
+          return (
+            <li id={`r-${r.id}`} class="adm-row" style="display:block">
+              <div class="row" style="justify-content:space-between">
+                <strong>{r.name}</strong>
+                <span class={`state st-${r.status === 'closed' ? 'archived' : r.status === 'new' ? 'draft' : 'published'}`}>{REQUEST_STATUS[r.status]}</span>
+              </div>
+              <div class="meta" style="margin-top:.4rem">
+                <span class="chip chip-gold">{TOPICS[r.topic] ?? r.topic}</span>
+                <span class="chip">{r.gender === 'female' ? 'أخت' : 'أخ'}</span>
+                {r.preferred_time && <span class="chip">الوقت المناسب: {r.preferred_time}</span>}
+                <span class="faint" style="font-size:.85rem">{formatDate(r.created_at)}</span>
+              </div>
+              <div class="row" style="margin-top:.7rem">
+                {wa && <a class="btn btn-primary btn-sm" href={wa} target="_blank" rel="noopener">واتساب</a>}
+                {r.phone && <a class="btn btn-ghost btn-sm" href={`tel:${r.phone.replace(/[^\d+]/g, '')}`} dir="ltr">{r.phone}</a>}
+                {r.other_contact && <span class="dim" style="font-size:.95rem">تواصل آخر: <span dir="auto">{r.other_contact}</span></span>}
+              </div>
+              <details class="fold" style="margin-top:.8rem">
+                <summary>المتابعة{r.assigned_to ? ` · ${r.assigned_to}` : ' · غير مسنَد'}</summary>
+                <form method="post" action="/api/admin/request-update" class="adm-form" style="margin-top:.8rem">
+                  <input type="hidden" name="id" value={r.id} />
+                  <input type="hidden" name="back" value={back} />
+                  <div class="field"><label for={`st-${r.id}`}>الحالة</label>
+                    <select id={`st-${r.id}`} name="status">{Object.entries(REQUEST_STATUS).map(([k, l]) => <option value={k} selected={r.status === k}>{l}</option>)}</select></div>
+                  {role === 'manager' && (
+                    <div class="field"><label for={`as-${r.id}`}>يتابعه</label>
+                      <select id={`as-${r.id}`} name="assigned_to">
+                        <option value="">— غير مسنَد —</option>
+                        {[...new Set([...(people ?? []), ...(r.assigned_to ? [r.assigned_to] : [])])].map((e) => <option value={e} selected={r.assigned_to === e}>{e}</option>)}
+                      </select>
+                      <span class="hint">أضف متابِعين من «الإعدادات».</span></div>
+                  )}
+                  <div class="field"><label for={`n-${r.id}`}>ملاحظة للفريق</label>
+                    <textarea id={`n-${r.id}`} name="staff_note" maxlength="2000" style="min-height:4rem">{r.staff_note ?? ''}</textarea>
+                    <span class="hint">لا تكتب تفاصيل شخصية أو ذنوبًا؛ يكفي ما يساعد على المتابعة.</span></div>
+                  <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ</button></div>
+                </form>
+              </details>
+            </li>
+          );
+        })}
+      </ul>
+    )}
+  </div>
+</Admin>

@@ -430,5 +430,57 @@ select test.ok(test.affected(format($$delete from public.path_next where path_id
 select test.as_super();
 select test.ok(exists (select 1 from public.audit_log where entity_type = 'path_suggested_goals'), 'suggested goals are audited');
 
+-- ---------- 18. المتابعة المباشرة والإعدادات وأرقام الأثر (الهجرة 9) ----------
+select test.as_super();
+\set mt '99999999-0000-4000-8000-000000000001'
+insert into auth.users (id, email, email_confirmed_at) values (:'mt', 'Mentor@Y.test', now());
+\set uc '99999999-0000-4000-8000-000000000002'
+insert into auth.users (id, email, email_confirmed_at) values (:'uc', 'uc@y.test', now());
+\set ur '99999999-0000-4000-8000-000000000003'
+insert into auth.users (id, email, email_confirmed_at) values (:'ur', 'ur@y.test', now());
+select test.as_anon();
+select test.ok((select value from public.app_settings where key = 'mentorship_open') = 'true'::jsonb, 'visitors can read public settings');
+select test.throws($$update public.app_settings set value = 'false' where key = 'mentorship_open'$$, 'visitor cannot change settings');
+select test.throws($$insert into public.mentorship_requests (name, phone, topic, gender) values ('x', '0790000000', 'prayer', 'male')$$, 'visitor cannot submit a request');
+select test.as_user(:'ur');
+select test.ok(test.affected($$update public.app_settings set value = 'false' where key = 'mentorship_open'$$) = 0, 'plain user cannot change settings (RLS: zero rows)');
+insert into public.mentorship_requests (name, phone, topic, gender) values ('أحمد', '+962 79 000 0000', 'prayer', 'male') returning id as rq \gset
+select test.ok((select status from public.mentorship_requests where id = :'rq') = 'new', 'request starts as new');
+select test.throws($$insert into public.mentorship_requests (name, phone, topic, gender) values ('ثانٍ', '0790000001', 'faith', 'male')$$, 'one open request per user', 'duplicate');
+select test.throws($$insert into public.mentorship_requests (name, topic, gender) values ('x', 'faith', 'male')$$, 'a contact method is required', 'check');
+select test.throws($$insert into public.mentorship_requests (name, phone, topic, gender) values ('x', 'call me', 'faith', 'male')$$, 'phone format validated', 'check');
+select test.ok(test.affected(format($$update public.mentorship_requests set status = 'closed' where id = %L$$, :'rq')) = 0, 'requester cannot change status (RLS: zero rows)');
+select test.as_user(:'edt');
+select test.ok(not exists (select 1 from public.mentorship_requests where id = :'rq'), 'a content editor cannot see phone numbers');
+select test.ok((public.admin_stats() ->> 'requests_new')::int >= 1, 'staff see aggregate stats (counts only)');
+select test.ok(not (public.admin_stats() ? 'phone') and jsonb_typeof(public.admin_stats() -> 'paths') = 'array', 'stats carry no identities');
+select test.as_user(:'ur');
+select test.throws($$select public.admin_stats()$$, 'plain user cannot read stats', 'staff only');
+select test.as_user(:'mt');
+select test.ok(not public.is_mentor(), 'not a mentor before being added');
+select test.as_user(:'mgr');
+insert into public.mentors (email) values ('mentor@y.test');
+select test.ok(exists (select 1 from public.mentorship_requests where id = :'rq'), 'manager sees all requests');
+update public.mentorship_requests set assigned_to = '  Mentor@Y.test ' where id = :'rq';
+select test.ok((select assigned_to from public.mentorship_requests where id = :'rq') = 'mentor@y.test', 'assignment normalised to lower-case email');
+select test.as_user(:'mt');
+select test.ok(public.is_mentor(), 'mentor recognised by verified Google email');
+select test.ok(exists (select 1 from public.mentorship_requests where id = :'rq'), 'assigned mentor sees the request');
+update public.mentorship_requests set status = 'contacted', staff_note = 'تم الاتصال' where id = :'rq';
+select test.ok((select status from public.mentorship_requests where id = :'rq') = 'contacted', 'mentor updates status and note');
+select test.throws(format($$update public.mentorship_requests set assigned_to = 'other@y.test' where id = %L$$, :'rq'), 'mentor cannot reassign', 'only a manager');
+select test.as_user(:'mgr');
+update public.app_settings set value = 'false' where key = 'mentorship_open';
+select test.as_user(:'uc');
+select test.throws($$insert into public.mentorship_requests (name, phone, topic, gender) values ('x', '0790000002', 'prayer', 'male')$$, 'requests rejected while closed', 'closed');
+select test.as_user(:'mgr');
+update public.app_settings set value = 'true' where key = 'mentorship_open';
+select test.as_user(:'uc');
+select test.throws($$insert into public.mentorship_requests (name, phone, topic, gender) values ('x', '0790000002', 'prayer', 'female')$$, 'women section closed by default', 'women section');
+select test.as_user(:'ur');
+select test.ok(test.affected(format($$delete from public.mentorship_requests where id = %L$$, :'rq')) = 1, 'requester can withdraw (delete) their request');
+select test.as_super();
+select test.ok(not exists (select 1 from public.audit_log where entity_type = 'mentorship_requests'), 'requests (with phone numbers) are never audited');
+
 select 'ALL TESTS PASSED' as result;
 rollback;

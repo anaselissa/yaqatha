@@ -21,7 +21,7 @@ t2 as (
     and not (privilege_type = 'SELECT' and table_name in (
       'doors','domains','topics','needs','need_topics','materials','material_domains','material_topics',
       'material_needs','paths','path_domains','path_needs','path_versions','steps','step_materials',
-      'homepage_items','slug_redirects','paths_current','series','series_items','path_suggested_goals','path_next'))
+      'homepage_items','slug_redirects','paths_current','series','series_items','path_suggested_goals','path_next','app_settings'))
 ),
 -- 3) الدوال القابلة للاستدعاء من anon هي المساعدة فقط
 t3 as (

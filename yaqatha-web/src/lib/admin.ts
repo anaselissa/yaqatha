@@ -6,17 +6,20 @@ import { DataError, UnauthorizedError, inList, mutate, rest, rpc } from './api';
 import { BadInput, SLUG, UUID, httpUrl, oneOf, opt, slugify, str, uuid, uuids, type AdminResult, type Handler } from './admin-form';
 import { PATH_HANDLERS, PATH_MESSAGES } from './admin-paths';
 import { SERIES_HANDLERS, SERIES_MESSAGES } from './admin-series';
+import { FOLLOWUP_HANDLERS, FOLLOWUP_MESSAGES } from './admin-followup';
 import { parseYoutubeId, youtubeUrl } from './youtube';
 export { parseYoutubeId, youtubeInfo, youtubeThumb, youtubeUrl } from './youtube';
 export { slugify };
 export type { AdminResult };
 
-export type StaffRole = 'manager' | 'editor';
+export type StaffRole = 'manager' | 'editor' | 'mentor';
 
 /** دور المستخدم في الفريق أو null. RLS تسمح لكل مستخدم بقراءة صفّه فقط. */
 export async function getStaffRole(token: string, userId: string): Promise<StaffRole | null> {
   const { rows } = await rest<{ role: StaffRole }>('staff_roles', { select: 'role', user_id: `eq.${userId}`, limit: 1 }, { token });
-  return rows[0]?.role ?? null;
+  if (rows[0]) return rows[0].role;
+  // المتابِع ليس من فريق المحتوى: يرى طلبات المتابعة المسندة إليه فقط
+  try { return (await rpc<boolean>('is_mentor', {}, token)) ? 'mentor' : null; } catch { return null; }
 }
 
 /** دعوة معلّقة لمستخدم سجّل قبل دعوته: تُطبَّق عند زيارته اللوحة (الدالة تتحقق من البريد المؤكَّد) */
@@ -24,7 +27,7 @@ export async function claimStaffInvite(token: string): Promise<StaffRole | null>
   return (await rpc<StaffRole | null>('claim_staff_invite', {}, token)) ?? null;
 }
 
-export const ROLE: Record<StaffRole, string> = { manager: 'مدير', editor: 'محرر محتوى' };
+export const ROLE: Record<StaffRole, string> = { manager: 'مدير', editor: 'محرر محتوى', mentor: 'متابِع' };
 
 export async function listTeam(token: string) {
   const [members, invites] = await Promise.all([
@@ -204,11 +207,12 @@ export const ADMIN_HANDLERS: Record<string, Handler> = {
   },
 };
 
-Object.assign(ADMIN_HANDLERS, PATH_HANDLERS, SERIES_HANDLERS);
+Object.assign(ADMIN_HANDLERS, PATH_HANDLERS, SERIES_HANDLERS, FOLLOWUP_HANDLERS);
 
 const MESSAGES: [RegExp, string][] = [
   ...PATH_MESSAGES,
   ...SERIES_MESSAGES,
+  ...FOLLOWUP_MESSAGES,
   [/needs a body or a url/, 'أضف نص المادة أو رابطها'],
   [/need a url/, 'الفيديو والمصدر الخارجي يحتاجان رابطًا'],
   [/original source/, 'أضف المصدر الأصلي (عنوانه أو رابطه)'],
@@ -226,7 +230,8 @@ export async function runAdminAction(name: string, form: FormData, token: string
     : name.startsWith('material') ? (UUID.test(id) ? `/admin/materials/${id}` : '/admin/materials')
     : name.startsWith('series-') ? (UUID.test(str(form, 'series_id', 40)) ? `/admin/series/${str(form, 'series_id', 40)}` : '/admin/series/new')
     : /^(path|step|version)-/.test(name) ? (UUID.test(str(form, 'path_id', 40)) ? `/admin/paths/${str(form, 'path_id', 40)}` : '/admin/paths')
-    : name.endsWith('-status') ? '/admin/taxonomy' : name.startsWith('team') ? '/admin/team' : '/admin';
+    : name.endsWith('-status') ? '/admin/taxonomy' : name.startsWith('team') ? '/admin/team'
+    : name.startsWith('request') ? '/admin/requests' : /^(settings|mentor)-/.test(name) ? '/admin/settings' : '/admin';
   if (!h) return { to: '/admin', flash: 'عملية غير معروفة', error: true };
   try {
     return await h({ token, form });
@@ -240,5 +245,5 @@ export async function runAdminAction(name: string, form: FormData, token: string
     throw e;
   }
 }
-const FIELD: Record<string, string> = { links: 'روابط الحلقات (لم نجد رابط يوتيوب صالحًا)', duration_days: 'المدة', email: 'البريد', role: 'الدور', user_id: 'العضو', title: 'العنوان', slug: 'الرابط', url: 'رابط المادة', source_url: 'رابط المصدر', type: 'النوع', status: 'الحالة', id: 'المعرّف' };
+const FIELD: Record<string, string> = { team_whatsapp: 'رقم واتساب (مع رمز الدولة)', mentorship_response_days: 'مدة الرد بالأيام', assigned_to: 'المسنَد إليه', links: 'روابط الحلقات (لم نجد رابط يوتيوب صالحًا)', duration_days: 'المدة', email: 'البريد', role: 'الدور', user_id: 'العضو', title: 'العنوان', slug: 'الرابط', url: 'رابط المادة', source_url: 'رابط المصدر', type: 'النوع', status: 'الحالة', id: 'المعرّف' };
 

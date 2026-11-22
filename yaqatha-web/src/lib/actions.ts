@@ -119,6 +119,18 @@ export const HANDLERS: Record<string, Handler> = {
     await mutate('DELETE', 'goal_materials', token, { params: { goal_id: `eq.${g}`, material_id: `eq.${uuid(form, 'material_id')}` } });
     return { to: `/journey/goals/${g}`, flash: 'أُزيل الربط' };
   },
+  'support-request': async ({ token, form }) => {
+    const name = str(form, 'name', 80);
+    const phone = str(form, 'phone', 30) || null, other = str(form, 'other_contact', 200) || null;
+    if (!name || (!phone && !other)) throw new BadInput('contact');
+    const topic = str(form, 'topic', 30), gender = str(form, 'gender', 10);
+    await mutate('POST', 'mentorship_requests', token, { body: { name, phone, other_contact: other, preferred_time: str(form, 'preferred_time', 100) || null, topic, gender } });
+    return { to: '/support', flash: 'وصل طلبك إلى فريق يقظة. سنتواصل معك قريبًا بإذن الله' };
+  },
+  'support-withdraw': async ({ token, form }) => {
+    await mutate('DELETE', 'mentorship_requests', token, { params: { id: `eq.${uuid(form, 'id')}` } });
+    return { to: '/support', flash: 'سُحب طلبك وحُذفت بياناته' };
+  },
   'delete-account': async ({ token, form }) => {
     if (str(form, 'confirm', 20) !== 'احذف') throw new BadInput('confirm');
     await rpc('delete_my_account', {}, token);
@@ -134,13 +146,18 @@ const MESSAGES: [RegExp, string][] = [
   [/last manager/, 'لا يمكن حذف حساب آخر مدير في الموقع'],
   [/already on the latest version/, 'أنت على آخر إصدار فعلًا'],
   [/no published version available/, 'لا يوجد إصدار منشور حاليًا'],
+  [/mentorship requests are closed/, 'استقبال طلبات المتابعة متوقف مؤقتًا. جرّب لاحقًا أو تواصل عبر واتساب'],
+  [/women section is not open/, 'قسم الأخوات لم يُفتح بعد، نسأل الله أن يكون قريبًا'],
+  [/mentorship_one_open/, 'لديك طلب متابعة مفتوح فعلًا'],
+  [/mentorship_requests_phone_check|mentorship_requests_check/, 'تأكد من رقم الهاتف (أرقام فقط مع رمز الدولة) أو اكتب وسيلة تواصل أخرى'],
+  [/mentorship_requests_(topic|gender)_check/, 'اختر الموضوع والجنس من القائمة'],
   [/row-level security|violates|permission denied/, 'تعذر تنفيذ العملية. قد لا تكون المادة متاحة'],
 ];
 
 export async function runAction(name: string, form: FormData, token: string): Promise<Result> {
   const h = HANDLERS[name];
   if (!h) throw new BadInput('action');
-  const to = back(form, name.startsWith('goal') ? '/journey/goals' : '/journey');
+  const to = back(form, name.startsWith('goal') ? '/journey/goals' : name.startsWith('support') ? '/support' : '/journey');
   try {
     return await h({ token, form });
   } catch (e) {

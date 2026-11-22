@@ -17,6 +17,7 @@
     "test:admin-ui": "node --test --test-concurrency=1 tests/admin-ui.e2e.mjs",
     "test:admin-paths": "node --test --test-concurrency=1 tests/admin-paths.e2e.mjs",
     "test:admin-series": "node --test --test-concurrency=1 tests/admin-series.e2e.mjs",
+    "test:admin-followup": "node --test --test-concurrency=1 tests/admin-followup.e2e.mjs",
     "test:e2e": "tests/e2e.sh",
     "smoke:remote": "node scripts/smoke-remote.mjs"
   },

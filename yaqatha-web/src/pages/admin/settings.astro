@@ -1,0 +1,58 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import { listMentors } from '../../lib/admin-followup';
+import { getSettings, waLink } from '../../lib/support';
+import { formatDate } from '../../lib/labels';
+import { load } from '../../lib/page';
+
+const s = Astro.locals.session!;
+if (Astro.locals.staffRole !== 'manager') return Astro.rewrite('/404');
+const data = await load(Astro.response, () => Promise.all([getSettings(s.token), listMentors(s.token)]));
+const [st, mentors] = data ?? [null, null];
+---
+<Admin title="الإعدادات">
+  {!st || !mentors ? <ErrorState /> : (
+    <div class="stack" style="--space:2rem">
+      <form method="post" action="/api/admin/settings-save" class="adm-form">
+        <fieldset>
+          <legend>المتابعة المباشرة</legend>
+          <div class="field">
+            <label for="wa">رقم واتساب الفريق</label>
+            <input id="wa" name="team_whatsapp" type="text" dir="ltr" inputmode="tel" maxlength="30" value={st.team_whatsapp ? `+${st.team_whatsapp}` : ''} placeholder="+9627XXXXXXXX" class="input" />
+            <span class="hint">مع رمز الدولة. يظهر للزوار زرًّا «تواصل عبر واتساب» برسالة جاهزة. اتركه فارغًا لإخفاء الزر.</span>
+            {st.team_whatsapp && waLink(st.team_whatsapp) && <a class="hint" href={waLink(st.team_whatsapp)} target="_blank" rel="noopener">جرّب الرابط ↗</a>}
+          </div>
+          <div class="checks">
+            <label><input type="checkbox" name="mentorship_open" checked={st.mentorship_open} />استقبال طلبات المتابعة مفتوح</label>
+            <label><input type="checkbox" name="women_section_open" checked={st.women_section_open} />قسم الأخوات مفتوح</label>
+          </div>
+          <div class="field">
+            <label for="days">نتواصل مع صاحب الطلب خلال (أيام)</label>
+            <input id="days" name="mentorship_response_days" type="number" min="1" max="30" class="input" style="max-width:8rem" value={st.mentorship_response_days} />
+            <span class="hint">يُكتب للمستخدم بعد إرسال طلبه، فاختر مدة تستطيعون الالتزام بها.</span>
+          </div>
+        </fieldset>
+        <div><button class="btn btn-primary" type="submit">حفظ الإعدادات</button></div>
+      </form>
+
+      <section id="mentors" class="stack" style="--space:.8rem">
+        <h2 style="font-size:1.35rem">المتابِعون</h2>
+        <p class="faint" style="margin:0">المتابِع يدخل اللوحة ببريد Google ويرى طلبات المتابعة المسندة إليه فقط، ولا يرى المحتوى ولا غيره.</p>
+        <ul class="adm-list">
+          {mentors.map((m) => (
+            <li class="adm-row">
+              <div class="grow"><span dir="ltr" style="font-weight:600">{m.email}</span><div class="meta"><span class="faint" style="font-size:.85rem">أُضيف {formatDate(m.created_at)}</span></div></div>
+              <form method="post" action="/api/admin/mentor-remove" class="acts"><input type="hidden" name="email" value={m.email} /><button class="btn btn-ghost btn-sm" type="submit">إزالة</button></form>
+            </li>
+          ))}
+        </ul>
+        <form method="post" action="/api/admin/mentor-add" class="row">
+          <label class="sr-only" for="m-email">بريد المتابِع</label>
+          <input id="m-email" name="email" type="email" dir="ltr" required class="input" placeholder="name@gmail.com" style="flex:1; min-width:12rem" />
+          <button class="btn btn-primary btn-sm" type="submit">أضف متابِعًا</button>
+        </form>
+      </section>
+    </div>
+  )}
+</Admin>

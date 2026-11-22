@@ -10,7 +10,8 @@ create table auth.users (
   id                 uuid primary key,
   email              text,
   email_confirmed_at timestamptz,
-  raw_user_meta_data jsonb not null default '{}'
+  raw_user_meta_data jsonb not null default '{}',
+  created_at         timestamptz not null default now()
 );
 -- مطابق لتعريف Supabase: يقرأ claims الحديثة (JSON) ثم القديمة (claim.sub)
 create function auth.uid() returns uuid language sql stable as $$

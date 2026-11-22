@@ -158,7 +158,7 @@ test('الفريق: المدير يضيف عضوًا جديدًا وعضوًا �
   const mgr = await as(MGR); makeStaff(MGR, 'manager');
   // المحرر لا يرى تبويب الفريق ولا صفحته
   await editor.goto(`${BASE}/admin`);
-  assert.equal(await editor.getByRole('link', { name: 'الفريق' }).count(), 0);
+  assert.equal(await editor.getByRole('link', { name: 'الفريق', exact: true }).count(), 0);
   assert.equal((await editor.goto(`${BASE}/admin/team`)).status(), 404);
   // إضافة شخص لم يسجّل بعد: يصبح محررًا بمجرد أول دخول
   await mgr.goto(`${BASE}/admin/team`);

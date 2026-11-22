@@ -20,7 +20,7 @@ const CSP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
-const PRIVATE = ['/journey', '/api/', '/login', '/auth/', '/admin'];
+const PRIVATE = ['/journey', '/api/', '/login', '/auth/', '/admin', '/support'];
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const p = context.url.pathname;
@@ -39,7 +39,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     try {
       const { token, userId } = context.locals.session;
       // من أُضيف للفريق بعد تسجيله تُطبَّق إضافته عند أول زيارة للوحة
-      context.locals.staffRole = (await getStaffRole(token, userId)) ?? (await claimStaffInvite(token));
+      let role = await getStaffRole(token, userId);
+      if (!role || role === 'mentor') role = (await claimStaffInvite(token)) ?? role;
+      context.locals.staffRole = role;
     } catch (e) {
       if (e instanceof UnauthorizedError) {
         clearSession(context.cookies);
@@ -47,7 +49,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
       }
       throw e;
     }
-    if (!context.locals.staffRole) {
+    const role = context.locals.staffRole;
+    // المتابِع: طلبات المتابعة فقط؛ وما عداها كأنه غير موجود
+    if (role === 'mentor' && p === '/admin') return context.redirect('/admin/requests');
+    if (!role || (role === 'mentor' && !p.startsWith('/admin/requests'))) {
       const nf = await context.rewrite('/404');
       denied = new Response(nf.body, { status: 404, headers: nf.headers });
     }
