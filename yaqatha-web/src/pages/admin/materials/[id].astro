@@ -1,0 +1,24 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import MaterialForm from '../../../components/admin/MaterialForm.astro';
+import { PUBLISH_STATUS, getAdminMaterial, taxonomyOptions } from '../../../lib/admin';
+import { load } from '../../../lib/page';
+
+const s = Astro.locals.session!;
+const id = Astro.params.id ?? '';
+if (!/^[0-9a-f-]{36}$/i.test(id)) return Astro.rewrite('/404');
+const data = await load(Astro.response, () => Promise.all([getAdminMaterial(s.token, id), taxonomyOptions(s.token)]));
+if (data && !data[0]) return Astro.rewrite('/404');
+const [item, tax] = data ?? [null, null];
+---
+<Admin title={item ? item.material.title : 'تعديل مادة'}>
+  {!item || !tax ? <ErrorState /> : (
+    <div class="stack" style="--space:1.2rem">
+      <p class="row" style="margin:0">
+        <span class={`state st-${item.material.status}`}>{PUBLISH_STATUS[item.material.status]}</span>
+      </p>
+      <MaterialForm m={item.material} needIds={item.needIds} domainIds={item.domainIds} review={item.review} {...tax} />
+    </div>
+  )}
+</Admin>

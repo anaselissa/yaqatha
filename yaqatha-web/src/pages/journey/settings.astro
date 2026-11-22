@@ -1,7 +1,9 @@
 ---
 import Base from '../../layouts/Base.astro';
 import JourneyNav from '../../components/JourneyNav.astro';
+import { getStaffRole } from '../../lib/admin';
 const s = Astro.locals.session!;
+const role = await getStaffRole(s.token, s.userId).catch(() => null);
 ---
 <Base title="الإعدادات" noindex>
   <div class="container narrow">
@@ -13,6 +15,13 @@ const s = Astro.locals.session!;
         <p class="faint" style="font-size:.95rem; margin-block:.4rem 1rem">يأتي الاسم والبريد من حساب Google، ولا نخزّن غيرهما عنك سوى أهدافك وتقدمك ومحفوظاتك.</p>
         <form method="post" action="/auth/logout"><button class="btn btn-ghost" type="submit">تسجيل الخروج</button></form>
       </section>
+      {role && (
+        <section>
+          <h2 style="font-size:1.5rem; margin-bottom:.6rem">فريق يقظة</h2>
+          <p class="dim" style="margin-bottom:1rem">أنت {role === 'manager' ? 'مدير' : 'محرر محتوى'} في الفريق.</p>
+          <a class="btn btn-primary" href="/admin">لوحة الإدارة</a>
+        </section>
+      )}
       <section>
         <details class="fold"><summary>حذف الحساب والبيانات</summary>
           <div class="stack" style="--space:.9rem; margin-top:1rem">

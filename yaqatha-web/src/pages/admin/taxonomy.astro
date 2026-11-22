@@ -1,0 +1,75 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import { PUBLISH_STATUS, contentCounts, taxonomyOptions } from '../../lib/admin';
+import { load } from '../../lib/page';
+
+const s = Astro.locals.session!;
+const data = await load(Astro.response, () => Promise.all([taxonomyOptions(s.token), contentCounts(s.token)]));
+const [tax, counts] = data ?? [null, null];
+const label = (st: string) => (st === 'published' ? 'منشور' : st === 'draft' ? 'مسودة' : PUBLISH_STATUS[st]);
+---
+<Admin title="الاحتياجات والمجالات">
+  {!tax || !counts ? <ErrorState /> : (
+    <div class="stack" style="--space:2rem">
+      <div class="notice">
+        الاحتياج المنشور يظهر داخل بابه للزوار. <strong>انشره بعد أن تربط به مادة منشورة واحدة على الأقل</strong>، حتى لا يجد الزائر صفحة فارغة.
+      </div>
+
+      {tax.doors.map((d) => (
+        <section class="stack" style="--space:.6rem">
+          <h2 style="font-size:1.35rem">{d.title}</h2>
+          <ul class="adm-list">
+            {tax.needs.filter((n) => n.door_id === d.id).map((n) => {
+              const c = counts.needs[n.id] ?? 0;
+              return (
+                <li class="adm-row">
+                  <div class="grow">
+                    <span style="font-weight:600">{n.title}</span>
+                    <div class="meta">
+                      <span class={`state st-${n.status}`}>{label(n.status)}</span>
+                      <span class={`chip${c ? ' chip-gold' : ''}`}>{c ? `${c} مادة منشورة` : 'بلا محتوى منشور'}</span>
+                    </div>
+                  </div>
+                  <form method="post" action="/api/admin/need-status" class="acts">
+                    <input type="hidden" name="id" value={n.id} />
+                    {n.status === 'published'
+                      ? <><input type="hidden" name="status" value="hidden" /><button class="btn btn-ghost btn-sm" type="submit">إخفاء</button></>
+                      : <><input type="hidden" name="status" value="published" /><button class={`btn btn-sm ${c ? 'btn-primary' : 'btn-ghost'}`} type="submit">نشر</button></>}
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+
+      <section class="stack" style="--space:.6rem">
+        <h2 style="font-size:1.35rem">المجالات</h2>
+        <p class="faint" style="margin:0">للمجال صفحة مستقلة تجمع مواده ومساراته من كل الأبواب.</p>
+        <ul class="adm-list">
+          {tax.domains.map((d) => {
+            const c = counts.domains[d.id] ?? 0;
+            return (
+              <li class="adm-row">
+                <div class="grow">
+                  <span style="font-weight:600">{d.title}</span>
+                  <div class="meta">
+                    <span class={`state st-${d.status}`}>{label(d.status)}</span>
+                    <span class={`chip${c ? ' chip-gold' : ''}`}>{c ? `${c} مادة منشورة` : 'بلا محتوى منشور'}</span>
+                  </div>
+                </div>
+                <form method="post" action="/api/admin/domain-status" class="acts">
+                  <input type="hidden" name="id" value={d.id} />
+                  {d.status === 'published'
+                    ? <><input type="hidden" name="status" value="hidden" /><button class="btn btn-ghost btn-sm" type="submit">إخفاء</button></>
+                    : <><input type="hidden" name="status" value="published" /><button class={`btn btn-sm ${c ? 'btn-primary' : 'btn-ghost'}`} type="submit">نشر</button></>}
+                </form>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </div>
+  )}
+</Admin>

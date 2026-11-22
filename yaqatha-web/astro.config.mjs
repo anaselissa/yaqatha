@@ -1,4 +1,4 @@
-import { defineConfig } from 'astro/config';
+import { defineConfig, sessionDrivers } from 'astro/config';
 import node from '@astrojs/node';
 
 // المحوّل: node للتطوير والاختبار، cloudflare للإنتاج (ASTRO_ADAPTER=cloudflare).
@@ -19,7 +19,7 @@ export default defineConfig({
   trailingSlash: 'never',
   build: { inlineStylesheets: 'auto' },
   // لا نستخدم جلسات Astro (الجلسة كوكيز Supabase)؛ برنامج تشغيل غير KV يمنع المحوّل من طلب مورد KV
-  session: { driver: 'memory' },
+  session: { driver: sessionDrivers.memory() },
   security: { checkOrigin: true },
   devToolbar: { enabled: false },
 });

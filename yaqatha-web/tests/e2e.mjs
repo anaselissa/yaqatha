@@ -4,12 +4,13 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
+import { existsSync } from 'node:fs';
 
 const BASE = 'http://localhost:4321';
 const SECRET = 'dev-only-secret-dev-only-secret-0123456789';
 const sql = (q) => execFileSync('su', ['postgres', '-c', 'psql -d yaqatha_dev -At'], { input: q }).toString().trim();
 let browser;
-before(async () => { browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1243/chrome-linux64/chrome', args: ['--no-sandbox'] }); });
+before(async () => { browser = await chromium.launch({ executablePath: ['/opt/pw-browsers/chromium-1243/chrome-linux64/chrome', '/usr/bin/google-chrome'].find(existsSync), args: ['--no-sandbox'] }); });
 after(async () => { await browser.close(); });
 
 async function ctx(email, opts = {}) {

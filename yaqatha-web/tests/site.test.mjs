@@ -165,7 +165,9 @@ test('صفحات ثابتة وعدم وجود صفحات مستخدم/إدارة
   assert.match(login.html, /name="next" value="\/journey"/, 'وجهة خارجية تُرفض');
   assert.match(login.html, /noindex/);
   assert.match(login.headers.get('cache-control'), /no-store/);
-  assert.equal((await get('/admin')).status, 404);
+  const adm = await get('/admin');
+  assert.equal(adm.status, 302, '/admin يتطلب الدخول');
+  assert.match(adm.headers.get('location'), /^\/login\?next=%2Fadmin/);
   assert.equal((await get('/domains/nope')).status, 404);
   assert.equal((await get('/domains/self-discipline')).status, 200);
 });

@@ -10,5 +10,6 @@ interface ImportMeta {
 declare namespace App {
   interface Locals {
     session: import('./lib/auth').Session | null;
+    staffRole: import('./lib/admin').StaffRole | null;
   }
 }

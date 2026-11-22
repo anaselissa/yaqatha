@@ -1,0 +1,50 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import MaterialForm from '../../../components/admin/MaterialForm.astro';
+import { parseYoutubeId, taxonomyOptions, youtubeInfo, youtubeUrl, type AdminMaterial } from '../../../lib/admin';
+import { MATERIAL_TYPE } from '../../../lib/labels';
+import { load } from '../../../lib/page';
+
+const s = Astro.locals.session!;
+const q = Astro.url.searchParams;
+const type = MATERIAL_TYPE[q.get('type') ?? ''] ? q.get('type')! : 'article';
+const pasted = (q.get('url') ?? '').trim();
+const ytId = pasted ? parseYoutubeId(pasted) : null;
+const askUrl = type === 'video' && !pasted;
+
+const tax = await load(Astro.response, () => taxonomyOptions(s.token));
+const m: Partial<AdminMaterial> = { type, nature: 'original_source', status: 'draft' };
+let note = '';
+if (ytId) {
+  const info = await youtubeInfo(ytId);
+  Object.assign(m, { type: 'video', url: youtubeUrl(ytId) });
+  if (info) Object.assign(m, { title: info.title, author: info.channel, source_title: `${info.channel} — يوتيوب`, source_url: info.channelUrl || youtubeUrl(ytId) });
+  else note = 'لم نتمكن من جلب بيانات المقطع تلقائيًا. أكمل العنوان والمصدر يدويًا.';
+} else if (pasted) {
+  note = 'هذا ليس رابط مقطع يوتيوب صالحًا. تأكد من الرابط أو اختر نوعًا آخر.';
+  m.url = pasted;
+}
+---
+<Admin title="مادة جديدة">
+  {askUrl ? (
+    <form method="get" action="/admin/materials/new" class="adm-form">
+      <input type="hidden" name="type" value="video" />
+      <div class="field">
+        <label for="url">الصق رابط المقطع من يوتيوب</label>
+        <input id="url" name="url" type="url" dir="ltr" required placeholder="https://www.youtube.com/watch?v=…" autofocus />
+        <span class="hint">نجلب العنوان واسم القناة تلقائيًا، ثم تكمل الباقي.</span>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" type="submit">متابعة</button>
+        <a class="btn btn-ghost" href="/admin/materials/new">مادة بلا يوتيوب</a>
+      </div>
+    </form>
+  ) : !tax ? <ErrorState /> : (
+    <div class="stack" style="--space:1.2rem">
+      {note && <div class="notice" role="alert">{note}</div>}
+      {ytId && m.title && <div class="notice" role="status"><strong>تم جلب بيانات المقطع.</strong> راجعها، ثم اختر أين تظهر المادة واحفظ.</div>}
+      <MaterialForm m={m} needIds={[]} domainIds={[]} review={null} {...tax} />
+    </div>
+  )}
+</Admin>

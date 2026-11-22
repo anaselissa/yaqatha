@@ -1,0 +1,40 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import { dashboardStats } from '../../lib/admin';
+import { load } from '../../lib/page';
+const s = Astro.locals.session!;
+const stats = await load(Astro.response, () => dashboardStats(s.token));
+const first = s.name?.split(' ')[0];
+---
+<Admin title={first ? `أهلًا ${first}` : 'لوحة الإدارة'}>
+  {!stats ? <ErrorState /> : (
+    <div class="stack" style="--space:2rem">
+      <section class="stack" style="--space:.9rem">
+        <h2 style="font-size:1.35rem">المحتوى الآن</h2>
+        <div class="stats">
+          <a class="stat" href="/admin/materials?status=published"><b>{stats.published}</b><span>مادة منشورة</span></a>
+          <a class="stat" href="/admin/materials?status=draft"><b>{stats.draft}</b><span>مسودة</span></a>
+          <a class="stat" href="/admin/materials?status=hidden"><b>{stats.hidden}</b><span>مخفية</span></a>
+          <a class="stat" href="/admin/taxonomy"><b>{stats.needsPub}<small class="faint" style="font-size:1rem"> / {stats.needsAll}</small></b><span>احتياج منشور</span></a>
+        </div>
+        {stats.reports > 0 && (
+          <div class="notice" role="status"><strong>{stats.reports} بلاغ مفتوح</strong> على مواد من الزوار. ستظهر قائمة البلاغات في المرحلة القادمة.</div>
+        )}
+      </section>
+
+      <section class="stack" style="--space:.9rem">
+        <h2 style="font-size:1.35rem">ابدأ من هنا</h2>
+        <div class="row">
+          <a class="btn btn-primary" href="/admin/materials/new">أضف مادة</a>
+          <a class="btn btn-ghost" href="/admin/materials/new?type=video">أضف مقطعًا من يوتيوب</a>
+          <a class="btn btn-ghost" href="/admin/taxonomy">انشر احتياجًا</a>
+        </div>
+        <div class="notice">
+          <strong>كيف يظهر المحتوى للزائر؟</strong>
+          أضف مادة واربطها باحتياج ومجال، ثم انشرها. بعدها انشر الاحتياج نفسه من «الاحتياجات والمجالات» ليظهر داخل بابه في الموقع.
+        </div>
+      </section>
+    </div>
+  )}
+</Admin>

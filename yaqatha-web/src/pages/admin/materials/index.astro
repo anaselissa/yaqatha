@@ -1,0 +1,83 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import EmptyState from '../../../components/EmptyState.astro';
+import Pager from '../../../components/Pager.astro';
+import { PUBLISH_STATUS, REVIEW_STATUS, listAdminMaterials, parseYoutubeId, youtubeThumb } from '../../../lib/admin';
+import { MATERIAL_TYPE, formatDate } from '../../../lib/labels';
+import { load } from '../../../lib/page';
+
+const s = Astro.locals.session!;
+const q = Astro.url.searchParams;
+const f = { status: q.get('status') ?? '', type: q.get('type') ?? '', q: q.get('q') ?? '', page: Number(q.get('page')) || 1 };
+const data = await load(Astro.response, () => listAdminMaterials(s.token, f));
+const here = Astro.url.pathname + Astro.url.search;
+const link = (k: 'status' | 'type', v: string) => {
+  const u = new URLSearchParams({ ...(f.status && { status: f.status }), ...(f.type && { type: f.type }), ...(f.q && { q: f.q }) });
+  if (v) u.set(k, v); else u.delete(k);
+  const str = u.toString();
+  return str ? `/admin/materials?${str}` : '/admin/materials';
+};
+---
+<Admin title="المواد">
+  <div class="stack" style="--space:1.2rem">
+    <div class="row" style="justify-content:space-between">
+      <a class="btn btn-primary" href="/admin/materials/new">أضف مادة</a>
+      <form method="get" action="/admin/materials" class="row" role="search" style="flex:1; max-width:24rem">
+        {f.status && <input type="hidden" name="status" value={f.status} />}
+        {f.type && <input type="hidden" name="type" value={f.type} />}
+        <label class="sr-only" for="q">ابحث في العناوين</label>
+        <input class="input" id="q" name="q" type="search" value={f.q} placeholder="ابحث في العناوين" style="flex:1; min-height:2.6rem" />
+        <button class="btn btn-ghost btn-sm" type="submit">بحث</button>
+      </form>
+    </div>
+    <nav class="filters" aria-label="الحالة" style="margin:0">
+      <a href={link('status', '')} aria-current={!f.status ? 'true' : undefined}>الكل</a>
+      {Object.entries(PUBLISH_STATUS).map(([k, l]) => <a href={link('status', k)} aria-current={f.status === k ? 'true' : undefined}>{l}</a>)}
+    </nav>
+    <nav class="filters" aria-label="النوع" style="margin:0">
+      <a href={link('type', '')} aria-current={!f.type ? 'true' : undefined}>كل الأنواع</a>
+      {Object.entries(MATERIAL_TYPE).map(([k, l]) => <a href={link('type', k)} aria-current={f.type === k ? 'true' : undefined}>{l}</a>)}
+    </nav>
+
+    {!data ? <ErrorState /> : data.items.length === 0 ? (
+      <EmptyState title={f.q || f.status || f.type ? 'لا توجد مواد بهذه التصفية' : 'ابدأ بأول مادة'} text="أسرع طريقة: الصق رابط مقطع من يوتيوب، ويُملأ العنوان والقناة تلقائيًا.">
+        <a class="btn btn-primary" href="/admin/materials/new?type=video">أضف مقطعًا من يوتيوب</a>
+      </EmptyState>
+    ) : (
+      <>
+        <p class="faint" style="margin:0">{data.total} مادة</p>
+        <ul class="adm-list">
+          {data.items.map((m) => {
+            const yt = m.type === 'video' ? parseYoutubeId(m.url ?? '') : null;
+            return (
+              <li class="adm-row">
+                {yt && <img class="thumb" src={youtubeThumb(yt)} alt="" loading="lazy" />}
+                <div class="grow">
+                  <a href={`/admin/materials/${m.id}`}>{m.title}</a>
+                  <div class="meta">
+                    <span class={`state st-${m.status}`}>{PUBLISH_STATUS[m.status]}</span>
+                    <span class="chip">{MATERIAL_TYPE[m.type]}</span>
+                    <span class="chip">{REVIEW_STATUS[m.review]}</span>
+                    <span class="faint" style="font-size:.85rem">{formatDate(m.updated_at)}</span>
+                  </div>
+                </div>
+                <div class="acts">
+                  {m.status === 'published' && <a class="btn btn-ghost btn-sm" href={`/library/${m.slug}`} target="_blank" rel="noopener">عرض</a>}
+                  <form method="post" action="/api/admin/material-status">
+                    <input type="hidden" name="id" value={m.id} />
+                    <input type="hidden" name="next" value={here} />
+                    {m.status === 'published'
+                      ? <><input type="hidden" name="status" value="hidden" /><button class="btn btn-ghost btn-sm" type="submit">إخفاء</button></>
+                      : <><input type="hidden" name="status" value="published" /><button class="btn btn-ghost btn-sm" type="submit">نشر</button></>}
+                  </form>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <Pager page={data.page} pages={data.pages} base="/admin/materials" params={{ status: f.status, type: f.type, q: f.q }} />
+      </>
+    )}
+  </div>
+</Admin>

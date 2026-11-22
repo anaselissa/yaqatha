@@ -1,0 +1,130 @@
+---
+import { PUBLISH_STATUS, REVIEW_STATUS, parseYoutubeId, youtubeThumb, type AdminMaterial, type Option } from '../../lib/admin';
+import { MATERIAL_TYPE, NATURE } from '../../lib/labels';
+
+interface Props {
+  m: Partial<AdminMaterial>;
+  needIds: string[];
+  domainIds: string[];
+  review: { review_status: string; internal_note: string | null } | null;
+  doors: { id: number; title: string }[];
+  needs: Option[];
+  domains: Option[];
+}
+const { m, needIds, domainIds, review, doors, needs, domains } = Astro.props;
+const yt = m.type === 'video' ? parseYoutubeId(m.url ?? '') : null;
+const draftBadge = (s: string) => (s === 'published' ? '' : ' (غير منشور)');
+---
+<form method="post" action="/api/admin/material-save" class="adm-form">
+  {m.id && <input type="hidden" name="id" value={m.id} />}
+  {m.updated_at && <input type="hidden" name="updated_at" value={m.updated_at} />}
+
+  <fieldset>
+    <legend>المادة</legend>
+    <div class="field">
+      <label for="type">النوع</label>
+      <select id="type" name="type" required>
+        {Object.entries(MATERIAL_TYPE).map(([k, l]) => <option value={k} selected={(m.type ?? 'article') === k}>{l}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="title">العنوان</label>
+      <input id="title" name="title" type="text" required maxlength="200" value={m.title ?? ''} />
+    </div>
+    <div class="field">
+      <label for="url">الرابط</label>
+      <input id="url" name="url" type="url" dir="ltr" maxlength="500" value={m.url ?? ''} placeholder="https://www.youtube.com/watch?v=…" />
+      <span class="hint">مطلوب للفيديو والمصدر الخارجي. لروابط يوتيوب يُحفظ الرابط بصيغة موحّدة تلقائيًا.</span>
+    </div>
+    {yt && <div class="yt-preview"><img src={youtubeThumb(yt)} alt="" /><span class="dim">معاينة المقطع</span></div>}
+    <div class="field">
+      <label for="description">وصف قصير</label>
+      <textarea id="description" name="description" maxlength="1000" style="min-height:5rem">{m.description ?? ''}</textarea>
+      <span class="hint">يظهر تحت العنوان في القوائم. جملة أو جملتان عمّا سيستفيده الزائر.</span>
+    </div>
+    <div class="field">
+      <label for="body">النص <span class="faint">(اختياري للفيديو)</span></label>
+      <textarea id="body" name="body" maxlength="60000">{m.body ?? ''}</textarea>
+      <span class="hint">للمقال والتوجيه والتمرين. يدعم Markdown: ## عنوان، **غامق**، - نقطة.</span>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>المصدر والموثوقية</legend>
+    <div class="field">
+      <label for="author">المحاضر أو المؤلف</label>
+      <input id="author" name="author" type="text" maxlength="200" value={m.author ?? ''} />
+    </div>
+    <div class="field">
+      <label for="source_title">اسم المصدر الأصلي</label>
+      <input id="source_title" name="source_title" type="text" maxlength="300" value={m.source_title ?? ''} placeholder="مثال: قناة الشيخ على يوتيوب، أو اسم الكتاب" />
+    </div>
+    <div class="field">
+      <label for="source_url">رابط المصدر الأصلي</label>
+      <input id="source_url" name="source_url" type="url" dir="ltr" maxlength="500" value={m.source_url ?? ''} />
+      <span class="hint">لا تُنشر مادة بلا مصدر، إلا التوجيه أو التمرين أو سؤال التفكير الذي كتبه فريق يقظة.</span>
+    </div>
+    <div class="field">
+      <label for="nature">طبيعة المحتوى</label>
+      <select id="nature" name="nature">
+        {Object.entries(NATURE).map(([k, l]) => <option value={k} selected={(m.nature ?? 'original_source') === k}>{l}</option>)}
+      </select>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>أين تظهر</legend>
+    <p class="hint faint" style="margin:0">اختر احتياجًا أو مجالًا واحدًا على الأقل. تظهر المادة للزائر في صفحات ما تربطها به إذا كان منشورًا.</p>
+    <div class="checks" role="group" aria-label="الاحتياجات">
+      {doors.map((d) => (
+        <>
+          <div class="door">{d.title}</div>
+          {needs.filter((n) => n.door_id === d.id).map((n) => (
+            <label><input type="checkbox" name="need" value={n.id} checked={needIds.includes(n.id)} />{n.title}<span class="faint">{draftBadge(n.status)}</span></label>
+          ))}
+        </>
+      ))}
+    </div>
+    <details class="fold">
+      <summary>المجالات ({domainIds.length} مختار)</summary>
+      <div class="checks" role="group" aria-label="المجالات" style="margin-top:.6rem">
+        {domains.map((d) => <label><input type="checkbox" name="domain" value={d.id} checked={domainIds.includes(d.id)} />{d.title}<span class="faint">{draftBadge(d.status)}</span></label>)}
+      </div>
+    </details>
+  </fieldset>
+
+  <fieldset>
+    <legend>النشر والمراجعة</legend>
+    <div class="field">
+      <label for="status">حالة النشر</label>
+      <select id="status" name="status">
+        {Object.entries(PUBLISH_STATUS).map(([k, l]) => <option value={k} selected={(m.status ?? 'draft') === k}>{l}</option>)}
+      </select>
+      <span class="hint">المخفية لا تُحذف: تختفي عن الزوار ويمكن إظهارها في أي وقت.</span>
+    </div>
+    <div class="field">
+      <label for="review_status">حالة المراجعة <span class="faint">(داخلية، لا يراها الزوار)</span></label>
+      <select id="review_status" name="review_status">
+        {Object.entries(REVIEW_STATUS).map(([k, l]) => <option value={k} selected={(review?.review_status ?? 'experimental') === k}>{l}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="internal_note">ملاحظة للفريق</label>
+      <textarea id="internal_note" name="internal_note" maxlength="2000" style="min-height:4rem">{review?.internal_note ?? ''}</textarea>
+    </div>
+    <details class="fold">
+      <summary>الرابط في الموقع</summary>
+      <div class="field" style="margin-top:.6rem">
+        <label for="slug">الرابط</label>
+        <input id="slug" name="slug" type="text" dir="ltr" maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*" value={m.slug ?? ''} placeholder="يُولَّد تلقائيًا من العنوان" />
+        <span class="hint">أحرف إنجليزية صغيرة وأرقام وشرطات. تغييره لاحقًا يحوّل الرابط القديم تلقائيًا.</span>
+      </div>
+    </details>
+  </fieldset>
+
+  <div class="save-bar">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    {m.status === 'published' && m.slug && <a class="btn btn-ghost" href={`/library/${m.slug}`} target="_blank" rel="noopener">عرض في الموقع</a>}
+    <a class="btn btn-ghost" href="/admin/materials">رجوع</a>
+  </div>
+</form>
