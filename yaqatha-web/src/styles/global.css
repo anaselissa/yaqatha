@@ -285,3 +285,4 @@ details.fold summary { cursor: pointer; font-weight: 600; }
 .yt-preview img { width: 8rem; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); }
 .admin .filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: .15rem; }
 .admin .filters a { white-space: nowrap; flex: none; }
+.series-nav { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; padding-top: 1rem; border-top: 1px solid var(--line); }

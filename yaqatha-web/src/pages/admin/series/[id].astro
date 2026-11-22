@@ -1,0 +1,117 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import LinkPicker from '../../../components/admin/LinkPicker.astro';
+import { PUBLISH_STATUS, taxonomyOptions } from '../../../lib/admin';
+import { MAX_BATCH, getSeriesEditor } from '../../../lib/admin-series';
+import { materialOptions } from '../../../lib/admin-paths';
+import { parseYoutubeId, youtubeThumb } from '../../../lib/youtube';
+import { MATERIAL_TYPE } from '../../../lib/labels';
+import { load } from '../../../lib/page';
+
+const s = Astro.locals.session!;
+const id = Astro.params.id ?? '';
+if (!/^[0-9a-f-]{36}$/i.test(id)) return Astro.rewrite('/404');
+const data = await load(Astro.response, () => Promise.all([getSeriesEditor(s.token, id), taxonomyOptions(s.token), materialOptions(s.token)]));
+if (data && !data[0]) return Astro.rewrite('/404');
+const [ed, tax, mats] = data ?? [null, null, null];
+const inSeries = new Set(ed?.episodes.map((e) => e.material_id) ?? []);
+const drafts = ed?.episodes.filter((e) => e.materials.status === 'draft').length ?? 0;
+---
+<Admin title={ed?.series.title ?? 'سلسلة'}>
+  {!ed || !tax || !mats ? <ErrorState /> : (
+    <div class="stack" style="--space:2rem">
+      <p class="row" style="margin:0">
+        <span class={`state st-${ed.series.status}`}>{PUBLISH_STATUS[ed.series.status]}</span>
+        <span class="chip">{ed.episodes.length} حلقة</span>
+        {ed.series.status === 'published' && <a class="btn btn-ghost btn-sm" href={`/series/${ed.series.slug}`} target="_blank" rel="noopener">عرض في الموقع</a>}
+      </p>
+
+      <section id="episodes" class="stack" style="--space:.8rem">
+        <h2 style="font-size:1.35rem">الحلقات</h2>
+        {drafts > 0 && (
+          <div class="notice" role="status">
+            {drafts} حلقة غير منشورة؛ لا يراها الزائر.
+            <form method="post" action="/api/admin/series-publish-episodes" style="margin-top:.6rem">
+              <input type="hidden" name="series_id" value={id} />
+              <button class="btn btn-primary btn-sm" type="submit">انشر كل الحلقات</button>
+            </form>
+          </div>
+        )}
+        {ed.episodes.length === 0 && <p class="faint" style="margin:0">لا حلقات بعد.</p>}
+        <ol class="adm-list" style="list-style:none">
+          {ed.episodes.map((e, i) => {
+            const yt = parseYoutubeId(e.materials.url ?? '');
+            return (
+              <li class="adm-row">
+                {yt && <img class="thumb" src={youtubeThumb(yt)} alt="" loading="lazy" />}
+                <div class="grow">
+                  <a href={`/admin/materials/${e.material_id}`}><span class="gold">{i + 1}.</span> {e.materials.title}</a>
+                  <div class="meta"><span class={`state st-${e.materials.status}`}>{PUBLISH_STATUS[e.materials.status]}</span></div>
+                </div>
+                <div class="acts">
+                  {i > 0 && <form method="post" action="/api/admin/series-move"><input type="hidden" name="series_id" value={id} /><input type="hidden" name="material_id" value={e.material_id} /><input type="hidden" name="dir" value="up" /><button class="btn btn-ghost btn-sm" type="submit" aria-label={`حرّك الحلقة ${i + 1} لأعلى`}>↑</button></form>}
+                  {i < ed.episodes.length - 1 && <form method="post" action="/api/admin/series-move"><input type="hidden" name="series_id" value={id} /><input type="hidden" name="material_id" value={e.material_id} /><input type="hidden" name="dir" value="down" /><button class="btn btn-ghost btn-sm" type="submit" aria-label={`حرّك الحلقة ${i + 1} لأسفل`}>↓</button></form>}
+                  <form method="post" action="/api/admin/series-remove"><input type="hidden" name="series_id" value={id} /><input type="hidden" name="material_id" value={e.material_id} /><button class="btn btn-ghost btn-sm" type="submit">إزالة</button></form>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+
+        <details class="fold" open={ed.episodes.length === 0}>
+          <summary><strong>+ أضف حلقات من يوتيوب</strong></summary>
+          <form method="post" action="/api/admin/series-add-videos" class="adm-form" style="margin-top:1rem">
+            <input type="hidden" name="series_id" value={id} />
+            <div class="field">
+              <label for="links">الروابط، رابط في كل سطر وبترتيبها</label>
+              <textarea id="links" name="links" dir="ltr" required style="min-height:8rem"></textarea>
+              <span class="hint">حتى {MAX_BATCH} رابطًا في المرة. تُضاف في آخر السلسلة.</span>
+            </div>
+            <LinkPicker {...tax} needIds={[]} domainIds={[]} />
+            <div class="checks"><label><input type="checkbox" name="publish" />انشر الحلقات الجديدة مباشرة</label></div>
+            <div class="row"><button class="btn btn-primary" type="submit">أضف الحلقات</button></div>
+          </form>
+        </details>
+
+        <details class="fold">
+          <summary><strong>+ أضف مادة موجودة من المكتبة</strong></summary>
+          <form method="post" action="/api/admin/series-add-material" class="adm-form" style="margin-top:1rem">
+            <input type="hidden" name="series_id" value={id} />
+            <div class="field"><label for="mat">المادة</label>
+              <select id="mat" name="material_id" required>{mats.filter((m) => !inSeries.has(m.id)).map((m) => <option value={m.id}>{m.title} · {MATERIAL_TYPE[m.type]}</option>)}</select></div>
+            <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف</button></div>
+          </form>
+        </details>
+      </section>
+
+      {ed.episodes.length > 0 && (
+        <section class="stack" style="--space:.6rem">
+          <h2 style="font-size:1.35rem">حوّلها إلى مسار</h2>
+          <p class="faint" style="margin:0">ننشئ مسارًا (غير منشور) فيه خطوة مشاهدة لكل حلقة بترتيبها، ويرث احتياجاتها. بعدها تضيف أسئلة التفكير والتمارين وتنشره.</p>
+          <form method="post" action="/api/admin/series-to-path">
+            <input type="hidden" name="series_id" value={id} />
+            <button class="btn btn-primary" type="submit">أنشئ مسارًا من السلسلة</button>
+          </form>
+        </section>
+      )}
+
+      <section class="stack" style="--space:.8rem">
+        <details class="fold" open={ed.series.status === 'draft' && ed.episodes.length > 0}>
+          <summary><strong>بيانات السلسلة ونشرها</strong></summary>
+          <form method="post" action="/api/admin/series-save" class="adm-form" style="margin-top:1rem">
+            <input type="hidden" name="series_id" value={id} />
+            <div class="field"><label for="title">اسم السلسلة</label><input id="title" name="title" type="text" required maxlength="200" value={ed.series.title} /></div>
+            <div class="field"><label for="author">الشيخ أو المحاضر</label><input id="author" name="author" type="text" maxlength="200" value={ed.series.author ?? ''} /></div>
+            <div class="field"><label for="description">وصف قصير</label><textarea id="description" name="description" maxlength="2000" style="min-height:5rem">{ed.series.description ?? ''}</textarea></div>
+            <div class="field"><label for="source_url">رابط قائمة التشغيل</label><input id="source_url" name="source_url" type="url" dir="ltr" maxlength="500" value={ed.series.source_url ?? ''} /></div>
+            <div class="field"><label for="status">الحالة</label>
+              <select id="status" name="status">{Object.entries(PUBLISH_STATUS).map(([k, l]) => <option value={k} selected={ed.series.status === k}>{l}</option>)}</select>
+              <span class="hint">السلسلة المنشورة لها صفحة في الموقع، وتظهر «الحلقة التالية» في صفحة كل حلقة.</span></div>
+            <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ</button></div>
+          </form>
+        </details>
+      </section>
+    </div>
+  )}
+</Admin>

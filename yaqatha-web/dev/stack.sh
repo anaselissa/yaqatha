@@ -8,7 +8,7 @@ if command -v pg_lsclusters >/dev/null && pg_lsclusters | grep -q down; then pg_
 SU="su postgres -c"
 if ! $SU "psql -Atc \"select 1 from pg_database where datname='$DB'\"" | grep -q 1 || [ "${RESET:-0}" = 1 ]; then
   $SU "psql -q -c 'drop database if exists $DB with (force)' -c 'create database $DB encoding UTF8'" >/dev/null 2>&1
-  for f in dev/db/tests/stub_supabase.sql dev/db/supabase/migrations/*.sql dev/db/supabase/seed.sql dev/dev-seed.sql; do
+  for f in ../yaqatha-db/tests/stub_supabase.sql ../yaqatha-db/supabase/migrations/*.sql ../yaqatha-db/supabase/seed.sql dev/dev-seed.sql; do
     $SU "psql -q -v ON_ERROR_STOP=1 -d $DB -f $ROOT/$f" >/dev/null
   done
   $SU "psql -q -d $DB -c \"do \\\$\\\$ begin if not exists (select 1 from pg_roles where rolname='authenticator') then create role authenticator noinherit login password 'authpass'; end if; end \\\$\\\$; grant anon, authenticated to authenticator;\"" >/dev/null

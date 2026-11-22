@@ -5,7 +5,7 @@ import ErrorState from '../../../../components/ErrorState.astro';
 import Progress from '../../../../components/Progress.astro';
 import StepControls from '../../../../components/StepControls.astro';
 import PostButton from '../../../../components/PostButton.astro';
-import { getEnrollment, getEnrollmentSteps, getGoals, getLatestVersions, getProgress, planMigration, getGoalLinks } from '../../../../lib/user';
+import { getEnrollment, getEnrollmentSteps, getGoals, getLatestVersions, getPathEnding, getProgress, planMigration } from '../../../../lib/user';
 import { rest } from '../../../../lib/api';
 import { STEP_TYPE, durationLabel } from '../../../../lib/labels';
 import { load } from '../../../../lib/page';
@@ -26,7 +26,10 @@ const data = await load(Astro.response, async () => {
   const newer = latest.get(e.path_id);
   const hasUpdate = e.status === 'active' && !!newer && !!e.path_versions && newer.version_no > e.path_versions.version_no;
   const plan = hasUpdate && wantMigrate ? await planMigration(t, e.id) : null;
-  return { e, steps, state, prog: prog.get(e.id), newer, hasUpdate, plan, goals, linked };
+  const p = prog.get(e.id);
+  const done = !!p && p.total_steps > 0 && p.completed_steps === p.total_steps;
+  const ending = done ? await getPathEnding(t, e.path_id) : null;
+  return { e, steps, state, prog: p, newer, hasUpdate, plan, goals, linked, done, ending };
 });
 if (data && !data.e) return Astro.rewrite('/404');
 const d = data && data.e ? data : null;
@@ -34,7 +37,7 @@ const e = d?.e;
 const here = `/journey/paths/${id}`;
 const withdrawn = e?.path_versions?.status === 'withdrawn';
 const active = e?.status === 'active';
-const linkedIds = new Set(d?.linked.map((l) => l.goal_id));
+const linkedTitles = new Set(d?.linked.map((l) => l.goals?.title));
 const KIND: Record<string, string> = { carried: 'سيُنقل تقدمها', new: 'خطوة جديدة', removed: 'لن تظهر في الإصدار الجديد (تبقى في سجل إصدارك)' };
 ---
 <Base title={e?.path_versions?.title ?? 'مسار'} noindex>
@@ -111,8 +114,49 @@ const KIND: Record<string, string> = { carried: 'سيُنقل تقدمها', new
               <StepControls enrollmentId={e.id} stepId={s.id} state={d.state(s.id)} next={here} readonly={!active} />
             </div>
           ))}
-          {d.prog && d.prog.total_steps > 0 && d.prog.completed_steps === d.prog.total_steps && (
-            <div class="notice" style="margin-top:1.5rem">سجّلتَ أنك أنهيت خطوات هذا المسار. وهذا تسجيل شخصي منك، ولا يحكم على أثره في حياتك. يمكنك تحديث هدفك المرتبط، أو تصفّح مسار آخر. <a href="/paths">المسارات</a></div>
+          {d.done && (
+            <section id="ending" class="journey-card" style="margin-top:1.5rem" aria-labelledby="end-h">
+              <h2 id="end-h" style="font-size:1.6rem">أتممت خطوات المسار</h2>
+              <p class="dim">أنهيت {d.prog!.total_steps} خطوات. هذا تسجيل شخصي منك ولا يحكم على أثره في حياتك؛ الأثر الحقيقي فيما تستمر عليه بعده.</p>
+
+              {active && (
+                <div class="stack" style="--space:.7rem">
+                  <h3 style="font-size:1.25rem">حوّله إلى عادة</h3>
+                  {d.ending!.goals.map((g) => (
+                    <div class="notice">
+                      <strong>{g.title}</strong>
+                      {g.description && <p style="margin:.3rem 0 0">{g.description}</p>}
+                      <div style="margin-top:.7rem">
+                        {linkedTitles.has(g.title) ? <span class="chip chip-gold">صار هدفك ✓</span> : (
+                          <form method="post" action="/api/goal-create">
+                            <input type="hidden" name="id" value={crypto.randomUUID()} />
+                            <input type="hidden" name="title" value={g.title} />
+                            <input type="hidden" name="description" value={g.description ?? ''} />
+                            <input type="hidden" name="enrollment_id" value={e.id} />
+                            <button class="btn btn-primary btn-sm" type="submit">اجعله هدفي</button>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <p><a class="btn btn-ghost btn-sm" href={`/journey/goals/new?enrollment=${e.id}`}>اكتب هدفك أنت</a></p>
+                </div>
+              )}
+
+              {d.ending!.paths.length > 0 && (
+                <div class="stack" style="--space:.7rem; margin-top:1.2rem">
+                  <h3 style="font-size:1.25rem">خطوتك التالية</h3>
+                  {d.ending!.paths.map((p) => (
+                    <a class="path-card" href={`/paths/${p.slug}`}>
+                      <h4 style="margin:0; font-size:1.15rem">{p.title}</h4>
+                      {p.description && <p class="dim" style="margin:.3rem 0 0">{p.description}</p>}
+                      <div class="meta"><span class="chip chip-gold">{durationLabel(p.duration_days)}</span></div>
+                    </a>
+                  ))}
+                </div>
+              )}
+              {d.ending!.paths.length === 0 && <p style="margin-top:1rem">تصفّح <a href="/paths">المسارات</a> لتختار خطوتك التالية.</p>}
+            </section>
           )}
         </section>
       )}

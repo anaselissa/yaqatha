@@ -4,7 +4,7 @@ interface Props { title: string }
 const { title } = Astro.props;
 const p = Astro.url.pathname;
 const role = Astro.locals.staffRole;
-const tabs = [['/admin', 'الرئيسية'], ['/admin/materials', 'المواد'], ['/admin/paths', 'المسارات'], ['/admin/taxonomy', 'الاحتياجات والمجالات'], ...(role === 'manager' ? [['/admin/team', 'الفريق']] : [])];
+const tabs = [['/admin', 'الرئيسية'], ['/admin/materials', 'المواد'], ['/admin/paths', 'المسارات'], ['/admin/series', 'السلاسل'], ['/admin/taxonomy', 'الاحتياجات والمجالات'], ...(role === 'manager' ? [['/admin/team', 'الفريق']] : [])];
 const cur = (h: string) => (h === '/admin' ? p === '/admin' : p === h || p.startsWith(h + '/'));
 ---
 <Base title={`${title} — الإدارة`} noindex>

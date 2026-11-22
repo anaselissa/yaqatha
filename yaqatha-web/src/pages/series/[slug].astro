@@ -1,0 +1,42 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import { getSeries } from '../../lib/data';
+import { MATERIAL_TYPE } from '../../lib/labels';
+import { load } from '../../lib/page';
+
+const data = await load(Astro.response, () => getSeries(Astro.params.slug!));
+if (data === null && Astro.response.status !== 503) return Astro.rewrite('/404');
+const s = data?.series;
+---
+<Base title={s?.title} description={s?.description ?? (s ? `سلسلة ${s.title}${s.author ? ` — ${s.author}` : ''}` : undefined)}>
+  {!data || !s ? <ErrorState /> : (
+    <div class="container">
+      <header class="page-head">
+        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المواد والمحتوى', href: '/library' }, { label: s.title }]} />
+        <div class="meta" style="margin-bottom:.9rem">
+          <span class="chip chip-gold">سلسلة · {data.items.length} حلقة</span>
+          {s.author && <span class="chip">{s.author}</span>}
+        </div>
+        <h1>{s.title}</h1>
+        {s.description && <p class="lead">{s.description}</p>}
+        {data.items[0] && <p style="margin-top:1.2rem"><a class="btn btn-primary" href={`/library/${data.items[0].slug}`}>ابدأ من الحلقة الأولى</a></p>}
+      </header>
+      <section class="section" style="padding-block-start:0" aria-label="الحلقات">
+        <ol class="mats" style="list-style:none">
+          {data.items.map((m, i) => (
+            <li>
+              <a class="mat" href={`/library/${m.slug}`}>
+                <div class="meta"><span class="chip chip-gold">الحلقة {i + 1}</span><span class="chip">{MATERIAL_TYPE[m.type] ?? m.type}</span></div>
+                <h3>{m.title}</h3>
+                {m.description && <p>{m.description}</p>}
+              </a>
+            </li>
+          ))}
+        </ol>
+        {s.source_url && <p class="faint" style="margin-top:1.5rem">المصدر: <a href={s.source_url} target="_blank" rel="noopener nofollow">قائمة التشغيل الأصلية ↗</a></p>}
+      </section>
+    </div>
+  )}
+</Base>

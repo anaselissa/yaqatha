@@ -3,16 +3,17 @@ import Admin from '../../../layouts/Admin.astro';
 import ErrorState from '../../../components/ErrorState.astro';
 import LinkPicker from '../../../components/admin/LinkPicker.astro';
 import { PUBLISH_STATUS, REVIEW_STATUS, taxonomyOptions } from '../../../lib/admin';
-import { PATH_STATUS, VERSION_STATUS, getPathEditor, materialOptions } from '../../../lib/admin-paths';
+import { PATH_STATUS, VERSION_STATUS, getPathEditor, listAdminPaths, materialOptions } from '../../../lib/admin-paths';
 import { CHANGE_TYPE, MATERIAL_TYPE, STEP_TYPE, durationLabel, formatDate, stepsLabel } from '../../../lib/labels';
 import { load } from '../../../lib/page';
 
 const s = Astro.locals.session!;
 const id = Astro.params.id ?? '';
 if (!/^[0-9a-f-]{36}$/i.test(id)) return Astro.rewrite('/404');
-const data = await load(Astro.response, () => Promise.all([getPathEditor(s.token, id), taxonomyOptions(s.token), materialOptions(s.token)]));
+const data = await load(Astro.response, () => Promise.all([getPathEditor(s.token, id), taxonomyOptions(s.token), materialOptions(s.token), listAdminPaths(s.token)]));
 if (data && !data[0]) return Astro.rewrite('/404');
-const [ed, tax, mats] = data ?? [null, null, null];
+const [ed, tax, mats, allPaths] = data ?? [null, null, null, []];
+const pathTitle = new Map(allPaths.map((p) => [p.id, p]));
 const work = ed?.work ?? null;
 const isDraft = work?.status === 'draft';
 const pid = ed?.path.id ?? '';
@@ -160,6 +161,59 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
           </form>
         </section>
       )}
+
+
+      <section id="ending" class="stack" style="--space:.8rem">
+        <h2 style="font-size:1.35rem">ختام المسار</h2>
+        <p class="faint" style="margin:0">يظهر لمن أكمل كل الخطوات: أهداف يتبنّاها بنقرة لتصير عادة، ومسار يكمل به.</p>
+        <div class="stack" style="--space:.5rem">
+          <h3 style="font-size:1.1rem">أهداف مقترحة</h3>
+          {ed.goals.length === 0 && <p class="faint" style="margin:0">لا أهداف مقترحة بعد.</p>}
+          <ul class="adm-list">
+            {ed.goals.map((g) => (
+              <li class="adm-row">
+                <div class="grow"><span style="font-weight:600">{g.title}</span>{g.description && <p class="faint" style="margin:.2rem 0 0; font-size:.92rem">{g.description}</p>}</div>
+                <form method="post" action="/api/admin/path-goal-delete" class="acts"><input type="hidden" name="path_id" value={pid} /><input type="hidden" name="goal_id" value={g.id} /><button class="btn btn-ghost btn-sm" type="submit">حذف</button></form>
+              </li>
+            ))}
+          </ul>
+          <details class="fold">
+            <summary><strong>+ أضف هدفًا مقترحًا</strong></summary>
+            <form method="post" action="/api/admin/path-goal-add" class="adm-form" style="margin-top:1rem">
+              <input type="hidden" name="path_id" value={pid} />
+              <div class="field"><label for="g-title">الهدف</label><input id="g-title" name="title" type="text" required maxlength="120" placeholder="مثال: صلاة الفجر في المسجد" /></div>
+              <div class="field"><label for="g-desc">توضيح <span class="faint">(اختياري)</span></label><textarea id="g-desc" name="description" maxlength="2000" style="min-height:4rem"></textarea></div>
+              <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف</button></div>
+            </form>
+          </details>
+        </div>
+        <div class="stack" style="--space:.5rem">
+          <h3 style="font-size:1.1rem">المسار التالي</h3>
+          {ed.next.length === 0 && <p class="faint" style="margin:0">لا مسارات تالية بعد.</p>}
+          <ul class="adm-list">
+            {ed.next.map((n) => {
+              const np = pathTitle.get(n.next_path_id);
+              return (
+                <li class="adm-row">
+                  <div class="grow"><a href={`/admin/paths/${n.next_path_id}`}>{np?.title ?? 'مسار'}</a>
+                    {np && !np.published && <div class="meta"><span class="chip">غير منشور؛ لن يظهر للمستخدم</span></div>}</div>
+                  <form method="post" action="/api/admin/path-next-delete" class="acts"><input type="hidden" name="path_id" value={pid} /><input type="hidden" name="next_path_id" value={n.next_path_id} /><button class="btn btn-ghost btn-sm" type="submit">إزالة</button></form>
+                </li>
+              );
+            })}
+          </ul>
+          {allPaths.filter((p) => p.id !== pid && !ed.next.some((n) => n.next_path_id === p.id)).length > 0 && (
+            <form method="post" action="/api/admin/path-next-add" class="row">
+              <input type="hidden" name="path_id" value={pid} />
+              <label class="sr-only" for="next">المسار التالي</label>
+              <select id="next" name="next_path_id" class="input" style="flex:1; min-width:12rem">
+                {allPaths.filter((p) => p.id !== pid && !ed.next.some((n) => n.next_path_id === p.id)).map((p) => <option value={p.id}>{p.title}{p.published ? '' : ' (غير منشور)'}</option>)}
+              </select>
+              <button class="btn btn-primary btn-sm" type="submit">أضف</button>
+            </form>
+          )}
+        </div>
+      </section>
 
       <section id="settings" class="stack" style="--space:.8rem">
         <details class="fold">

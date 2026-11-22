@@ -14,6 +14,7 @@ export const GET: APIRoute = async ({ site }) => {
     for (const x of d.topics) urls.push({ loc: `/topics/${x.slug}`, lastmod: x.updated_at });
     for (const x of d.paths) urls.push({ loc: `/paths/${x.slug}`, lastmod: x.published_at ?? undefined });
     for (const x of d.materials) urls.push({ loc: `/library/${x.slug}`, lastmod: x.updated_at });
+    for (const x of d.series) urls.push({ loc: `/series/${x.slug}`, lastmod: x.updated_at });
   } catch (e) {
     console.error('[sitemap]', (e as Error).message);
     return new Response('خدمة مؤقتًا غير متاحة', { status: 503, headers: { 'Retry-After': '120' } });

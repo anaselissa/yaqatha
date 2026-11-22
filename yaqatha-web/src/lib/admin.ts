@@ -5,6 +5,9 @@
 import { DataError, UnauthorizedError, inList, mutate, rest, rpc } from './api';
 import { BadInput, SLUG, UUID, httpUrl, oneOf, opt, slugify, str, uuid, uuids, type AdminResult, type Handler } from './admin-form';
 import { PATH_HANDLERS, PATH_MESSAGES } from './admin-paths';
+import { SERIES_HANDLERS, SERIES_MESSAGES } from './admin-series';
+import { parseYoutubeId, youtubeUrl } from './youtube';
+export { parseYoutubeId, youtubeInfo, youtubeThumb, youtubeUrl } from './youtube';
 export { slugify };
 export type { AdminResult };
 
@@ -35,35 +38,6 @@ export const PUBLISH_STATUS: Record<string, string> = { draft: 'مسودة', pub
 export const REVIEW_STATUS: Record<string, string> = { experimental: 'تجريبية', needs_review: 'تحتاج مراجعة', reviewed: 'تمت مراجعتها', approved: 'معتمدة' };
 const MATERIAL_TYPES = ['article', 'video', 'external_link', 'guidance', 'exercise', 'reflection'];
 const NATURES = ['original_source', 'yaqatha_summary'];
-
-// ---------- يوتيوب ----------
-const YT_ID = /^[A-Za-z0-9_-]{11}$/;
-export function parseYoutubeId(raw: string): string | null {
-  try {
-    const u = new URL(raw.trim());
-    const h = u.hostname.replace(/^www\.|^m\./, '');
-    let id: string | null = null;
-    if (h === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
-    else if (h === 'youtube.com' || h === 'youtube-nocookie.com') {
-      id = u.searchParams.get('v');
-      const m = u.pathname.match(/^\/(?:embed|shorts|live|v)\/([^/?#]+)/);
-      if (!id && m) id = m[1];
-    }
-    return id && YT_ID.test(id) ? id : null;
-  } catch { return null; }
-}
-export const youtubeUrl = (id: string) => `https://www.youtube.com/watch?v=${id}`;
-export const youtubeThumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
-
-/** عنوان المقطع واسم القناة من oEmbed العام (بلا مفتاح). يُرجع null عند الفشل فيُكمل المحرر يدويًا. */
-export async function youtubeInfo(id: string): Promise<{ title: string; channel: string; channelUrl: string } | null> {
-  try {
-    const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(youtubeUrl(id))}`, { signal: AbortSignal.timeout(5000) });
-    if (!r.ok) return null;
-    const j = (await r.json()) as { title?: string; author_name?: string; author_url?: string };
-    return { title: (j.title ?? '').slice(0, 200), channel: (j.author_name ?? '').slice(0, 200), channelUrl: j.author_url ?? '' };
-  } catch { return null; }
-}
 
 // ---------- القراءة ----------
 export interface AdminMaterial {
@@ -230,10 +204,11 @@ export const ADMIN_HANDLERS: Record<string, Handler> = {
   },
 };
 
-Object.assign(ADMIN_HANDLERS, PATH_HANDLERS);
+Object.assign(ADMIN_HANDLERS, PATH_HANDLERS, SERIES_HANDLERS);
 
 const MESSAGES: [RegExp, string][] = [
   ...PATH_MESSAGES,
+  ...SERIES_MESSAGES,
   [/needs a body or a url/, 'أضف نص المادة أو رابطها'],
   [/need a url/, 'الفيديو والمصدر الخارجي يحتاجان رابطًا'],
   [/original source/, 'أضف المصدر الأصلي (عنوانه أو رابطه)'],
@@ -249,6 +224,7 @@ export async function runAdminAction(name: string, form: FormData, token: string
   const id = str(form, 'id', 40);
   const fallback = name === 'material-save' && !UUID.test(id) ? '/admin/materials/new'
     : name.startsWith('material') ? (UUID.test(id) ? `/admin/materials/${id}` : '/admin/materials')
+    : name.startsWith('series-') ? (UUID.test(str(form, 'series_id', 40)) ? `/admin/series/${str(form, 'series_id', 40)}` : '/admin/series/new')
     : /^(path|step|version)-/.test(name) ? (UUID.test(str(form, 'path_id', 40)) ? `/admin/paths/${str(form, 'path_id', 40)}` : '/admin/paths')
     : name.endsWith('-status') ? '/admin/taxonomy' : name.startsWith('team') ? '/admin/team' : '/admin';
   if (!h) return { to: '/admin', flash: 'عملية غير معروفة', error: true };
@@ -264,5 +240,5 @@ export async function runAdminAction(name: string, form: FormData, token: string
     throw e;
   }
 }
-const FIELD: Record<string, string> = { email: 'البريد', role: 'الدور', user_id: 'العضو', title: 'العنوان', slug: 'الرابط', url: 'رابط المادة', source_url: 'رابط المصدر', type: 'النوع', status: 'الحالة', id: 'المعرّف' };
+const FIELD: Record<string, string> = { links: 'روابط الحلقات (لم نجد رابط يوتيوب صالحًا)', duration_days: 'المدة', email: 'البريد', role: 'الدور', user_id: 'العضو', title: 'العنوان', slug: 'الرابط', url: 'رابط المادة', source_url: 'رابط المصدر', type: 'النوع', status: 'الحالة', id: 'المعرّف' };
 

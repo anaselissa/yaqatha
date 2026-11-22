@@ -13,10 +13,11 @@
 | `…0005_rls_and_grants.sql` | سياسات RLS والمنح الصريحة |
 | `…0006_account_deletion.sql` | `delete_my_account()`: حذف المستخدم لحسابه دون أي مفتاح سري |
 | `…0007_reorder_steps.sql` | `reorder_steps()`: إعادة ترتيب خطوات المسودة في معاملة واحدة |
+| `…0008_series_and_path_ending.sql` | السلاسل وحلقاتها، وختام المسار (أهداف مقترحة ومسارات تالية) |
 | `supabase/verify.sql` | فحص أمان بعد التطبيق على المشروع الحقيقي (كل صف يجب أن يكون ok) |
 | `supabase/bootstrap-manager.sql` | تعيين أول مدير يدويًا |
 | `supabase/seed.sql` | الأبواب الأربعة + 7 مجالات + 19 احتياجًا (كلها **مسودة** حتى يُنشر محتوى حقيقي) |
-| `tests/` | بديل Supabase محلي + 146 تأكيدًا على PostgreSQL فعلي |
+| `tests/` | بديل Supabase محلي + 159 تأكيدًا على PostgreSQL فعلي |
 
 ## التشغيل والاختبار
 

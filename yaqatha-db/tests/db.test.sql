@@ -388,5 +388,47 @@ select test.as_user(:'edt');
 select public.publish_path_version(:'rv');
 select test.throws(format($$select public.reorder_steps(%L, array[%L,%L,%L]::uuid[])$$, :'rv', :'ra', :'rb', :'rc'), 'a published version cannot be reordered', 'only a draft');
 
+-- ---------- 17. السلاسل وختام المسار (الهجرة 8) ----------
+select test.as_user(:'edt');
+insert into public.materials (slug, title, type, url, source_title) values ('ep-one', 'الحلقة 1', 'video', 'https://www.youtube.com/watch?v=aaaaaaaaaaa', 'قناة') returning id as e1 \gset
+insert into public.materials (slug, title, type, url, source_title) values ('ep-two', 'الحلقة 2', 'video', 'https://www.youtube.com/watch?v=bbbbbbbbbbb', 'قناة') returning id as e2 \gset
+insert into public.material_needs (material_id, need_id) select m, (select id from public.needs where slug = 'anger-control') from unnest(array[:'e1', :'e2']::uuid[]) m;
+update public.materials set status = 'published' where id = :'e1';
+insert into public.series (slug, title) values ('test-series', 'سلسلة اختبار') returning id as sr \gset
+insert into public.series_items (series_id, material_id, position) values (:'sr', :'e1', 1), (:'sr', :'e2', 2);
+select test.as_anon();
+select test.ok(not exists (select 1 from public.series where id = :'sr'), 'draft series hidden from visitors');
+select test.ok(not exists (select 1 from public.series_items where series_id = :'sr'), 'items of a draft series hidden');
+select test.throws($$insert into public.series (slug, title) values ('x-anon', 'x')$$, 'visitor cannot create a series');
+select test.as_user(:'ua');
+select test.throws($$insert into public.series (slug, title) values ('x-user', 'x')$$, 'plain user cannot create a series');
+select test.as_user(:'edt');
+update public.series set status = 'published' where id = :'sr';
+select test.as_anon();
+select test.ok((select count(*) from public.series_items where series_id = :'sr') = 1, 'published series shows published episodes only (draft episode hidden)');
+select test.as_user(:'edt');
+select test.throws(format($$delete from public.series where id = %L$$, :'sr'), 'series cannot be deleted (hide/archive instead)', 'permission denied');
+
+-- ختام المسار: أهداف مقترحة ومسار تالٍ
+insert into public.paths (slug) values ('end-a') returning id as pa \gset
+insert into public.paths (slug) values ('end-b') returning id as pb \gset
+insert into public.path_versions (path_id, title) values (:'pa', 'مسار أ') returning id as va \gset
+insert into public.steps (version_id, position, type, title) values (:'va', 1, 'read', 'خطوة');
+insert into public.path_suggested_goals (path_id, title, position) values (:'pa', 'صلاة الفجر في المسجد', 1);
+insert into public.path_next (path_id, next_path_id) values (:'pa', :'pb');
+select test.throws(format($$insert into public.path_next (path_id, next_path_id) values (%L, %L)$$, :'pa', :'pa'), 'a path cannot be its own next path', 'check');
+select test.as_anon();
+select test.ok(not exists (select 1 from public.path_suggested_goals where path_id = :'pa'), 'suggested goals of an unpublished path are hidden');
+select test.as_user(:'edt');
+select public.publish_path_version(:'va');
+select test.as_anon();
+select test.ok(exists (select 1 from public.path_suggested_goals where path_id = :'pa'), 'suggested goals visible once the path is published');
+select test.ok(not exists (select 1 from public.path_next where path_id = :'pa'), 'an unpublished next path is not suggested');
+select test.throws(format($$insert into public.path_suggested_goals (path_id, title) values (%L, 'x')$$, :'pa'), 'visitor cannot add suggested goals');
+select test.as_user(:'ua');
+select test.ok(test.affected(format($$delete from public.path_next where path_id = %L$$, :'pa')) = 0, 'plain user cannot delete next paths (RLS: zero rows)');
+select test.as_super();
+select test.ok(exists (select 1 from public.audit_log where entity_type = 'path_suggested_goals'), 'suggested goals are audited');
+
 select 'ALL TESTS PASSED' as result;
 rollback;

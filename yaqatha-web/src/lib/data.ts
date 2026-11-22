@@ -227,6 +227,32 @@ export async function resolveRedirect(type: keyof typeof REDIRECT_TABLE, slug: s
   return cur && cur.slug !== slug ? cur.slug : null;
 }
 
+// ---------- السلاسل ----------
+export interface SeriesInfo { id: string; slug: string; title: string; description: string | null; author: string | null; source_url: string | null; updated_at: string }
+
+export async function getSeries(slug: string) {
+  const series = await one<SeriesInfo>('series', { select: 'id,slug,title,description,author,source_url,updated_at', slug: `eq.${slug}` });
+  if (!series) return null;
+  const { rows } = await rest<{ position: number; materials: MaterialCard | null }>('series_items', { select: `position,materials(${MATERIAL_CARD})`, series_id: `eq.${series.id}`, order: 'position' });
+  return { series, items: rows.map((r) => r.materials).filter((m): m is MaterialCard => !!m) };
+}
+
+/** سلسلة المادة وموقعها فيها (السابقة والتالية). لا تُفشل الصفحة إن تعذّر الجلب: التنقل إضافة لا أساس. */
+export async function getMaterialSeries(materialId: string) {
+  try {
+    const link = await one<{ series_id: string; series: { slug: string; title: string } | null }>('series_items', { select: 'series_id,series(slug,title)', material_id: `eq.${materialId}` });
+    if (!link?.series) return null;
+    const { rows } = await rest<{ material_id: string; materials: { slug: string; title: string } | null }>('series_items', { select: 'material_id,materials(slug,title)', series_id: `eq.${link.series_id}`, order: 'position' });
+    const items = rows.filter((r) => r.materials);
+    const i = items.findIndex((r) => r.material_id === materialId);
+    if (i < 0) return null;
+    return { slug: link.series.slug, title: link.series.title, index: i + 1, total: items.length, prev: items[i - 1]?.materials ?? null, next: items[i + 1]?.materials ?? null };
+  } catch (e) {
+    console.error('[series-nav]', (e as Error).message);
+    return null;
+  }
+}
+
 // ---------- خريطة الموقع ----------
 export async function getSitemapData() {
   const [doors, needs, domains, topics, paths, materials] = await Promise.all([
@@ -237,5 +263,6 @@ export async function getSitemapData() {
     rest<{ slug: string; published_at: string | null }>('paths_current', { select: 'slug,published_at', limit: 1000 }).then((r) => r.rows),
     rest<{ slug: string; updated_at: string }>('materials', { select: 'slug,updated_at', limit: 5000 }).then((r) => r.rows),
   ]);
-  return { doors, needs, domains, topics, paths, materials };
+  const series = await rest<{ slug: string; updated_at: string }>('series', { select: 'slug,updated_at', limit: 1000 }).then((r) => r.rows).catch(() => []);
+  return { doors, needs, domains, topics, paths, materials, series };
 }

@@ -3,7 +3,7 @@ import Base from '../../layouts/Base.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import NeedList from '../../components/NeedList.astro';
 import ErrorState from '../../components/ErrorState.astro';
-import { getMaterial, getMaterialRelations, resolveRedirect } from '../../lib/data';
+import { getMaterial, getMaterialRelations, getMaterialSeries, resolveRedirect } from '../../lib/data';
 import { MATERIAL_TYPE, NATURE, formatDate } from '../../lib/labels';
 import { renderMarkdown, youtubeId } from '../../lib/markdown';
 import { FEATURES } from '../../config';
@@ -13,7 +13,8 @@ const slug = Astro.params.slug!;
 const data = await load(Astro.response, async () => {
   const material = await getMaterial(slug);
   if (!material) return { material: null, redirect: await resolveRedirect('material', slug) };
-  return { material, redirect: null, rel: await getMaterialRelations(material.id) };
+  const [rel, series] = await Promise.all([getMaterialRelations(material.id), getMaterialSeries(material.id)]);
+  return { material, redirect: null, rel, series };
 });
 if (data && !data.material) {
   if (data.redirect) return Astro.redirect(`/library/${data.redirect}`, 301);
@@ -21,6 +22,7 @@ if (data && !data.material) {
 }
 const m = data?.material;
 const rel = data && 'rel' in data ? data.rel : null;
+const sr = data && 'series' in data ? data.series : null;
 const html = m ? renderMarkdown(m.body) : '';
 const yt = m?.type === 'video' ? youtubeId(m.url) : null;
 const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
@@ -35,6 +37,7 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
       <header class="page-head">
         <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المواد والمحتوى', href: '/library' }, { label: m.title }]} />
         <div class="meta" style="margin-bottom:0.9rem">
+          {sr && <a class="chip chip-gold" href={`/series/${sr.slug}`}>{sr.title} · الحلقة {sr.index} من {sr.total}</a>}
           <span class="chip chip-gold">{MATERIAL_TYPE[m.type] ?? m.type}</span>
           <span class="chip">{NATURE[m.nature]}</span>
         </div>
@@ -54,6 +57,14 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
         {yt && <p class="faint" style="font-size:0.9rem; max-width:var(--measure)">لا يُحمَّل الفيديو من الخارج إلا حين تنقر التشغيل، حفاظًا على خصوصيتك وسرعة الصفحة.</p>}
         {!yt && m.url && <p><a class="btn btn-primary" href={m.url} target="_blank" rel="noopener nofollow">افتح المصدر ↗</a></p>}
         {html && <div class="prose" set:html={html} />}
+
+        {sr && (sr.prev || sr.next) && (
+          <nav class="series-nav" aria-label={`حلقات ${sr.title}`}>
+            {sr.next && <a class="btn btn-primary" href={`/library/${sr.next.slug}`} rel="next">الحلقة التالية: {sr.next.title}</a>}
+            {sr.prev && <a class="btn btn-ghost btn-sm" href={`/library/${sr.prev.slug}`} rel="prev">السابقة</a>}
+            <a class="btn btn-ghost btn-sm" href={`/series/${sr.slug}`}>كل الحلقات</a>
+          </nav>
+        )}
 
         <dl class="source-box">
           {(m.source_title || m.source_url) && (<><dt>المصدر الأصلي</dt><dd>{m.source_url ? <a href={m.source_url} target="_blank" rel="noopener nofollow">{m.source_title ?? m.source_url}</a> : m.source_title}</dd></>)}

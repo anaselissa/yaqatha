@@ -34,12 +34,16 @@ export async function getPathEditor(token: string, pathId: string) {
     rest<{ review_status: string; internal_note: string | null }>('content_review', { select: 'review_status,internal_note', entity_type: 'eq.path', entity_id: `eq.${pathId}` }, { token }).then((r) => r.rows[0] ?? null),
   ]);
   if (!path) return null;
+  const [goals, next] = await Promise.all([
+    rest<{ id: string; title: string; description: string | null; position: number }>('path_suggested_goals', { select: 'id,title,description,position', path_id: `eq.${pathId}`, order: 'position' }, { token }).then((r) => r.rows),
+    rest<{ next_path_id: string; position: number }>('path_next', { select: 'next_path_id,position', path_id: `eq.${pathId}`, order: 'position' }, { token }).then((r) => r.rows),
+  ]);
   // نسخة العمل: المسودة إن وُجدت، وإلا الإصدار المنشور، وإلا الأحدث
   const work = versions.find((v) => v.status === 'draft') ?? versions.find((v) => v.status === 'published') ?? versions[0] ?? null;
   const steps = work
     ? (await rest<StepRow>('steps', { select: 'id,position,type,title,instructions,step_materials(material_id,materials(id,title,status,type))', version_id: `eq.${work.id}`, order: 'position' }, { token })).rows
     : [];
-  return { path, versions, work, steps, needIds, domainIds, review, published: versions.find((v) => v.status === 'published') ?? null };
+  return { path, versions, work, steps, needIds, domainIds, review, goals, next, published: versions.find((v) => v.status === 'published') ?? null };
 }
 
 export async function materialOptions(token: string) {
@@ -47,8 +51,8 @@ export async function materialOptions(token: string) {
 }
 
 // ---------- مساعدات ----------
-async function freeSlug(token: string, base: string) {
-  const { rows } = await rest<{ slug: string }>('paths', { select: 'slug', slug: `like.${base}*` }, { token });
+export async function freeSlug(token: string, base: string, table: 'paths' | 'series' | 'materials' = 'paths') {
+  const { rows } = await rest<{ slug: string }>(table, { select: 'slug', slug: `like.${base}*` }, { token });
   const taken = new Set(rows.map((r) => r.slug));
   if (!taken.has(base)) return base;
   for (let i = 2; i < 100; i++) if (!taken.has(`${base}-${i}`)) return `${base}-${i}`;
@@ -183,6 +187,35 @@ export const PATH_HANDLERS: Record<string, Handler> = {
     const pathId = uuid(form, 'path_id');
     await rpc('create_draft_version', { p_path_id: pathId }, token);
     return { to: editor(pathId, '#steps'), flash: 'أُنشئ إصدار مسودة نسخةً من المنشور. عدّل عليه ثم انشره؛ من بدأ المسار لا يتأثر' };
+  },
+
+  'path-goal-add': async ({ token, form }) => {
+    const pathId = uuid(form, 'path_id');
+    const title = str(form, 'title', 120);
+    if (!title) throw new BadInput('title');
+    const { rows } = await rest<{ position: number }>('path_suggested_goals', { select: 'position', path_id: `eq.${pathId}`, order: 'position.desc', limit: 1 }, { token });
+    await mutate('POST', 'path_suggested_goals', token, { body: { path_id: pathId, title, description: opt(form, 'description', 2000), position: (rows[0]?.position ?? 0) + 1 } });
+    return { to: editor(pathId, '#ending'), flash: 'أُضيف الهدف المقترح' };
+  },
+
+  'path-goal-delete': async ({ token, form }) => {
+    const pathId = uuid(form, 'path_id');
+    await mutate('DELETE', 'path_suggested_goals', token, { params: { id: `eq.${uuid(form, 'goal_id')}`, path_id: `eq.${pathId}` } });
+    return { to: editor(pathId, '#ending'), flash: 'حُذف الهدف المقترح' };
+  },
+
+  'path-next-add': async ({ token, form }) => {
+    const pathId = uuid(form, 'path_id'), next = uuid(form, 'next_path_id');
+    if (next === pathId) throw new BadInput('next_path_id');
+    const { rows } = await rest<{ position: number }>('path_next', { select: 'position', path_id: `eq.${pathId}`, order: 'position.desc', limit: 1 }, { token });
+    await mutate('POST', 'path_next', token, { body: { path_id: pathId, next_path_id: next, position: (rows[0]?.position ?? 0) + 1 }, ignoreDuplicates: true });
+    return { to: editor(pathId, '#ending'), flash: 'أُضيف المسار التالي' };
+  },
+
+  'path-next-delete': async ({ token, form }) => {
+    const pathId = uuid(form, 'path_id');
+    await mutate('DELETE', 'path_next', token, { params: { path_id: `eq.${pathId}`, next_path_id: `eq.${uuid(form, 'next_path_id')}` } });
+    return { to: editor(pathId, '#ending'), flash: 'أُزيل من المسارات التالية' };
   },
 
   'version-withdraw': async ({ token, form }) => {

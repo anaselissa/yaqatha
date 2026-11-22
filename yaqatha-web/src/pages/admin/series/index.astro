@@ -1,0 +1,40 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import EmptyState from '../../../components/EmptyState.astro';
+import { PUBLISH_STATUS } from '../../../lib/admin';
+import { listAdminSeries } from '../../../lib/admin-series';
+import { formatDate } from '../../../lib/labels';
+import { load } from '../../../lib/page';
+const s = Astro.locals.session!;
+const list = await load(Astro.response, () => listAdminSeries(s.token));
+---
+<Admin title="السلاسل">
+  <div class="stack" style="--space:1.2rem">
+    <div><a class="btn btn-primary" href="/admin/series/new">سلسلة جديدة</a></div>
+    {!list ? <ErrorState /> : list.length === 0 ? (
+      <EmptyState title="أضف أول سلسلة" text="الصق روابط حلقات شيخ من يوتيوب دفعة واحدة، فتُنشأ الحلقات وترتيبها تلقائيًا، ثم حوّلها إلى مسار بنقرة.">
+        <a class="btn btn-primary" href="/admin/series/new">سلسلة جديدة</a>
+      </EmptyState>
+    ) : (
+      <ul class="adm-list">
+        {list.map((x) => (
+          <li class="adm-row">
+            <div class="grow">
+              <a href={`/admin/series/${x.id}`}>{x.title}</a>
+              <div class="meta">
+                <span class={`state st-${x.status}`}>{PUBLISH_STATUS[x.status]}</span>
+                <span class="chip">{x.count} حلقة</span>
+                {x.author && <span class="chip">{x.author}</span>}
+                <span class="faint" style="font-size:.85rem">{formatDate(x.updated_at)}</span>
+              </div>
+            </div>
+            <div class="acts">
+              {x.status === 'published' && <a class="btn btn-ghost btn-sm" href={`/series/${x.slug}`} target="_blank" rel="noopener">عرض</a>}
+            </div>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+</Admin>

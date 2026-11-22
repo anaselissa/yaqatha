@@ -87,3 +87,20 @@ export async function getRecentActivity(t: string, limit = 10) {
 }
 
 export const getDomainsList = async () => (await rest<{ id: string; slug: string; title: string }>('domains', { select: 'id,slug,title', order: 'sort_order' })).rows;
+
+/** ختام المسار: أهداف يقترحها الفريق، ومسارات تالية منشورة (RLS تُظهر المنشور فقط) */
+export async function getPathEnding(t: string, pathId: string) {
+  try { return await pathEnding(t, pathId); }
+  catch (e) { console.error('[path-ending]', (e as Error).message); return { goals: [], paths: [] }; } // إضافة لا أساس: لا تُفشل الصفحة
+}
+async function pathEnding(t: string, pathId: string) {
+  const [goals, next] = await Promise.all([
+    rest<{ id: string; title: string; description: string | null }>('path_suggested_goals', { select: 'id,title,description', path_id: `eq.${pathId}`, order: 'position' }, { token: t }).then((r) => r.rows),
+    rest<{ next_path_id: string }>('path_next', { select: 'next_path_id', path_id: `eq.${pathId}`, order: 'position' }, { token: t }).then((r) => r.rows.map((x) => x.next_path_id)),
+  ]);
+  const paths = next.length
+    ? (await rest<{ path_id: string; slug: string; title: string; description: string | null; duration_days: number | null }>('paths_current', { select: 'path_id,slug,title,description,duration_days', path_id: `in.(${next.join(',')})` }, { token: t })).rows
+        .sort((a, b) => next.indexOf(a.path_id) - next.indexOf(b.path_id))
+    : [];
+  return { goals, paths };
+}
