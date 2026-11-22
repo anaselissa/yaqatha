@@ -15,6 +15,7 @@
     "build:cloudflare": "ASTRO_ADAPTER=cloudflare astro build",
     "test:admin": "node --test tests/admin-api.test.mjs",
     "test:admin-ui": "node --test --test-concurrency=1 tests/admin-ui.e2e.mjs",
+    "test:admin-paths": "node --test --test-concurrency=1 tests/admin-paths.e2e.mjs",
     "test:e2e": "tests/e2e.sh",
     "smoke:remote": "node scripts/smoke-remote.mjs"
   },

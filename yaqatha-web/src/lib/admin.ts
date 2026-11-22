@@ -3,6 +3,10 @@
  * الحماية الحقيقية في القاعدة (RLS + منح الأعمدة + مشغّلات شروط النشر)؛ هنا التحقق من المدخلات وترجمة الأخطاء فقط.
  */
 import { DataError, UnauthorizedError, inList, mutate, rest, rpc } from './api';
+import { BadInput, SLUG, UUID, httpUrl, oneOf, opt, slugify, str, uuid, uuids, type AdminResult, type Handler } from './admin-form';
+import { PATH_HANDLERS, PATH_MESSAGES } from './admin-paths';
+export { slugify };
+export type { AdminResult };
 
 export type StaffRole = 'manager' | 'editor';
 
@@ -60,21 +64,6 @@ export async function youtubeInfo(id: string): Promise<{ title: string; channel:
     return { title: (j.title ?? '').slice(0, 200), channel: (j.author_name ?? '').slice(0, 200), channelUrl: j.author_url ?? '' };
   } catch { return null; }
 }
-
-// ---------- الروابط (slug) ----------
-const AR: Record<string, string> = {
-  'ا': 'a', 'أ': 'a', 'إ': 'i', 'آ': 'a', 'ء': '', 'ؤ': 'o', 'ئ': 'e', 'ب': 'b', 'ت': 't', 'ث': 'th', 'ج': 'j', 'ح': 'h', 'خ': 'kh',
-  'د': 'd', 'ذ': 'th', 'ر': 'r', 'ز': 'z', 'س': 's', 'ش': 'sh', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'ع': 'a', 'غ': 'gh',
-  'ف': 'f', 'ق': 'q', 'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n', 'ه': 'h', 'ة': 'a', 'و': 'w', 'ي': 'y', 'ى': 'a',
-};
-/** رابط لاتيني مقروء من عنوان عربي أو إنجليزي: «فضل صلاة الفجر» ← fdl-sla-alfjr */
-export function slugify(title: string): string {
-  const s = [...title.normalize('NFKC').replace(/[ً-ٰٟـ]/g, '')]
-    .map((c) => AR[c] ?? c).join('').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
-  return s.length >= 2 ? s : `m-${Math.random().toString(36).slice(2, 8)}`;
-}
-const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 // ---------- القراءة ----------
 export interface AdminMaterial {
@@ -146,16 +135,6 @@ export async function contentCounts(token: string) {
 }
 
 // ---------- العمليات ----------
-export interface AdminResult { to: string; flash?: string; error?: boolean }
-class BadInput extends Error {}
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const str = (f: FormData, k: string, max = 2000) => String(f.get(k) ?? '').trim().slice(0, max);
-const opt = (f: FormData, k: string, max = 2000) => str(f, k, max) || null;
-const uuid = (f: FormData, k: string) => { const v = str(f, k, 40); if (!UUID.test(v)) throw new BadInput(k); return v.toLowerCase(); };
-const uuids = (f: FormData, k: string) => [...new Set(f.getAll(k).map(String).filter((v) => UUID.test(v)).map((v) => v.toLowerCase()))];
-const httpUrl = (f: FormData, k: string) => { const v = opt(f, k, 500); if (v && !/^https?:\/\//i.test(v)) throw new BadInput(k); return v; };
-const oneOf = (f: FormData, k: string, allowed: string[]) => { const v = str(f, k, 30); if (!allowed.includes(v)) throw new BadInput(k); return v; };
-
 /** يجعل روابط المادة مطابقة للمختار: يحذف الزائد ويضيف الناقص */
 async function syncLinks(token: string, table: 'material_needs' | 'material_domains', col: 'need_id' | 'domain_id', materialId: string, wanted: string[]) {
   const { rows } = await rest<Record<string, string>>(table, { select: col, material_id: `eq.${materialId}` }, { token });
@@ -165,7 +144,6 @@ async function syncLinks(token: string, table: 'material_needs' | 'material_doma
   if (add.length) await mutate('POST', table, token, { body: add.map((x) => ({ material_id: materialId, [col]: x })), ignoreDuplicates: true });
 }
 
-type Handler = (a: { token: string; form: FormData }) => Promise<AdminResult>;
 
 export const ADMIN_HANDLERS: Record<string, Handler> = {
   'material-save': async ({ token, form }) => {
@@ -252,7 +230,10 @@ export const ADMIN_HANDLERS: Record<string, Handler> = {
   },
 };
 
+Object.assign(ADMIN_HANDLERS, PATH_HANDLERS);
+
 const MESSAGES: [RegExp, string][] = [
+  ...PATH_MESSAGES,
   [/needs a body or a url/, 'أضف نص المادة أو رابطها'],
   [/need a url/, 'الفيديو والمصدر الخارجي يحتاجان رابطًا'],
   [/original source/, 'أضف المصدر الأصلي (عنوانه أو رابطه)'],
@@ -268,6 +249,7 @@ export async function runAdminAction(name: string, form: FormData, token: string
   const id = str(form, 'id', 40);
   const fallback = name === 'material-save' && !UUID.test(id) ? '/admin/materials/new'
     : name.startsWith('material') ? (UUID.test(id) ? `/admin/materials/${id}` : '/admin/materials')
+    : /^(path|step|version)-/.test(name) ? (UUID.test(str(form, 'path_id', 40)) ? `/admin/paths/${str(form, 'path_id', 40)}` : '/admin/paths')
     : name.endsWith('-status') ? '/admin/taxonomy' : name.startsWith('team') ? '/admin/team' : '/admin';
   if (!h) return { to: '/admin', flash: 'عملية غير معروفة', error: true };
   try {

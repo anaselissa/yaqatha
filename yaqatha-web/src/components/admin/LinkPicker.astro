@@ -1,0 +1,22 @@
+---
+import type { Option } from '../../lib/admin';
+interface Props { doors: { id: number; title: string }[]; needs: Option[]; domains: Option[]; needIds: string[]; domainIds: string[] }
+const { doors, needs, domains, needIds, domainIds } = Astro.props;
+const draftBadge = (s: string) => (s === 'published' ? '' : ' (غير منشور)');
+---
+<div class="checks" role="group" aria-label="الاحتياجات">
+  {doors.map((d) => (
+    <>
+      <div class="door">{d.title}</div>
+      {needs.filter((n) => n.door_id === d.id).map((n) => (
+        <label><input type="checkbox" name="need" value={n.id} checked={needIds.includes(n.id)} />{n.title}<span class="faint">{draftBadge(n.status)}</span></label>
+      ))}
+    </>
+  ))}
+</div>
+<details class="fold">
+  <summary>المجالات ({domainIds.length} مختار)</summary>
+  <div class="checks" role="group" aria-label="المجالات" style="margin-top:.6rem">
+    {domains.map((d) => <label><input type="checkbox" name="domain" value={d.id} checked={domainIds.includes(d.id)} />{d.title}<span class="faint">{draftBadge(d.status)}</span></label>)}
+  </div>
+</details>

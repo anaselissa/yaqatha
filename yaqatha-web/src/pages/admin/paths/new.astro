@@ -1,0 +1,49 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import LinkPicker from '../../../components/admin/LinkPicker.astro';
+import { taxonomyOptions } from '../../../lib/admin';
+import { CHANGE_TYPE } from '../../../lib/labels';
+import { load } from '../../../lib/page';
+const s = Astro.locals.session!;
+const tax = await load(Astro.response, () => taxonomyOptions(s.token));
+---
+<Admin title="مسار جديد">
+  {!tax ? <ErrorState /> : (
+    <form method="post" action="/api/admin/path-create" class="adm-form">
+      <fieldset>
+        <legend>عن المسار</legend>
+        <div class="field">
+          <label for="title">اسم المسار</label>
+          <input id="title" name="title" type="text" required maxlength="200" placeholder="مثال: سبعة أيام مع صلاة الفجر" />
+        </div>
+        <div class="field">
+          <label for="description">وصف قصير</label>
+          <textarea id="description" name="description" maxlength="1000" style="min-height:5rem"></textarea>
+          <span class="hint">يظهر في بطاقة المسار. لمن هذا المسار، وماذا سيخرج منه؟</span>
+        </div>
+        <div class="field">
+          <label for="purpose">الهدف منه</label>
+          <textarea id="purpose" name="purpose" maxlength="2000" style="min-height:4rem"></textarea>
+        </div>
+        <div class="field">
+          <label for="duration_days">المدة بالأيام <span class="faint">(اختياري)</span></label>
+          <input id="duration_days" name="duration_days" type="number" min="1" max="365" inputmode="numeric" class="input" style="max-width:10rem" />
+          <span class="hint">اتركه فارغًا لمسار مفتوح بلا مدة. لا تتغير المدة بعد النشر إلا بإصدار جديد.</span>
+        </div>
+        <div class="field">
+          <label for="change_type">نوع التغيير</label>
+          <select id="change_type" name="change_type">
+            <option value="">— غير محدد —</option>
+            {Object.entries(CHANGE_TYPE).map(([k, l]) => <option value={k}>{l}</option>)}
+          </select>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>أين يظهر</legend>
+        <LinkPicker {...tax} needIds={[]} domainIds={[]} />
+      </fieldset>
+      <div class="save-bar"><button class="btn btn-primary" type="submit">أنشئ المسار وانتقل إلى خطواته</button><a class="btn btn-ghost" href="/admin/paths">رجوع</a></div>
+    </form>
+  )}
+</Admin>

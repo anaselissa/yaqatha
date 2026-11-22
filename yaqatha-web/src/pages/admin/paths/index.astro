@@ -1,0 +1,40 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import EmptyState from '../../../components/EmptyState.astro';
+import { PATH_STATUS, listAdminPaths } from '../../../lib/admin-paths';
+import { formatDate } from '../../../lib/labels';
+import { load } from '../../../lib/page';
+const s = Astro.locals.session!;
+const paths = await load(Astro.response, () => listAdminPaths(s.token));
+---
+<Admin title="المسارات">
+  <div class="stack" style="--space:1.2rem">
+    <div><a class="btn btn-primary" href="/admin/paths/new">مسار جديد</a></div>
+    {!paths ? <ErrorState /> : paths.length === 0 ? (
+      <EmptyState title="ابدأ بأول مسار" text="المسار خطوات متتابعة يمشي فيها المستخدم يومًا بيوم: مقطع، ثم سؤال للتفكير، ثم تمرين عملي…">
+        <a class="btn btn-primary" href="/admin/paths/new">مسار جديد</a>
+      </EmptyState>
+    ) : (
+      <ul class="adm-list">
+        {paths.map((p) => (
+          <li class="adm-row">
+            <div class="grow">
+              <a href={`/admin/paths/${p.id}`}>{p.title}</a>
+              <div class="meta">
+                <span class={`state st-${p.status === 'draft' ? 'draft' : p.status}`}>{PATH_STATUS[p.status]}</span>
+                {p.published && <span class="chip chip-gold">منشور: الإصدار {p.published.version_no}</span>}
+                {p.draft && <span class="chip">مسودة: الإصدار {p.draft.version_no}</span>}
+                <span class="faint" style="font-size:.85rem">{formatDate(p.updated_at)}</span>
+              </div>
+            </div>
+            <div class="acts">
+              {p.published && p.status === 'published' && <a class="btn btn-ghost btn-sm" href={`/paths/${p.slug}`} target="_blank" rel="noopener">عرض</a>}
+              <a class="btn btn-ghost btn-sm" href={`/admin/paths/${p.id}`}>تحرير</a>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+</Admin>

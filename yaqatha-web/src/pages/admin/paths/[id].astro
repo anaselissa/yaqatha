@@ -1,0 +1,219 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import LinkPicker from '../../../components/admin/LinkPicker.astro';
+import { PUBLISH_STATUS, REVIEW_STATUS, taxonomyOptions } from '../../../lib/admin';
+import { PATH_STATUS, VERSION_STATUS, getPathEditor, materialOptions } from '../../../lib/admin-paths';
+import { CHANGE_TYPE, MATERIAL_TYPE, STEP_TYPE, durationLabel, formatDate, stepsLabel } from '../../../lib/labels';
+import { load } from '../../../lib/page';
+
+const s = Astro.locals.session!;
+const id = Astro.params.id ?? '';
+if (!/^[0-9a-f-]{36}$/i.test(id)) return Astro.rewrite('/404');
+const data = await load(Astro.response, () => Promise.all([getPathEditor(s.token, id), taxonomyOptions(s.token), materialOptions(s.token)]));
+if (data && !data[0]) return Astro.rewrite('/404');
+const [ed, tax, mats] = data ?? [null, null, null];
+const work = ed?.work ?? null;
+const isDraft = work?.status === 'draft';
+const pid = ed?.path.id ?? '';
+const matLabel = (m: { title: string; status: string; type: string }) => `${m.title} · ${MATERIAL_TYPE[m.type]}${m.status === 'published' ? '' : ` (${PUBLISH_STATUS[m.status]})`}`;
+const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).filter((x) => x.materials && x.materials.status !== 'published').length;
+---
+<Admin title={work?.title ?? 'مسار'}>
+  {!ed || !tax || !mats ? <ErrorState /> : (
+    <div class="stack" style="--space:2rem">
+      <div class="stack" style="--space:.8rem">
+        <p class="row" style="margin:0">
+          <span class={`state st-${ed.path.status}`}>{PATH_STATUS[ed.path.status]}</span>
+          {work && <span class="chip">الإصدار {work.version_no}: {VERSION_STATUS[work.status]}</span>}
+          {work && <span class="chip">{durationLabel(work.duration_days)} · {stepsLabel(ed.steps.length)}</span>}
+          {ed.published && ed.path.status === 'published' && <a class="btn btn-ghost btn-sm" href={`/paths/${ed.path.slug}`} target="_blank" rel="noopener">عرض في الموقع</a>}
+        </p>
+        {isDraft && ed.published && <div class="notice">تعدّل على <strong>الإصدار {work!.version_no} (مسودة)</strong>. المنشور الآن هو الإصدار {ed.published.version_no} ويبقى كما هو حتى تنشر. من بدأ المسار سيُعرض عليه الانتقال للجديد دون أن يخسر تقدمه.</div>}
+        {isDraft && !ed.published && <div class="notice"><strong>المسار لم يُنشر بعد.</strong> أضف الخطوات، ثم انشره من أسفل الصفحة.</div>}
+        {work?.status === 'published' && (
+          <div class="notice">
+            <strong>هذا الإصدار منشور.</strong> يمكنك تصحيح نصوص الخطوات أو استبدال موادها مباشرة. لإضافة خطوات أو حذفها أو ترتيبها أنشئ إصدارًا جديدًا؛ من بدأ المسار لا يتأثر.
+            <form method="post" action="/api/admin/version-new-draft" style="margin-top:.8rem">
+              <input type="hidden" name="path_id" value={pid} />
+              <button class="btn btn-primary btn-sm" type="submit">أنشئ إصدارًا جديدًا للتعديل</button>
+            </form>
+          </div>
+        )}
+        {work && !isDraft && work.status !== 'published' && (
+          <div class="notice" role="alert">
+            <strong>لا يوجد إصدار منشور.</strong> {work.status === 'withdrawn' && work.withdrawn_note ? `سبب السحب: ${work.withdrawn_note}` : ''}
+            <form method="post" action="/api/admin/version-new-draft" style="margin-top:.8rem">
+              <input type="hidden" name="path_id" value={pid} />
+              <button class="btn btn-primary btn-sm" type="submit">أنشئ إصدارًا جديدًا من آخر إصدار</button>
+            </form>
+          </div>
+        )}
+        {unpublishedMats > 0 && <div class="notice" role="status">في الخطوات {unpublishedMats} مادة غير منشورة؛ لن يراها الزائر حتى تنشرها من «المواد».</div>}
+      </div>
+
+      {work && (
+        <section id="steps" class="stack" style="--space:.8rem">
+          <h2 style="font-size:1.35rem">الخطوات</h2>
+          {ed.steps.length === 0 && <p class="faint" style="margin:0">لا خطوات بعد. أضف الأولى من النموذج أدناه.</p>}
+          <ol class="adm-list" style="list-style:none">
+            {ed.steps.map((st, i) => {
+              const cur = st.step_materials[0]?.materials ?? null;
+              return (
+                <li id={`s-${st.id}`} class="adm-row" style="display:block">
+                  <details class="fold">
+                    <summary>
+                      <span class="gold">{i + 1}.</span> <strong>{st.title}</strong>
+                      <span class="chip" style="margin-inline-start:.4rem">{STEP_TYPE[st.type]}</span>
+                      {cur && <span class="faint" style="font-size:.9rem"> · {cur.title}{cur.status !== 'published' ? ' (غير منشورة)' : ''}</span>}
+                    </summary>
+                    <form method="post" action="/api/admin/step-save" class="adm-form" style="margin-top:1rem">
+                      <input type="hidden" name="path_id" value={pid} />
+                      <input type="hidden" name="step_id" value={st.id} />
+                      {isDraft ? (
+                        <div class="field"><label for={`t-${st.id}`}>النوع</label>
+                          <select id={`t-${st.id}`} name="type">{Object.entries(STEP_TYPE).map(([k, l]) => <option value={k} selected={st.type === k}>{l}</option>)}</select></div>
+                      ) : <input type="hidden" name="type" value={st.type} />}
+                      <div class="field"><label for={`ti-${st.id}`}>العنوان</label><input id={`ti-${st.id}`} name="title" type="text" required maxlength="200" value={st.title} /></div>
+                      <div class="field"><label for={`in-${st.id}`}>التعليمات</label><textarea id={`in-${st.id}`} name="instructions" maxlength="10000" style="min-height:6rem">{st.instructions ?? ''}</textarea>
+                        <span class="hint">ما المطلوب من المستخدم في هذه الخطوة. يدعم Markdown.</span></div>
+                      {(isDraft || cur) && (
+                        <div class="field"><label for={`m-${st.id}`}>المادة</label>
+                          <select id={`m-${st.id}`} name="material_id">
+                            {isDraft && <option value="">— بلا مادة —</option>}
+                            {mats.map((m) => <option value={m.id} selected={cur?.id === m.id}>{matLabel(m)}</option>)}
+                          </select></div>
+                      )}
+                      <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ الخطوة</button></div>
+                    </form>
+                    {isDraft && (
+                      <div class="row" style="margin-top:.8rem">
+                        {[['up', 'حرّك لأعلى', i > 0], ['down', 'حرّك لأسفل', i < ed.steps.length - 1]].filter(([, , ok]) => ok).map(([dir, label]) => (
+                          <form method="post" action="/api/admin/step-move">
+                            <input type="hidden" name="path_id" value={pid} /><input type="hidden" name="step_id" value={st.id} /><input type="hidden" name="dir" value={String(dir)} />
+                            <button class="btn btn-ghost btn-sm" type="submit">{label}</button>
+                          </form>
+                        ))}
+                        <form method="post" action="/api/admin/step-delete">
+                          <input type="hidden" name="path_id" value={pid} /><input type="hidden" name="step_id" value={st.id} />
+                          <button class="btn btn-danger btn-sm" type="submit">حذف الخطوة</button>
+                        </form>
+                      </div>
+                    )}
+                  </details>
+                </li>
+              );
+            })}
+          </ol>
+
+          {isDraft && (
+            <details class="fold" open={ed.steps.length === 0}>
+              <summary><strong>+ أضف خطوة</strong></summary>
+              <form method="post" action="/api/admin/step-add" class="adm-form" style="margin-top:1rem">
+                <input type="hidden" name="path_id" value={pid} />
+                <input type="hidden" name="version_id" value={work.id} />
+                <div class="field"><label for="new-type">النوع</label>
+                  <select id="new-type" name="type">{Object.entries(STEP_TYPE).map(([k, l]) => <option value={k}>{l}</option>)}</select></div>
+                <div class="field"><label for="new-title">العنوان</label><input id="new-title" name="title" type="text" required maxlength="200" placeholder="مثال: شاهد: فضل صلاة الفجر" /></div>
+                <div class="field"><label for="new-ins">التعليمات</label><textarea id="new-ins" name="instructions" maxlength="10000" style="min-height:5rem"></textarea></div>
+                <div class="field"><label for="new-mat">المادة <span class="faint">(اختياري)</span></label>
+                  <select id="new-mat" name="material_id"><option value="">— بلا مادة —</option>{mats.map((m) => <option value={m.id}>{matLabel(m)}</option>)}</select>
+                  <span class="hint">لا تجد المادة؟ أضفها أولًا من «المواد» ثم ارجع.</span></div>
+                <div class="row"><button class="btn btn-primary" type="submit">أضف الخطوة</button></div>
+              </form>
+            </details>
+          )}
+        </section>
+      )}
+
+      {work && (
+        <section id="info" class="stack" style="--space:.8rem">
+          <details class="fold">
+            <summary><strong>بيانات الإصدار {work.version_no}</strong> (الاسم والوصف والمدة)</summary>
+            <form method="post" action="/api/admin/version-save" class="adm-form" style="margin-top:1rem">
+              <input type="hidden" name="path_id" value={pid} />
+              <input type="hidden" name="version_id" value={work.id} />
+              <div class="field"><label for="v-title">اسم المسار</label><input id="v-title" name="title" type="text" required maxlength="200" value={work.title} /></div>
+              <div class="field"><label for="v-desc">وصف قصير</label><textarea id="v-desc" name="description" maxlength="1000" style="min-height:5rem">{work.description ?? ''}</textarea></div>
+              <div class="field"><label for="v-purpose">الهدف منه</label><textarea id="v-purpose" name="purpose" maxlength="2000" style="min-height:4rem">{work.purpose ?? ''}</textarea></div>
+              {isDraft
+                ? <div class="field"><label for="v-days">المدة بالأيام <span class="faint">(فارغ = مفتوح)</span></label><input id="v-days" name="duration_days" type="number" min="1" max="365" class="input" style="max-width:10rem" value={work.duration_days ?? ''} /></div>
+                : <p class="faint" style="margin:0">المدة: {durationLabel(work.duration_days)} (لا تتغير بعد النشر)</p>}
+              <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ</button></div>
+            </form>
+          </details>
+        </section>
+      )}
+
+      {isDraft && (
+        <section id="publish" class="stack" style="--space:.8rem">
+          <h2 style="font-size:1.35rem">النشر</h2>
+          <form method="post" action="/api/admin/version-publish" class="adm-form">
+            <input type="hidden" name="path_id" value={pid} />
+            <input type="hidden" name="version_id" value={work!.id} />
+            {work!.version_no > 1 && (
+              <div class="field"><label for="changelog">ما الذي تغيّر في هذا الإصدار؟</label>
+                <textarea id="changelog" name="changelog" required maxlength="2000" style="min-height:4rem">{work!.changelog ?? ''}</textarea>
+                <span class="hint">يراه من بدأ إصدارًا أقدم، ليقرر الانتقال للجديد.</span></div>
+            )}
+            <div class="row"><button class="btn btn-primary" type="submit">انشر {ed.published ? `الإصدار ${work!.version_no}` : 'المسار'}</button></div>
+          </form>
+        </section>
+      )}
+
+      <section id="settings" class="stack" style="--space:.8rem">
+        <details class="fold">
+          <summary><strong>أين يظهر المسار</strong> (الاحتياجات والمجالات والمراجعة)</summary>
+          <form method="post" action="/api/admin/path-links" class="adm-form" style="margin-top:1rem">
+            <input type="hidden" name="path_id" value={pid} />
+            <LinkPicker {...tax} needIds={ed.needIds} domainIds={ed.domainIds} />
+            <div class="field"><label for="ct">نوع التغيير</label>
+              <select id="ct" name="change_type"><option value="">— غير محدد —</option>{Object.entries(CHANGE_TYPE).map(([k, l]) => <option value={k} selected={ed.path.change_type === k}>{l}</option>)}</select></div>
+            <div class="field"><label for="rv">حالة المراجعة <span class="faint">(داخلية)</span></label>
+              <select id="rv" name="review_status">{Object.entries(REVIEW_STATUS).map(([k, l]) => <option value={k} selected={(ed.review?.review_status ?? 'experimental') === k}>{l}</option>)}</select></div>
+            <div class="field"><label for="note">ملاحظة للفريق</label><textarea id="note" name="internal_note" maxlength="2000" style="min-height:4rem">{ed.review?.internal_note ?? ''}</textarea></div>
+            <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ</button></div>
+          </form>
+        </details>
+      </section>
+
+      {ed.published && (
+        <section class="stack" style="--space:.8rem">
+          <details class="fold">
+            <summary><strong>إيقاف أو سحب</strong></summary>
+            <div class="stack" style="--space:1rem; margin-top:1rem">
+              <form method="post" action="/api/admin/path-status" class="stack" style="--space:.5rem">
+                <input type="hidden" name="path_id" value={pid} />
+                <input type="hidden" name="status" value={ed.path.status === 'hidden' ? 'published' : 'hidden'} />
+                <p class="faint" style="margin:0">{ed.path.status === 'hidden' ? 'المسار موقوف: لا يبدؤه أحد جديد.' : 'الإيقاف يخفي المسار عن الزوار ويمنع البدء الجديد، ومن بدأه يكمله عاديًا.'}</p>
+                <div><button class="btn btn-ghost btn-sm" type="submit">{ed.path.status === 'hidden' ? 'أعد إظهار المسار' : 'أوقف البدء الجديد'}</button></div>
+              </form>
+              <form method="post" action="/api/admin/version-withdraw" class="stack" style="--space:.5rem">
+                <input type="hidden" name="path_id" value={pid} />
+                <input type="hidden" name="version_id" value={ed.published.id} />
+                <p class="faint" style="margin:0">السحب للحالات الجادة (خطأ علمي مثلًا): يخفي محتوى الإصدار {ed.published.version_no} حتى عمّن بدأه، ويحفظ تقدمهم.</p>
+                <div class="field"><label for="wnote">السبب (يراه المستخدمون)</label><input id="wnote" name="note" type="text" maxlength="1000" /></div>
+                <div><button class="btn btn-danger btn-sm" type="submit">اسحب الإصدار {ed.published.version_no}</button></div>
+              </form>
+            </div>
+          </details>
+        </section>
+      )}
+
+      {ed.versions.length > 1 && (
+        <section class="stack" style="--space:.6rem">
+          <h2 style="font-size:1.35rem">الإصدارات</h2>
+          <ul class="adm-list">
+            {ed.versions.map((v) => (
+              <li class="adm-row"><div class="grow">
+                <span style="font-weight:600">الإصدار {v.version_no}</span>
+                <div class="meta"><span class="chip">{VERSION_STATUS[v.status]}</span>{v.published_at && <span class="faint" style="font-size:.85rem">{formatDate(v.published_at)}</span>}</div>
+                {v.changelog && <p class="faint" style="margin:.3rem 0 0; font-size:.92rem">{v.changelog}</p>}
+              </div></li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  )}
+</Admin>
