@@ -64,7 +64,7 @@ const left = Math.max(0, total - dg?.doneCount! - (dg ? cells.filter((c) => c.k 
             </form>
           ) : <p class="pill pill-teal justify-self-start">{dg.today ? 'علّمتها اليوم، بارك الله فيك' : 'ليس اليوم، وغدًا يوم جديد'}</p>}
         </section>
-      ) : <p class="pill pill-teal justify-self-start">{GOAL_STATUS[g.status]}</p>}
+      ) : <p class="pill pill-teal justify-self-start" data-goal-status>{GOAL_STATUS[g.status]}</p>}
 
       <div class="stack sp-1_5 pb-3">
         <div class={dg && !archived ? 'row goal-moves quiet' : 'row goal-moves'}>

@@ -54,11 +54,10 @@ test('الزائر يجيب خطأً: يرى الصحيحة والشرح، ول�
   const v = await as(null);
   await v.goto(`${BASE}/library/${slug}`);
   const f = v.locator(`#q-${qid}`);
-  await f.getByLabel('الأول').check();
-  await submit(v, f.getByRole('button', { name: 'تحقّق' }));
+  await Promise.all([v.waitForURL(/qa=/), f.getByText('الأول', { exact: true }).click()]);
   const t = await v.locator(`#q-${qid}`).innerText();
-  assert.match(t, /ليست هذه/); assert.match(t, /لأن الثاني هو الصواب/);
-  assert.equal(await v.locator(`#q-${qid} label.is-right`).innerText(), 'الثاني');
+  assert.match(t, /ليس تمامًا/); assert.match(t, /لأن الثاني هو الصواب/);
+  assert.equal((await v.locator(`#q-${qid} label.is-right`).innerText()).trim(), 'الثاني');
   assert.equal(sql(`select count(*) from quiz_attempts where question_id='${qid}'`), '0');
 });
 
@@ -66,19 +65,19 @@ test('المستخدم يجيب صوابًا فتُحفظ إجابته الأو�
   const email = `quizzer-${run}@y.test`;
   const u = await as(email);
   await u.goto(`${BASE}/library/${slug}`);
-  await u.locator(`#q-${qid}`).getByLabel('الثاني').check();
-  await submit(u, u.locator(`#q-${qid}`).getByRole('button', { name: 'تحقّق' }));
-  assert.match(await u.locator(`#q-${qid}`).innerText(), /إجابة صحيحة/);
+  await Promise.all([u.waitForURL(/qa=/), u.locator(`#q-${qid}`).getByText('الثاني', { exact: true }).click()]);
+  assert.match(await u.locator(`#q-${qid}`).innerText(), /أحسنت/);
   const uid = sql(`select id from auth.users where email='${email}'`);
   assert.equal(sql(`select correct from quiz_attempts where user_id='${uid}' and question_id='${qid}'`), 't');
   // إعادة الإجابة (خطأً) لا تغيّر المحسوب
   await u.goto(`${BASE}/library/${slug}`);
-  await u.locator(`#q-${qid}`).getByLabel('الثالث').check();
-  await submit(u, u.locator(`#q-${qid}`).getByRole('button', { name: 'تحقّق' }));
+  await Promise.all([u.waitForURL(/qa=/), u.locator(`#q-${qid}`).getByText('الثالث', { exact: true }).click()]);
   assert.equal(sql(`select correct from quiz_attempts where user_id='${uid}' and question_id='${qid}'`), 't');
-  await u.goto(`${BASE}/journey`);
+  await u.goto(`${BASE}/account`);
   const t = await u.locator('main').innerText();
-  assert.match(t, /5\s*نقطة/); assert.match(t, /1\s*يوم متتالٍ/); assert.match(t, /أنجزت شيئًا اليوم/);
+  assert.match(t, /5\s*نقطة/); assert.match(t, /1\s*يوم متتالٍ/);
+  await u.goto(BASE);
+  assert.match(await u.locator('.streak').innerText(), /يوم واحد/, 'السلسلة في الرأس');
 });
 
 test('حذف السؤال من اللوحة يُخفيه من صفحة المادة', async () => {

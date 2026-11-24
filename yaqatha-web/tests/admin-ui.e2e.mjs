@@ -38,7 +38,7 @@ test('الزائر يُحوَّل إلى الدخول، والمستخدم ال�
   const user = await as(USR);
   const r = await user.goto(`${BASE}/admin`);
   assert.equal(r.status(), 404);
-  assert.match(await user.locator('main').innerText(), /لم نجد هذه الصفحة/);
+  assert.match(await user.locator('main').innerText(), /طريق غير نافذ/);
   await user.goto(`${BASE}/journey/settings`);
   assert.equal(await user.getByRole('link', { name: 'لوحة الإدارة' }).count(), 0, 'لا رابط إدارة لغير الفريق');
 });

@@ -15,20 +15,34 @@ before(async () => { browser = await chromium.launch({ executablePath: CHROME, a
 after(async () => { await browser.close(); });
 const page = async () => (await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ar' })).newPage();
 const submit = async (p, loc) => { await Promise.all([p.waitForLoadState('load'), loc.click()]); await p.waitForLoadState(); };
+// سؤال في كل شاشة: اختيار الإجابة ينقل للتالي، ونتخطى الباقي حتى تظهر النتيجة
+async function answer(p, labels) {
+  for (const l of labels) {
+    await p.locator('.onb-step:not([hidden]) label.choice', { hasText: l }).click();
+    await p.waitForTimeout(350);
+  }
+  for (let i = 0; i < 6 && !/\/start\/result/.test(p.url()); i++) {
+    const skip = p.locator('.onb-step:not([hidden]) [data-onb-skip]');
+    if (!(await skip.count())) break;
+    await skip.click(); await p.waitForTimeout(350);
+  }
+  await p.waitForURL(/\/start\/result/); await p.waitForLoadState();
+}
 
 test('الرئيسية تقود إلى «من أين أبدأ؟»: سؤال الفرع أولًا، ثم أسئلة الفرع المختار', async () => {
   const p = await page();
   await p.goto(BASE);
-  await submit(p, p.getByRole('link', { name: 'لا أعرف من أين أبدأ' }));
+  await submit(p, p.getByRole('link', { name: 'ابدأ رحلتك' }));
   assert.match(p.url(), /\/start$/);
   let t = await p.locator('main').innerText();
-  assert.match(t, /ما الذي جاء بك اليوم؟/); assert.match(t, /يقظة رفيقك في التغيير/);
-  assert.equal(await p.locator('fieldset.onb-q').count(), 0, 'لا أسئلة قبل اختيار الفرع');
-  await submit(p, p.getByRole('link', { name: 'في شيء أريد أن أُصلحه' }));
+  assert.match(t, /ما الذي جاء بك اليوم؟/); assert.match(t, /1 من 4/);
+  assert.equal(await p.locator('.onb-step').count(), 0, 'لا أسئلة قبل اختيار الفرع');
+  await submit(p, p.getByRole('link', { name: 'أريد أن أُصلح شيئًا في نفسي' }));
   assert.match(p.url(), /\/start\?b=fix/);
   t = await p.locator('main').innerText();
-  assert.match(t, /ما الذي يشغلك أكثر هذه الأيام؟/); assert.match(t, /لا نحفظ إجاباتك/);
-  assert.equal(await p.locator('fieldset.onb-q').count(), 3);
+  assert.match(t, /ما الذي يشغلك أكثر هذه الأيام؟/); assert.match(t, /إجاباتك لا تُحفظ/); assert.match(t, /2 من 4/);
+  assert.equal(await p.locator('.onb-step').count(), 3);
+  assert.equal(await p.locator('.onb-step:not([hidden])').count(), 1, 'سؤال واحد في كل شاشة');
   assert.doesNotMatch(t, /ما الخير الذي تحب أن تزيد منه؟/);
 });
 
@@ -36,15 +50,12 @@ test('فرع «أزداد من الخير» له أسئلته، ويقترح ا�
   sql(`update needs set status='published' where slug='revive-sunnah'`);
   const p = await page();
   await p.goto(`${BASE}/start`);
-  await submit(p, p.getByRole('link', { name: 'أريد أن أزداد من الخير وأتقرّب أكثر' }));
+  await submit(p, p.getByRole('link', { name: 'أريد أن أتقرّب إلى الله أكثر' }));
   const t = await p.locator('main').innerText();
   assert.match(t, /ما الخير الذي تحب أن تزيد منه؟/); assert.doesNotMatch(t, /ما الذي يشغلك/);
-  await p.getByLabel(/السنن والنوافل/).check();
-  await p.getByLabel('أحافظ عليها والحمد لله').check();
-  await submit(p, p.getByRole('button', { name: 'اقترح عليّ بداية' }));
+  await answer(p, [/السنن والنوافل/, 'أحافظ عليها والحمد لله']);
   assert.equal((await p.locator('h1').innerText()).trim(), 'أريد أن أُحيي السنن والنوافل');
-  await submit(p, p.getByRole('link', { name: 'أعد الأسئلة' }));
-  assert.match(p.url(), /\/start$/);
+  assert.equal(await p.locator('a.back-btn[href="/start"]').count(), 1, 'رجوع إلى الأسئلة');
   sql(`update needs set status='draft' where slug='revive-sunnah'`);
 });
 
@@ -52,10 +63,7 @@ test('الفرائض قبل النوافل: من يقصّر يُقترح علي�
   sql(`update needs set status='published' where slug in ('revive-sunnah','prayer-consistency')`);
   const p = await page();
   await p.goto(`${BASE}/start?b=grow`);
-  await p.getByLabel(/السنن والنوافل/).check();
-  await p.getByLabel('أحافظ غالبًا، وأحيانًا أقصّر').check();
-  await p.getByLabel('رفقة تعينني').check();
-  await submit(p, p.getByRole('button', { name: 'اقترح عليّ بداية' }));
+  await answer(p, [/السنن والنوافل/, 'أحافظ غالبًا، وأحيانًا أقصّر', 'رفقة تعينني']);
   // 3 (السنن) مقابل 2 (الصلاة): السنن أولًا، والصلاة في «قد يهمك أيضًا»
   assert.equal((await p.locator('h1').innerText()).trim(), 'أريد أن أُحيي السنن والنوافل');
   assert.match(await p.locator('main').innerText(), new RegExp(sql(`select title from needs where slug='prayer-consistency'`)));
@@ -67,13 +75,12 @@ test('الاختيارات تقترح الاحتياج الأرجح مع مسا�
   const before = sql(`select count(*) from audit_log`);
   const p = await page();
   await p.goto(`${BASE}/start?b=fix`);
-  await p.getByLabel('غضبي أو أخلاقي مع الناس').check();
-  await p.getByLabel('أحافظ عليها والحمد لله').check();
-  await submit(p, p.getByRole('button', { name: 'اقترح عليّ بداية' }));
+  await answer(p, ['غضبي أو أخلاقي مع الناس', 'أحافظ عليها والحمد لله']);
   assert.match(p.url(), /\/start\/result\?/);
   const title = sql(`select title from needs where slug='anger-control'`);
-  assert.equal((await p.locator('h1').innerText()).trim(), title);
-  assert.ok(await p.getByRole('link', { name: new RegExp(`كل ما يخص «${title}»`) }).count());
+  assert.equal((await p.locator('h1').innerText()).trim(), 'طريقك جاهز');
+  assert.match(await p.locator('main').innerText(), new RegExp(`اخترناه لك من إجاباتك: ${title}`));
+  assert.equal(await p.getByRole('button', { name: 'ابدأ الآن' }).count(), 1, 'زر واحد للبدء');
   assert.equal(sql(`select count(*) from audit_log`), before, 'لا كتابة في القاعدة');
 });
 
@@ -82,10 +89,10 @@ test('احتياج غير منشور لا يُقترح، ويُقترح الأر
   sql(`update needs set status='published' where slug='adhkar-and-worship'`);
   const p = await page();
   await p.goto(`${BASE}/start?b=fix`);
-  await p.getByLabel('غضبي أو أخلاقي مع الناس').check();
-  await p.getByLabel('أحافظ عليها والحمد لله').check();
-  await submit(p, p.getByRole('button', { name: 'اقترح عليّ بداية' }));
-  assert.equal((await p.locator('h1').innerText()).trim(), sql(`select title from needs where slug='adhkar-and-worship'`));
+  await answer(p, ['غضبي أو أخلاقي مع الناس', 'أحافظ عليها والحمد لله']);
+  const main = await p.locator('main').innerText();
+  assert.match(main, new RegExp(sql(`select title from needs where slug='adhkar-and-worship'`)));
+  assert.doesNotMatch(main, new RegExp(sql(`select title from needs where slug='anger-control'`)));
   sql(`update needs set status='published' where slug='anger-control'`);
 });
 
@@ -112,7 +119,7 @@ test('المحرر يضيف خيارًا ويُخفي سؤالًا من اللو
   await Promise.all([ed.waitForNavigation(), q3.locator('form[action$="onb-question-status"]').evaluate((f) => f.submit())]);
   const p2 = await page(); // متصفح جديد: الصفحات العامة تُخدم بـ stale-while-revalidate
   await p2.goto(`${BASE}/start?b=fix`);
-  assert.equal(await p2.locator('fieldset.onb-q').count(), 2);
+  assert.equal(await p2.locator('.onb-step').count(), 2);
   sql(`update onboarding_questions set status='published'; delete from onboarding_options where label like 'خيار جديد %'`);
 });
 

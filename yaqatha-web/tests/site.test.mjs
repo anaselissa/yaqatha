@@ -12,11 +12,12 @@ const count = (s, re) => (s.match(re) || []).length;
 const DRAFT = 'مسودة لا يجوز أن تظهر';
 const HIDDEN = 'مادة سيُخفى نشرها';
 
-test('الرئيسية: الأبواب الأربعة والأقسام المختارة وبيانات SEO', async () => {
+test('الرئيسية: دعوة واحدة للبدء ومسارات للبدء وبيانات SEO', async () => {
   const { status, html, headers } = await get('/');
   assert.equal(status, 200);
-  for (const t of ['اقترب من الله', 'غيّر من نفسك', 'أصلح حياتك وعلاقاتك', 'تعلّم وانفع غيرك']) assert.ok(html.includes(t), t);
-  assert.ok(html.includes('ابدأ من هنا') && html.includes('مسارات مختارة') && html.includes('مواد مختارة'));
+  assert.ok(html.includes('من الغفلة… إلى اليقظة') && /href="\/start"[^>]*>ابدأ رحلتك/.test(html), 'زر واحد للبدء');
+  assert.ok(html.includes('/paths/dev-anger-7days'), 'مسارات البداية من اختيار الفريق');
+  assert.ok(html.includes('class="tabbar"') && html.includes('href="/login?next='), 'الشريط السفلي وزر الدخول للزائر');
   assert.equal(count(html, /<h1[ >]/g), 1);
   assert.match(html, /<html lang="ar" dir="rtl"/);
   assert.match(html, /<link rel="canonical" href="https?:\/\/[^"]+\/">/);
@@ -29,7 +30,7 @@ test('الرئيسية: الأبواب الأربعة والأقسام المخ�
 test('اكتشف احتياجك وصفحة الباب: المنشور فقط', async () => {
   const d = await get('/discover');
   assert.equal(d.status, 200);
-  assert.ok(d.html.includes('id="start"'));
+  assert.ok(d.html.includes('أصلح') && d.html.includes('/discover?t=grow'), 'تبويبا أصلح / أزداد');
   const main = d.html.split('<main')[1].split('</main>')[0];
   assert.equal(count(main, /href="\/doors\/[a-z-]+"/g), 4);
   const door = await get('/doors/closer-to-allah');
@@ -103,13 +104,13 @@ test('المسارات: القائمة والتصفية وصفحة المسار 
   assert.ok(open.html.includes('dev-open-path') && !open.html.includes('dev-anger-7days'));
   const p = await get('/paths/dev-anger-7days');
   assert.equal(p.status, 200);
-  assert.equal(count(p.html, /class="step"/g), 4);
-  assert.ok(p.html.includes('الإصدار 2') && p.html.includes('ما الجديد في هذا الإصدار'), 'يعرض آخر إصدار مع ملخصه');
-  assert.ok(p.html.includes('هذه المادة غير متاحة حاليًا') && !p.html.includes(HIDDEN), 'مادة مخفية في خطوة');
+  assert.equal(count(p.html, /href="\/paths\/dev-anger-7days\/steps\/\d"/g), 4);
+  assert.ok(p.html.includes('الإصدار 2') && p.html.includes('ما الجديد'), 'يعرض آخر إصدار مع ملخصه');
+  assert.ok(!p.html.includes(HIDDEN), 'مادة مخفية لا تظهر');
   assert.ok(p.html.includes('7 أيام'));
   assert.match(p.html, /"@type":"HowTo"/);
   const open2 = await get('/paths/dev-open-path');
-  assert.ok(open2.html.includes('مفتوح بلا مدة') && !open2.html.includes('المدة المقترحة'));
+  assert.ok(open2.html.includes('مفتوح بلا مدة'));
   const s = await get('/paths/dev-anger-7days/steps/2');
   assert.equal(s.status, 200);
   assert.match(s.html, /<meta name="robots" content="noindex/);

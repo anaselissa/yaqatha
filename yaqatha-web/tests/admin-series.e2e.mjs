@@ -77,7 +77,7 @@ test('نشر السلسلة: صفحة عامة، و«الحلقة التالية
   await pub.page.waitForLoadState();
   const t = await pub.page.locator('main').innerText();
   assert.match(t, /الحلقة 1 من 3/);
-  await pub.page.getByRole('link', { name: /الحلقة التالية/ }).click();
+  await pub.page.getByRole('link', { name: /^تابع:/ }).click();
   await pub.page.waitForLoadState();
   assert.match(await pub.page.locator('main').innerText(), /الحلقة 2 من 3/);
   sql(`update series set status='draft' where id='${seriesId}'`);
@@ -110,19 +110,19 @@ test('ختام المسار: هدف مقترح ومسار تالٍ يظهران 
   await user.goto(`${BASE}/paths/${slug}`);
   await submit(user, user.getByRole('button', { name: 'ابدأ هذا المسار' }));
   const enr = user.url().match(/journey\/paths\/([0-9a-f-]{36})/)[1];
-  assert.doesNotMatch(await user.locator('main').innerText(), /أتممت خطوات المسار/, 'لا ختام قبل الإكمال');
+  assert.doesNotMatch(await user.locator('main').innerText(), /أكملت المسار/, 'لا ختام قبل الإكمال');
   sql(`insert into enrollment_steps (enrollment_id, version_id, step_id, state) select '${enr}', s.version_id, s.id, 'completed' from steps s join enrollments e on e.version_id=s.version_id where e.id='${enr}' on conflict (enrollment_id, step_id) do update set state='completed'`);
   await user.goto(`${BASE}/journey/paths/${enr}`);
   const t = await user.locator('main').innerText();
-  assert.match(t, /أتممت خطوات المسار/);
+  assert.match(t, /أكملت المسار/);
   assert.match(t, new RegExp(`صلاة الفجر في المسجد ${run}`));
-  assert.match(t, /خطوتك التالية/);
-  await submit(user, user.getByRole('button', { name: 'اجعله هدفي' }));
+  assert.match(t, /المسار التالي:/);
+  await submit(user, user.getByRole('button', { name: /^استمر:/ }));
   assert.match(user.url(), /\/journey\/goals\/[0-9a-f-]{36}$/);
   const uid = sql(`select id from auth.users where email='finisher-${run}@y.test'`);
   assert.equal(sql(`select count(*) from goals g join goal_enrollments ge on ge.goal_id=g.id where g.user_id='${uid}' and ge.enrollment_id='${enr}' and g.title='صلاة الفجر في المسجد ${run}'`), '1');
   await user.goto(`${BASE}/journey/paths/${enr}`);
-  assert.match(await user.locator('main').innerText(), /صار هدفك ✓/);
+  assert.match(await user.locator('main').innerText(), /صار عادة يومية لك/);
 });
 
 test('إزالة حلقة من السلسلة تُبقي المادة في المكتبة', async () => {

@@ -138,7 +138,7 @@ const nextPath = d?.ending?.paths[0];
 
       {d.hasUpdate && !wantMigrate && (
         <div class="card">
-          <strong>يتوفر إصدار محدَّث من هذا المسار.</strong><span class="dim">لن يتغير شيء في مسارك ما لم تنتقل أنت.</span>
+          <strong>يتوفر إصدار محدَّث من هذا المسار (الإصدار {d.newer!.version_no}).</strong><span class="dim">لن يتغير شيء في مسارك ما لم تنتقل أنت.</span>
           <a class="btn btn-ghost btn-sm justify-self-start" href={`${here}?migrate=1`}>اطّلع على الجديد</a>
         </div>
       )}

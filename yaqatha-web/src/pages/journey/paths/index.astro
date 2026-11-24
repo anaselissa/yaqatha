@@ -1,6 +1,6 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import JourneyNav from '../../../components/JourneyNav.astro';
+import BackBtn from '../../../components/BackBtn.astro';
 import ErrorState from '../../../components/ErrorState.astro';
 import Progress from '../../../components/Progress.astro';
 import { getEnrollments, getProgress } from '../../../lib/user';
@@ -14,8 +14,8 @@ const REASON: Record<string, string> = { migrated: 'انتقلتَ منه إلى
 ---
 <Base title="مساراتي" noindex>
   {!data ? <ErrorState /> : (
-    <div class="container">
-      <header class="page-head"><h1>مساراتي</h1><JourneyNav /></header>
+    <div class="app-col screen">
+      <div class="screen-head"><BackBtn href="/journey" label="رجوع إلى رحلتي" /><h1>كل مساراتي</h1></div>
       <section class="section section-tight">
         {data.active.length ? (
           <><h2 class="sr-only">مساراتي الجارية</h2><div class="grid grid-2">{data.active.map((e) => {

@@ -40,11 +40,11 @@ test('F6+F5: زائر يبدأ مسارًا ← دخول ← يُنفَّذ ال
   await page.goto(PATH_URL);
   await page.getByRole('button', { name: 'ابدأ هذا المسار' }).click();
   await page.waitForURL(/\/login\?next=%2Fpaths%2Fdev-anger-7days&reason=start-path/);
-  assert.match(await text(page), /لنبدأ المسار ونحفظ تقدمك فيه/);
+  assert.match(await text(page), /لنبدأ المسار ونحفظ أين وصلت/);
   await page.getByRole('button', { name: 'المتابعة عبر Google' }).click();
   await page.waitForURL(/\/journey\/paths\/[0-9a-f-]{36}\?new=1/);
   ENR1 = page.url().match(/paths\/([0-9a-f-]{36})/)[1];
-  assert.match(await text(page), /هل تريد ربط هذا المسار بهدف/);
+  assert.match(await text(page), /تريد ربط هذا المسار بهدف/);
   await page.waitForSelector('.toast');
   assert.match(await page.locator('.toast').innerText(), /بدأتَ المسار/);
   assert.equal(sql(`select count(*) from enrollments where user_id='${uid('alice@y.test')}'`), '1');
@@ -60,35 +60,43 @@ test('الجلسة تبقى بعد التحديث، والصفحة العامة 
   const c = await ctx('alice@y.test'); const page = await c.newPage();
   await signIn(page);
   await page.reload();
-  assert.match(await text(page), /تابع/);
+  assert.match(await text(page), /سبعة أيام/);
+  assert.equal(await page.locator('[data-signed-in]').count(), 1, 'الرأس يُظهر أنه داخل');
   await page.goto(PATH_URL);
   await page.getByRole('link', { name: 'تابع مسارك' }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'ابدأ هذا المسار' }).count(), 0);
   await c.close();
 });
 
-test('F7: حالات الخطوات والتقدم والخطوة التالية وآخر خطوة', async () => {
+test('F7: فتح الخطوة = بدأت، و«أنهيت، التالي» = اكتملت، ثم الخطوة التالية', async () => {
   const c = await ctx('alice@y.test'); const page = await c.newPage();
   await signIn(page, `/journey/paths/${ENR1}`);
-  await page.locator('.step-row').nth(0).getByRole('button', { name: 'أكملتها' }).click();
-  await page.waitForURL(`**/journey/paths/${ENR1}`);
-  assert.match(await text(page), /1 من 4 خطوات مكتملة/);
-  await page.goto(`${BASE}/journey`);
-  assert.match(await text(page), /الخطوة التالية:\s*شاهد الفيديو التجريبي/);
-  await page.getByRole('link', { name: 'تابع', exact: true }).click();
-  await page.waitForURL(/\/steps\//);
+  await page.getByRole('link', { name: 'ابدأ الخطوة الأولى' }).click();
+  await page.waitForURL(/\/steps\/[0-9a-f-]{36}$/);
+  const s1 = page.url().split('/').pop();
+  assert.match(await text(page), /بدأت هذه الخطوة/);
+  assert.equal(sql(`select state from enrollment_steps where enrollment_id='${ENR1}' and step_id='${s1}'`), 'in_progress', 'الفتح يعلّمها «بدأت»');
+  assert.equal(sql(`select last_step_id from enrollments where id='${ENR1}'`), s1, 'فتح الخطوة يحفظ آخر خطوة');
+  await page.getByRole('button', { name: 'أنهيت، التالي' }).click();
+  await page.waitForURL(/\?done=1$/);
+  assert.match(await text(page), /أحسنت/);
+  assert.equal(sql(`select state from enrollment_steps where enrollment_id='${ENR1}' and step_id='${s1}'`), 'completed');
+  await page.getByRole('link', { name: 'الخطوة التالية' }).click();
+  await page.waitForURL(/\/steps\/[0-9a-f-]{36}$/);
   assert.match(await page.locator('h1').innerText(), /شاهد الفيديو/);
-  const stepId = page.url().split('/').pop();
-  assert.equal(sql(`select last_step_id from enrollments where id='${ENR1}'`), stepId, 'فتح الخطوة يحفظ آخر خطوة');
-  assert.match(await text(page), /هذه المادة غير متاحة حاليًا/, 'مادة مخفية داخل خطوة');
-  await page.getByRole('button', { name: 'أكملتها' }).click();
+  assert.match(await text(page), /بعض مواد هذه الخطوة غير متاحة حاليًا/, 'مادة مخفية داخل خطوة');
+  await page.goto(`${BASE}/journey`);
+  assert.match(await text(page), /1 من 4/);
+  // التراجع عن الإكمال ثم الإكمال مجددًا
+  await page.goto(`${BASE}/journey/paths/${ENR1}/steps/${s1}`);
+  await page.getByRole('button', { name: 'لم أكملها بعد' }).click();
   await page.waitForURL(/\/steps\//);
-  assert.match(await text(page), /مكتملة/);
-  await page.getByRole('button', { name: 'أعد فتحها' }).click();
-  await page.waitForURL(/\/steps\//);
-  assert.match(await text(page), /لم تبدأ/);
+  assert.equal(sql(`select state from enrollment_steps where enrollment_id='${ENR1}' and step_id='${s1}'`), 'in_progress');
+  await page.getByRole('button', { name: 'أنهيت، التالي' }).click();
+  await page.waitForURL(/\?done=1$/);
   await page.goto(`${BASE}/journey/paths/${ENR1}`);
-  assert.match(await text(page), /1 من 4 خطوات مكتملة/, 'إعادة الفتح تُرجع التقدم');
+  assert.match(await text(page), /1 من 4 مكتملة/);
+  assert.equal(await page.locator('.rn').count(), 4, 'الطريق بخطواته');
   await c.close();
 });
 
@@ -102,8 +110,8 @@ test('F10: إصدار جديد لا يغيّر تجربتي، والانتقال
   const c = await ctx('alice@y.test'); const page = await c.newPage();
   await signIn(page, `/journey/paths/${ENR1}`);
   assert.match(await text(page), /يتوفر إصدار محدَّث.*الإصدار 3/s);
-  assert.match(await text(page), /1 من 4 خطوات مكتملة/, 'تقدمي ثابت على إصداري');
-  assert.equal(await page.locator('.step-row').count(), 4, 'خطواتي لم تتغير');
+  assert.match(await text(page), /1 من 4 مكتملة/, 'تقدمي ثابت على إصداري');
+  assert.equal(await page.locator('.rn').count(), 4, 'خطواتي لم تتغير');
   await page.getByRole('link', { name: 'اطّلع على الجديد' }).click();
   const plan = await text(page);
   assert.match(plan, /سيُنقل تقدمها/); assert.match(plan, /خطوة جديدة في الإصدار الثالث/);
@@ -111,7 +119,7 @@ test('F10: إصدار جديد لا يغيّر تجربتي، والانتقال
   await page.waitForURL(/\/journey\/paths\/[0-9a-f-]{36}$/);
   const ENR2 = page.url().split('/').pop();
   assert.notEqual(ENR2, ENR1);
-  assert.match(await text(page), /1 من 5 خطوات مكتملة/, 'تقدمي انتقل');
+  assert.match(await text(page), /1 من 5 مكتملة/, 'تقدمي انتقل');
   assert.equal(sql(`select status||'/'||archive_reason from enrollments where id='${ENR1}'`), 'archived/migrated');
   assert.equal(sql(`select count(*) from enrollment_steps where enrollment_id='${ENR1}'`) >= '1', true, 'القديم محفوظ لم يُحذف');
   await page.goto(`${BASE}/journey/paths`);
@@ -124,8 +132,10 @@ test('F10: إصدار جديد لا يغيّر تجربتي، والانتقال
 test('F4: زائر يكتب هدفًا ← دخول ← يُحفظ تلقائيًا مرة واحدة بنصّه', async () => {
   const c = await ctx('carol@y.test'); const page = await c.newPage();
   await page.goto(`${BASE}/journey/goals/new`);
-  assert.match(await text(page), /عند الحفظ سنطلب منك تسجيل الدخول/);
+  assert.match(await text(page), /عند الحفظ نطلب منك الدخول/);
   await page.fill('#title', 'أضبط غضبي عند الازدحام');
+  await page.getByText('مرة واحدة، وأعلّم عليه عند إنجازه').click();
+  await page.getByText('أضف تفاصيل أو موعدًا').click();
   await page.fill('#description', 'أريد أن أبدأ بالتنفس قبل الرد');
   await page.selectOption('#domain', 'character');
   await page.getByRole('button', { name: 'احفظ الهدف' }).click();
@@ -147,15 +157,15 @@ test('F9: إدارة الهدف: حالات وأرشفة واستعادة ورب
   await page.getByRole('link', { name: /أضبط غضبي/ }).click();
   const goalUrl = page.url();
   await page.getByRole('button', { name: 'ابدأ العمل عليه' }).click();
-  assert.match(await page.locator('.state').first().innerText(), /قيد العمل/);
+  assert.match(await page.locator('[data-goal-status]').innerText(), /قيد العمل/);
   await page.getByRole('button', { name: 'أوقفه مؤقتًا' }).click();
-  assert.match(await page.locator('.state').first().innerText(), /متوقف مؤقتًا/);
+  assert.match(await page.locator('[data-goal-status]').innerText(), /متوقف مؤقتًا/);
   await page.getByRole('button', { name: 'استأنف' }).click();
   await page.getByRole('button', { name: 'أرشفة' }).click();
-  assert.match(await page.locator('.state').first().innerText(), /مؤرشف/);
+  assert.match(await page.locator('[data-goal-status]').innerText(), /مؤرشف/);
   assert.equal(await page.locator('button:has-text("احذف الهدف نهائيًا")').count(), 1);
   await page.getByRole('button', { name: 'استعادة الهدف' }).click();
-  assert.match(await page.locator('.state').first().innerText(), /قيد العمل/, 'الاستعادة ترجع الحالة السابقة');
+  assert.match(await page.locator('[data-goal-status]').innerText(), /قيد العمل/, 'الاستعادة ترجع الحالة السابقة');
   assert.equal(await page.locator('button:has-text("احذف الهدف نهائيًا")').count(), 0, 'الحذف النهائي من الأرشيف فقط');
   await page.getByText('تعديل الهدف').click();
   await page.fill('details #title', 'أضبط غضبي عند الازدحام والتأخر');
@@ -163,7 +173,7 @@ test('F9: إدارة الهدف: حالات وأرشفة واستعادة ورب
   assert.match(await page.locator('h1').innerText(), /والتأخر/);
   // إكمال المسار لا يكمل الهدف: لا تغيير تلقائي
   await page.goto(goalUrl);
-  assert.match(await page.locator('.state').first().innerText(), /قيد العمل/);
+  assert.match(await page.locator('[data-goal-status]').innerText(), /قيد العمل/);
   await page.getByRole('button', { name: 'أرشفة' }).click();
   await page.locator('summary', { hasText: 'حذف الهدف نهائيًا' }).click();
   await page.getByRole('button', { name: 'احذف الهدف نهائيًا' }).click();
@@ -195,8 +205,9 @@ test('المحفوظات والبلاغات: زائر يحفظ ← دخول ← 
   await page.goto(`${BASE}/journey/saved`);
   assert.match(await text(page), /مقال لاختبار العرض/);
   await page.goto(`${BASE}/library/dev-article-anger`);
-  await page.getByRole('button', { name: /إزالة من المحفوظات/ }).waitFor();
-  await page.getByText('أبلغ عن مشكلة في هذه المادة').click();
+  await page.getByRole('button', { name: /أزلها من المحفوظات/ }).waitFor();
+  await page.getByRole('button', { name: 'أبلغ عن مشكلة في هذه المادة' }).click();
+  await page.getByText('الرابط لا يعمل').click();
   await page.fill('#note', 'الرابط لا يعمل');
   await page.getByRole('button', { name: 'أرسل البلاغ' }).click();
   await page.waitForSelector('.toast');
@@ -204,7 +215,7 @@ test('المحفوظات والبلاغات: زائر يحفظ ← دخول ← 
   sql(`update materials set status='hidden' where slug='dev-article-anger'`);
   await page.goto(`${BASE}/journey/saved`);
   assert.match(await text(page), /هذه المادة غير متاحة حاليًا/);
-  await page.getByRole('button', { name: 'إزالة' }).click();
+  await page.getByRole('button', { name: 'أزلها من المحفوظات' }).click();
   assert.match(await text(page), /لم تحفظ مادة بعد/);
   sql(`update materials set status='published' where slug='dev-article-anger'`);
   await c.close();
@@ -308,12 +319,12 @@ test('F10/A5: سحب الإصدار: ينبّه المستخدم ويحفظ تق
   const c = await ctx('alice@y.test'); const page = await c.newPage();
   await signIn(page, `/journey/paths/${ENR1}`);
   assert.match(await text(page), /سُحب هذا الإصدار مؤقتًا للمراجعة/);
-  assert.equal(await page.locator('.step-row').count(), 0, 'محتوى الإصدار المسحوب مخفي');
+  assert.equal(await page.locator('.rn').count(), 0, 'محتوى الإصدار المسحوب مخفي');
   assert.equal(sql(`select count(*) from enrollment_steps where enrollment_id='${ENR1}' and state='completed'`), '1', 'التقدم المكتمل محفوظ'); 
   const r = await page.evaluate(async (e) => (await fetch('/api/set-step', { method: 'POST', body: new URLSearchParams({ enrollment_id: e, step_id: '00000000-0000-0000-0000-000000000000', state: 'completed', next: '/journey' }), redirect: 'manual' })).type, ENR1);
   assert.ok(r);
   await page.goto(`${BASE}/journey`);
-  assert.match(await text(page), /سُحب هذا الإصدار مؤقتًا للمراجعة/);
+  assert.match(await text(page), /قيد المراجعة/);
   sql(`update path_versions set status='published' where path_id=${P} and version_no=3 and status='withdrawn' ;`.replace("status='published' where", "status='retired' where"));
   await c.close();
 });
@@ -347,7 +358,7 @@ test('F12: حذف الحساب: تأكيد صحيح، يمحو كل شيء، و�
   assert.equal(sql(`select (select count(*) from auth.users where id='${id}')+(select count(*) from goals where user_id='${id}')+(select count(*) from profiles where id='${id}')`), '0');
   assert.ok(!(await c.cookies()).some((k) => k.name === 'yq-at'));
   await signIn(page);
-  assert.match(await text(page), /ابدأ رحلتك من أي طرف/, 'حساب جديد نظيف');
+  assert.match(await text(page), /طريقك لم يبدأ بعد/, 'حساب جديد نظيف');
   await c.close();
 });
 
