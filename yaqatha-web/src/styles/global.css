@@ -286,3 +286,22 @@ details.fold summary { cursor: pointer; font-weight: 600; }
 .admin .filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: .15rem; }
 .admin .filters a { white-space: nowrap; flex: none; }
 .series-nav { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; padding-top: 1rem; border-top: 1px solid var(--line); }
+.quiz { display: grid; gap: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--line); }
+.quiz-q { display: grid; gap: .7rem; }
+.quiz-q fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem 1rem; margin: 0; display: grid; gap: .3rem; }
+.quiz-q legend { font-weight: 600; padding-inline: .3rem; }
+.quiz-q label { display: flex; gap: .6rem; align-items: center; padding: .45rem .6rem; border-radius: var(--radius); cursor: pointer; }
+.quiz-q label input { accent-color: var(--gold); width: 1.15rem; height: 1.15rem; flex: none; }
+.quiz-q label.is-right { background: color-mix(in srgb, #8fc79a 18%, transparent); outline: 1px solid color-mix(in srgb, #8fc79a 60%, transparent); }
+.quiz-q label.is-wrong { background: color-mix(in srgb, #e08b7a 16%, transparent); }
+.points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; }
+.onb-slides { display: grid; grid-auto-flow: column; grid-auto-columns: 88%; gap: .8rem; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: .5rem; scrollbar-width: none; }
+@media (min-width: 760px) { .onb-slides { grid-auto-flow: row; grid-auto-columns: auto; overflow: visible; } }
+.onb-slide { scroll-snap-align: start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.2rem; display: grid; gap: .6rem; align-content: start; }
+.onb-slide h2 { font-size: 1.45rem; margin: 0; }
+.onb-slide p { margin: 0; }
+.onb-q { border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; margin: 0; display: grid; gap: .35rem; }
+.onb-q legend { font-weight: 600; font-size: 1.12rem; padding-inline: .3rem; }
+.onb-opt { display: flex; gap: .7rem; align-items: center; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; min-height: 3rem; }
+.onb-opt:has(input:checked) { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.onb-opt input { accent-color: var(--gold); width: 1.2rem; height: 1.2rem; flex: none; }

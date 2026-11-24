@@ -227,6 +227,37 @@ export async function resolveRedirect(type: keyof typeof REDIRECT_TABLE, slug: s
   return cur && cur.slug !== slug ? cur.slug : null;
 }
 
+// ---------- ابدأ من هنا (الأسئلة التعريفية) ----------
+export interface OnbOption { id: string; label: string; need_id: string | null; weight: number; position: number }
+export interface OnbQuestion { id: string; prompt: string; hint: string | null; onboarding_options: OnbOption[] }
+export async function getOnboarding(): Promise<OnbQuestion[]> {
+  try {
+    const { rows } = await rest<OnbQuestion>('onboarding_questions', { select: 'id,prompt,hint,onboarding_options(id,label,need_id,weight,position)', order: 'position' });
+    return rows.map((q) => ({ ...q, onboarding_options: [...q.onboarding_options].sort((a, b) => a.position - b.position) })).filter((q) => q.onboarding_options.length);
+  } catch (e) { console.error('[onboarding]', (e as Error).message); return []; }
+}
+
+/** الاقتراح من الاختيارات (لا يُحفظ شيء): أعلى الاحتياجات وزنًا، مع مساراته وأول مواده */
+export async function recommend(chosen: string[]) {
+  const qs = await getOnboarding();
+  const opts = qs.flatMap((q) => q.onboarding_options).filter((o) => chosen.includes(o.id));
+  const score = new Map<string, number>();
+  for (const o of opts) if (o.need_id && o.weight > 0) score.set(o.need_id, (score.get(o.need_id) ?? 0) + o.weight);
+  const ranked = [...score.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  const needs = ranked.length ? (await rest<Need>('needs', { select: '*', id: inList(ranked) })).rows.sort((a, b) => ranked.indexOf(a.id) - ranked.indexOf(b.id)) : [];
+  const top = needs[0] ?? null;
+  const content = top ? await getNeedContent(top.id, 3) : null;
+  return { answered: opts.length, top, others: needs.slice(1, 3), content };
+}
+
+// ---------- اختبر فهمك ----------
+export interface Question { id: string; prompt: string; options: string[]; correct_index: number; explanation: string | null }
+export async function getMaterialQuestions(materialId: string): Promise<Question[]> {
+  try {
+    return (await rest<Question>('material_questions', { select: 'id,prompt,options,correct_index,explanation', material_id: `eq.${materialId}`, order: 'position,created_at' })).rows;
+  } catch (e) { console.error('[questions]', (e as Error).message); return []; }
+}
+
 // ---------- السلاسل ----------
 export interface SeriesInfo { id: string; slug: string; title: string; description: string | null; author: string | null; source_url: string | null; updated_at: string }
 

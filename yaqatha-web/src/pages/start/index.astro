@@ -1,0 +1,47 @@
+---
+import Base from '../../layouts/Base.astro';
+import Star from '../../components/Star.astro';
+import { getOnboarding } from '../../lib/data';
+const qs = await getOnboarding();
+const slides = [
+  ['يقظة رفيقك في التغيير', 'ليست مكتبة محاضرات فقط: نساعدك أن تنتقل من «أعرف» إلى «أعمل»، بخطوات صغيرة تناسب يومك.'],
+  ['مسارات قصيرة وعملية', 'كل مسار أيام معدودة: مقطع، ثم سؤال تفكّر فيه، ثم خطوة تطبقها. وكل مادة بمصدرها.'],
+  ['بلا حكم وبلا اختبارات للإيمان', 'لا نسألك عن ذنوبك ولا نحفظ إجاباتك هنا. فقط نفهم من أين تبدأ.'],
+];
+---
+<Base title="ابدأ من هنا" description="ثلاثة أسئلة قصيرة، ونقترح عليك من أين تبدأ في يقظة.">
+  <div class="container narrow">
+    <header class="page-head">
+      <p class="gold" style="display:flex; gap:.5rem; align-items:center; margin:0"><Star />دقيقة واحدة</p>
+      <h1 style="margin-top:.5rem">من أين أبدأ؟</h1>
+    </header>
+    <div class="onb-slides" aria-label="تعريف قصير بيقظة">
+      {slides.map(([h, p], i) => (
+        <section class="onb-slide" id={`s${i + 1}`}>
+          <span class="chip chip-gold">{i + 1} / {slides.length}</span>
+          <h2>{h}</h2>
+          <p class="dim">{p}</p>
+          <a class="btn btn-ghost btn-sm" href={i < slides.length - 1 ? `#s${i + 2}` : '#questions'}>{i < slides.length - 1 ? 'التالي ←' : 'إلى الأسئلة ↓'}</a>
+        </section>
+      ))}
+    </div>
+
+    {qs.length === 0 ? (
+      <p style="padding-block:2rem"><a class="btn btn-primary" href="/discover">اكتشف احتياجك</a></p>
+    ) : (
+      <form id="questions" method="get" action="/start/result" class="stack" style="--space:1.5rem; padding-block:2rem 3rem">
+        {qs.map((q, n) => (
+          <fieldset class="onb-q">
+            <legend><span class="gold">{n + 1}.</span> {q.prompt}</legend>
+            {q.hint && <p class="faint" style="margin:.2rem 0 .5rem; font-size:.95rem">{q.hint}</p>}
+            {q.onboarding_options.map((o) => (
+              <label class="onb-opt"><input type="radio" name={`q${n}`} value={o.id} required={n === 0} />{o.label}</label>
+            ))}
+          </fieldset>
+        ))}
+        <p class="faint" style="margin:0; font-size:.92rem">لا نحفظ إجاباتك؛ نستعملها فقط لنقترح عليك الآن.</p>
+        <div><button class="btn btn-primary" type="submit">اقترح عليّ بداية</button></div>
+      </form>
+    )}
+  </div>
+</Base>

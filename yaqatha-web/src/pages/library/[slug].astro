@@ -3,7 +3,7 @@ import Base from '../../layouts/Base.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import NeedList from '../../components/NeedList.astro';
 import ErrorState from '../../components/ErrorState.astro';
-import { getMaterial, getMaterialRelations, getMaterialSeries, resolveRedirect } from '../../lib/data';
+import { getMaterial, getMaterialQuestions, getMaterialRelations, getMaterialSeries, resolveRedirect } from '../../lib/data';
 import { MATERIAL_TYPE, NATURE, formatDate } from '../../lib/labels';
 import { renderMarkdown, youtubeId } from '../../lib/markdown';
 import { FEATURES } from '../../config';
@@ -13,8 +13,8 @@ const slug = Astro.params.slug!;
 const data = await load(Astro.response, async () => {
   const material = await getMaterial(slug);
   if (!material) return { material: null, redirect: await resolveRedirect('material', slug) };
-  const [rel, series] = await Promise.all([getMaterialRelations(material.id), getMaterialSeries(material.id)]);
-  return { material, redirect: null, rel, series };
+  const [rel, series, questions] = await Promise.all([getMaterialRelations(material.id), getMaterialSeries(material.id), getMaterialQuestions(material.id)]);
+  return { material, redirect: null, rel, series, questions };
 });
 if (data && !data.material) {
   if (data.redirect) return Astro.redirect(`/library/${data.redirect}`, 301);
@@ -23,6 +23,9 @@ if (data && !data.material) {
 const m = data?.material;
 const rel = data && 'rel' in data ? data.rel : null;
 const sr = data && 'series' in data ? data.series : null;
+const questions = data && 'questions' in data ? data.questions : [];
+const [qaId, qaIdx] = (Astro.url.searchParams.get('qa') ?? '').split('.');
+const answered = (id: string) => (qaId === id && /^\d$/.test(qaIdx ?? '') ? Number(qaIdx) : null);
 const html = m ? renderMarkdown(m.body) : '';
 const yt = m?.type === 'video' ? youtubeId(m.url) : null;
 const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
@@ -57,6 +60,35 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
         {yt && <p class="faint" style="font-size:0.9rem; max-width:var(--measure)">لا يُحمَّل الفيديو من الخارج إلا حين تنقر التشغيل، حفاظًا على خصوصيتك وسرعة الصفحة.</p>}
         {!yt && m.url && <p><a class="btn btn-primary" href={m.url} target="_blank" rel="noopener nofollow">افتح المصدر ↗</a></p>}
         {html && <div class="prose" set:html={html} />}
+
+        {questions.length > 0 && (
+          <section class="quiz" aria-labelledby="quiz-h">
+            <h2 id="quiz-h" style="font-size:1.5rem">اختبر فهمك</h2>
+            {questions.map((q, n) => {
+              const a = answered(q.id);
+              return (
+                <form id={`q-${q.id}`} method="post" action="/api/quiz" class="quiz-q">
+                  <input type="hidden" name="slug" value={m.slug} />
+                  <input type="hidden" name="question_id" value={q.id} />
+                  <fieldset>
+                    <legend><span class="gold">{n + 1}.</span> {q.prompt}</legend>
+                    {q.options.map((o, i) => (
+                      <label class={a === null ? '' : i === q.correct_index ? 'is-right' : i === a ? 'is-wrong' : ''}>
+                        <input type="radio" name="choice" value={i} required checked={a === i} />{o}
+                      </label>
+                    ))}
+                  </fieldset>
+                  {a === null ? <button class="btn btn-ghost btn-sm" type="submit">تحقّق</button> : (
+                    <div class="notice" role="status">
+                      <strong>{a === q.correct_index ? 'إجابة صحيحة، بارك الله فيك.' : 'ليست هذه. الصحيحة مظلّلة أعلاه.'}</strong>
+                      {q.explanation && <p style="margin:.3rem 0 0">{q.explanation}</p>}
+                    </div>
+                  )}
+                </form>
+              );
+            })}
+          </section>
+        )}
 
         {sr && (sr.prev || sr.next) && (
           <nav class="series-nav" aria-label={`حلقات ${sr.title}`}>

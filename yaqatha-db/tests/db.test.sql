@@ -482,5 +482,46 @@ select test.ok(test.affected(format($$delete from public.mentorship_requests whe
 select test.as_super();
 select test.ok(not exists (select 1 from public.audit_log where entity_type = 'mentorship_requests'), 'requests (with phone numbers) are never audited');
 
+-- ---------- 19. أسئلة المواد والنقاط (الهجرة 10) ----------
+select test.as_user(:'edt');
+insert into public.materials (slug, title, type, body, source_title) values ('quiz-mat', 'مادة بأسئلة', 'article', 'نص', 'كتاب') returning id as qm \gset
+insert into public.material_needs (material_id, need_id) values (:'qm', (select id from public.needs where slug = 'anger-control'));
+insert into public.material_questions (material_id, prompt, options, correct_index, explanation)
+  values (:'qm', 'ما الصواب؟', '["أ","ب","ج"]', 1, 'لأن ب') returning id as qq \gset
+select test.throws(format($$insert into public.material_questions (material_id, prompt, options, correct_index) values (%L, 'x', '["أ","ب"]', 2)$$, :'qm'), 'correct index must point to an option', 'check');
+select test.as_anon();
+select test.ok(not exists (select 1 from public.material_questions where id = :'qq'), 'questions of a draft material are hidden');
+select test.as_user(:'edt');
+update public.materials set status = 'published' where id = :'qm';
+select test.as_anon();
+select test.ok(exists (select 1 from public.material_questions where id = :'qq'), 'questions visible with their published material');
+select test.throws(format($$insert into public.material_questions (material_id, prompt, options, correct_index) values (%L, 'x', '["أ","ب"]', 0)$$, :'qm'), 'visitor cannot add questions');
+select test.as_user(:'ur');
+select test.throws(format($$insert into public.quiz_attempts (question_id, chosen_index, correct) values (%L, 0, true)$$, :'qq'), 'client cannot send correctness', 'permission denied');
+insert into public.quiz_attempts (question_id, chosen_index) values (:'qq', 0);
+select test.ok((select correct from public.quiz_attempts where question_id = :'qq') = false, 'correctness is graded by the database');
+select test.throws(format($$insert into public.quiz_attempts (question_id, chosen_index) values (%L, 1)$$, :'qq'), 'first answer counts (no retry farming)', 'duplicate');
+select test.throws(format($$insert into public.quiz_attempts (question_id, chosen_index) values (%L, 9)$$, :'qq'), 'out-of-range answer rejected', 'invalid answer');
+select test.ok((public.my_progress() ->> 'answered')::int = 1 and (public.my_progress() ->> 'correct_answers')::int = 0, 'my_progress counts own answers');
+select test.ok((public.my_progress() ->> 'streak_days')::int >= 1 and (public.my_progress() ->> 'active_today')::boolean, 'answering today starts a streak');
+select test.as_user(:'uc');
+select test.ok(not exists (select 1 from public.quiz_attempts), 'nobody else sees my answers');
+select test.ok((public.my_progress() ->> 'points')::int = 0, 'another user has their own (zero) points');
+select test.as_anon();
+select test.throws($$select public.my_progress()$$, 'visitors have no progress', 'permission denied');
+
+-- ---------- 20. الأسئلة التعريفية (الهجرة 11) ----------
+select test.as_anon();
+select test.ok((select count(*) from public.onboarding_questions) = 3, 'default onboarding questions are public');
+select test.ok((select count(*) from public.onboarding_options where need_id is not null) >= 10, 'default options map to seeded needs');
+select test.throws($$insert into public.onboarding_questions (prompt) values ('x')$$, 'visitor cannot add onboarding questions');
+select test.as_user(:'edt');
+update public.onboarding_questions set status = 'hidden' where position = 3;
+select test.as_anon();
+select test.ok((select count(*) from public.onboarding_questions) = 2, 'hidden question disappears for visitors');
+select test.ok(not exists (select 1 from public.onboarding_options o join public.onboarding_questions q on q.id = o.question_id where q.position = 3), 'and its options too');
+select test.as_super();
+select test.ok(not exists (select 1 from information_schema.tables where table_schema = 'public' and table_name like 'onboarding_answer%'), 'answers are never stored (no table for them)');
+
 select 'ALL TESTS PASSED' as result;
 rollback;

@@ -104,3 +104,10 @@ async function pathEnding(t: string, pathId: string) {
     : [];
   return { goals, paths };
 }
+
+export interface MyProgress { points: number; steps_done: number; correct_answers: number; answered: number; paths_done: number; streak_days: number; active_today: boolean }
+/** نقاطي وسلسلة أيامي (لي وحدي). null إن تعذّر (قبل الهجرة 10 مثلًا) فلا يظهر القسم. */
+export async function getMyProgress(t: string): Promise<MyProgress | null> {
+  try { return await rpc<MyProgress>('my_progress', {}, t); }
+  catch (e) { console.error('[my-progress]', (e as Error).message); return null; }
+}

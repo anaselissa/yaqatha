@@ -41,3 +41,6 @@ from (values
   ('serve-community-and-ummah',     4, 'dawah-service',      'acquire_good_deed', 'أريد أن أساهم في خدمة مجتمعي وأمتي', 5)
 ) as v(slug, door, dom, ct, title, ord)
 join public.domains d on d.slug = v.dom;
+
+-- الأسئلة التعريفية الافتراضية (الهجرة 11): بعد إنشاء الاحتياجات؛ لا تفعل شيئًا إن وُجدت
+select public.seed_default_onboarding();

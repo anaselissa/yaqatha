@@ -83,13 +83,14 @@ export async function listAdminMaterials(token: string, f: MaterialFilters) {
 }
 
 export async function getAdminMaterial(token: string, id: string) {
+  const questions = await rest<{ id: string; prompt: string; options: string[]; correct_index: number; explanation: string | null }>('material_questions', { select: 'id,prompt,options,correct_index,explanation', material_id: `eq.${id}`, order: 'position,created_at' }, { token }).then((r) => r.rows).catch(() => []);
   const [m, needs, domains, review] = await Promise.all([
     rest<AdminMaterial>('materials', { select: '*', id: `eq.${id}` }, { token }).then((r) => r.rows[0] ?? null),
     rest<{ need_id: string }>('material_needs', { select: 'need_id', material_id: `eq.${id}` }, { token }).then((r) => r.rows.map((x) => x.need_id)),
     rest<{ domain_id: string }>('material_domains', { select: 'domain_id', material_id: `eq.${id}` }, { token }).then((r) => r.rows.map((x) => x.domain_id)),
     rest<{ review_status: string; internal_note: string | null }>('content_review', { select: 'review_status,internal_note', entity_type: 'eq.material', entity_id: `eq.${id}` }, { token }).then((r) => r.rows[0] ?? null),
   ]);
-  return m ? { material: m, needIds: needs, domainIds: domains, review } : null;
+  return m ? { material: m, needIds: needs, domainIds: domains, review, questions } : null;
 }
 
 export async function taxonomyOptions(token: string) {
@@ -207,6 +208,59 @@ export const ADMIN_HANDLERS: Record<string, Handler> = {
   },
 };
 
+ADMIN_HANDLERS['question-add'] = async ({ token, form }) => {
+  const mid = uuid(form, 'material_id');
+  const prompt = str(form, 'prompt', 500);
+  const options = str(form, 'options', 3000).split('\n').map((o) => o.trim()).filter(Boolean).slice(0, 6);
+  if (!prompt) throw new BadInput('prompt');
+  if (options.length < 2 || options.length > 5 || options.some((o) => o.length > 300)) throw new BadInput('options');
+  const correct = Number(str(form, 'correct', 2)) - 1;
+  if (!Number.isInteger(correct) || correct < 0 || correct >= options.length) throw new BadInput('correct');
+  const { rows } = await rest<{ position: number }>('material_questions', { select: 'position', material_id: `eq.${mid}`, order: 'position.desc', limit: 1 }, { token });
+  await mutate('POST', 'material_questions', token, { body: { material_id: mid, prompt, options, correct_index: correct, explanation: opt(form, 'explanation', 2000), position: (rows[0]?.position ?? 0) + 1 } });
+  return { to: `/admin/materials/${mid}#questions`, flash: 'أُضيف السؤال' };
+};
+ADMIN_HANDLERS['question-delete'] = async ({ token, form }) => {
+  const mid = uuid(form, 'material_id');
+  await mutate('DELETE', 'material_questions', token, { params: { id: `eq.${uuid(form, 'question_id')}`, material_id: `eq.${mid}` } });
+  return { to: `/admin/materials/${mid}#questions`, flash: 'حُذف السؤال' };
+};
+
+// ---------- الأسئلة التعريفية ----------
+export async function listOnboarding(token: string) {
+  return (await rest<{ id: string; position: number; prompt: string; hint: string | null; status: string; onboarding_options: { id: string; label: string; need_id: string | null; weight: number; position: number }[] }>(
+    'onboarding_questions', { select: 'id,position,prompt,hint,status,onboarding_options(id,label,need_id,weight,position)', order: 'position,created_at' }, { token })).rows
+    .map((q) => ({ ...q, onboarding_options: [...q.onboarding_options].sort((a, b) => a.position - b.position) }));
+}
+const ONB = '/admin/onboarding';
+const nextPos = async (token: string, table: string, filter: Record<string, string> = {}) =>
+  ((await rest<{ position: number }>(table, { select: 'position', order: 'position.desc', limit: 1, ...filter }, { token })).rows[0]?.position ?? 0) + 1;
+ADMIN_HANDLERS['onb-question-add'] = async ({ token, form }) => {
+  const prompt = str(form, 'prompt', 300); if (!prompt) throw new BadInput('prompt');
+  await mutate('POST', 'onboarding_questions', token, { body: { prompt, hint: opt(form, 'hint', 300), position: await nextPos(token, 'onboarding_questions') } });
+  return { to: ONB, flash: 'أُضيف السؤال. أضف خياراته الآن' };
+};
+ADMIN_HANDLERS['onb-question-status'] = async ({ token, form }) => {
+  const status = oneOf(form, 'status', ['published', 'hidden']);
+  await mutate('PATCH', 'onboarding_questions', token, { params: { id: `eq.${uuid(form, 'question_id')}` }, body: { status } });
+  return { to: ONB, flash: status === 'hidden' ? 'أُخفي السؤال' : 'أُظهر السؤال' };
+};
+ADMIN_HANDLERS['onb-question-delete'] = async ({ token, form }) => {
+  await mutate('DELETE', 'onboarding_questions', token, { params: { id: `eq.${uuid(form, 'question_id')}` } });
+  return { to: ONB, flash: 'حُذف السؤال وخياراته' };
+};
+ADMIN_HANDLERS['onb-option-add'] = async ({ token, form }) => {
+  const qid = uuid(form, 'question_id'), label = str(form, 'label', 200); if (!label) throw new BadInput('label');
+  const need = str(form, 'need_id', 40), weight = Number(str(form, 'weight', 1) || 1);
+  if (!Number.isInteger(weight) || weight < 0 || weight > 5) throw new BadInput('weight');
+  await mutate('POST', 'onboarding_options', token, { body: { question_id: qid, label, need_id: need ? uuid(form, 'need_id') : null, weight, position: await nextPos(token, 'onboarding_options', { question_id: `eq.${qid}` }) } });
+  return { to: `${ONB}#q-${qid}`, flash: 'أُضيف الخيار' };
+};
+ADMIN_HANDLERS['onb-option-delete'] = async ({ token, form }) => {
+  await mutate('DELETE', 'onboarding_options', token, { params: { id: `eq.${uuid(form, 'option_id')}` } });
+  return { to: ONB, flash: 'حُذف الخيار' };
+};
+
 Object.assign(ADMIN_HANDLERS, PATH_HANDLERS, SERIES_HANDLERS, FOLLOWUP_HANDLERS);
 
 const MESSAGES: [RegExp, string][] = [
@@ -226,11 +280,14 @@ const translate = (m: string) => MESSAGES.find(([re]) => re.test(m))?.[1] ?? 'ت
 export async function runAdminAction(name: string, form: FormData, token: string): Promise<AdminResult> {
   const h = ADMIN_HANDLERS[name];
   const id = str(form, 'id', 40);
-  const fallback = name === 'material-save' && !UUID.test(id) ? '/admin/materials/new'
+  const mid = str(form, 'material_id', 40);
+  const fallback = name.startsWith('question-') && UUID.test(mid) ? `/admin/materials/${mid}#questions`
+    : name === 'material-save' && !UUID.test(id) ? '/admin/materials/new'
     : name.startsWith('material') ? (UUID.test(id) ? `/admin/materials/${id}` : '/admin/materials')
     : name.startsWith('series-') ? (UUID.test(str(form, 'series_id', 40)) ? `/admin/series/${str(form, 'series_id', 40)}` : '/admin/series/new')
     : /^(path|step|version)-/.test(name) ? (UUID.test(str(form, 'path_id', 40)) ? `/admin/paths/${str(form, 'path_id', 40)}` : '/admin/paths')
     : name.endsWith('-status') ? '/admin/taxonomy' : name.startsWith('team') ? '/admin/team'
+    : name.startsWith('onb-') ? '/admin/onboarding'
     : name.startsWith('request') ? '/admin/requests' : /^(settings|mentor)-/.test(name) ? '/admin/settings' : '/admin';
   if (!h) return { to: '/admin', flash: 'عملية غير معروفة', error: true };
   try {
@@ -245,5 +302,5 @@ export async function runAdminAction(name: string, form: FormData, token: string
     throw e;
   }
 }
-const FIELD: Record<string, string> = { team_whatsapp: 'رقم واتساب (مع رمز الدولة)', mentorship_response_days: 'مدة الرد بالأيام', assigned_to: 'المسنَد إليه', links: 'روابط الحلقات (لم نجد رابط يوتيوب صالحًا)', duration_days: 'المدة', email: 'البريد', role: 'الدور', user_id: 'العضو', title: 'العنوان', slug: 'الرابط', url: 'رابط المادة', source_url: 'رابط المصدر', type: 'النوع', status: 'الحالة', id: 'المعرّف' };
+const FIELD: Record<string, string> = { label: 'نص الخيار', weight: 'الوزن (0 إلى 5)', prompt: 'السؤال', options: 'الخيارات (من 2 إلى 5، كل خيار في سطر)', correct: 'رقم الإجابة الصحيحة', team_whatsapp: 'رقم واتساب (مع رمز الدولة)', mentorship_response_days: 'مدة الرد بالأيام', assigned_to: 'المسنَد إليه', links: 'روابط الحلقات (لم نجد رابط يوتيوب صالحًا)', duration_days: 'المدة', email: 'البريد', role: 'الدور', user_id: 'العضو', title: 'العنوان', slug: 'الرابط', url: 'رابط المادة', source_url: 'رابط المصدر', type: 'النوع', status: 'الحالة', id: 'المعرّف' };
 

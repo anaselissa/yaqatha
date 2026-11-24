@@ -4,16 +4,16 @@ import JourneyNav from '../../components/JourneyNav.astro';
 import ErrorState from '../../components/ErrorState.astro';
 import Progress from '../../components/Progress.astro';
 import Star from '../../components/Star.astro';
-import { getEnrollments, getGoals, getLatestVersions, getProgress, getRecentActivity, getSaved, getStepTitles } from '../../lib/user';
+import { getEnrollments, getGoals, getLatestVersions, getMyProgress, getProgress, getRecentActivity, getSaved, getStepTitles } from '../../lib/user';
 import { GOAL_STATUS, MATERIAL_TYPE } from '../../lib/labels';
 import { load } from '../../lib/page';
 
 const t = Astro.locals.session!.token;
 const data = await load(Astro.response, async () => {
-  const [enrs, goals, saved, activity] = await Promise.all([getEnrollments(t), getGoals(t, ['not_started', 'in_progress', 'paused']), getSaved(t, 5), getRecentActivity(t)]);
+  const [enrs, goals, saved, activity, me] = await Promise.all([getEnrollments(t), getGoals(t, ['not_started', 'in_progress', 'paused']), getSaved(t, 5), getRecentActivity(t), getMyProgress(t)]);
   const [prog, latest] = await Promise.all([getProgress(t, enrs.map((e) => e.id)), getLatestVersions(enrs.map((e) => e.path_id))]);
   const steps = await getStepTitles(t, [...prog.values()].map((p) => p.resume_step_id ?? ''));
-  return { enrs, goals, saved, activity, prog, latest, steps };
+  return { enrs, goals, saved, activity, prog, latest, steps, me };
 });
 const active = data?.goals.filter((g) => g.status !== 'paused') ?? [];
 const paused = data?.goals.filter((g) => g.status === 'paused') ?? [];
@@ -23,6 +23,19 @@ const empty = !!data && !data.enrs.length && !data.goals.length && !data.saved.l
   {!data ? <ErrorState /> : (
     <div class="container">
       <header class="page-head"><h1>رحلتي في يقظة</h1><JourneyNav /></header>
+
+      {data.me && (data.me.points > 0 || data.me.answered > 0) && (
+        <section class="section" style="padding-block:0 1rem" aria-label="تقدمي">
+          <div class="points">
+            <div class="stat"><b>{data.me.points}</b><span>نقطة</span></div>
+            <div class="stat"><b>{data.me.streak_days}</b><span>{data.me.streak_days === 1 ? 'يوم متتالٍ' : 'أيام متتالية'}</span></div>
+            <div class="stat"><b>{data.me.steps_done}</b><span>خطوة أكملتها</span></div>
+          </div>
+          <p class="faint" style="margin:.6rem 0 0; font-size:.92rem">
+            {data.me.active_today ? 'أنجزت شيئًا اليوم. ' : data.me.streak_days > 0 ? 'أكمل خطوة اليوم لتستمر سلسلتك. ' : ''}نافس نفسك فقط؛ النقاط تسجّل التزامك وتعلّمك، والأجر عند الله.
+          </p>
+        </section>
+      )}
 
       {empty && (
         <section class="section" style="padding-block-start:1rem">

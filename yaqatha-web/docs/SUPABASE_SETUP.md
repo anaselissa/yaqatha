@@ -6,7 +6,7 @@
 
 | ما نُفِّذ وجُرِّب (جاهز) | ما يتطلب منك لوحة خارجية |
 |---|---|
-| المخطط والصلاحيات: `yaqatha-db/supabase/migrations` (9 هجرات) و`seed.sql` | إنشاء مشروع Supabase |
+| المخطط والصلاحيات: `yaqatha-db/supabase/migrations` (11 هجرة) و`seed.sql` | إنشاء مشروع Supabase |
 | `verify.sql` يفحص الأمان بعد التطبيق، و`bootstrap-manager.sql` لأول مدير | تطبيق الهجرات في SQL Editor |
 | كود الدخول (PKCE) والجلسة والنية المعلقة وحذف الحساب، مختبرة على محاكٍ لـGoTrue | **إنشاء OAuth Client في Google Cloud** (يتطلب حسابك) |
 | `scripts/smoke-remote.mjs` يفحص المشروع الحقيقي بالمفتاح العام | تفعيل Google في Supabase ووضع الـSecret هناك |
@@ -31,7 +31,7 @@
 yaqatha-db/supabase/migrations/20261109000001_types_and_helpers.sql
 … 0002_content.sql   … 0003_user_data.sql   … 0004_functions.sql
 … 0005_rls_and_grants.sql   … 0006_account_deletion.sql   … 0007_reorder_steps.sql
-… 20261122000008_series_and_path_ending.sql   … 20261122000009_followup_and_stats.sql
+… 20261122000008_series_and_path_ending.sql   … 20261122000009_followup_and_stats.sql   … 20261124000010_quizzes_and_points.sql   … 20261124000011_onboarding.sql
 yaqatha-db/supabase/seed.sql
 ```
 *بديل:* Supabase CLI (`supabase link` ثم `supabase db push`) يطبّق مجلد `migrations`؛ ثم شغّل `seed.sql` في SQL Editor.

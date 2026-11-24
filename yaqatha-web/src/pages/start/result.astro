@@ -1,0 +1,55 @@
+---
+import Base from '../../layouts/Base.astro';
+import ErrorState from '../../components/ErrorState.astro';
+import PathCard from '../../components/PathCard.astro';
+import MaterialList from '../../components/MaterialList.astro';
+import { recommend } from '../../lib/data';
+import { load } from '../../lib/page';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const chosen = [...Astro.url.searchParams.values()].filter((v) => UUID.test(v)).slice(0, 20);
+if (!chosen.length) return Astro.redirect('/start');
+const r = await load(Astro.response, () => recommend(chosen));
+---
+<Base title="بدايتك المقترحة" noindex>
+  {!r ? <ErrorState /> : (
+    <div class="container narrow">
+      <header class="page-head">
+        <p class="gold" style="margin:0">بدايتك المقترحة</p>
+        {r.top ? <h1 style="margin-top:.5rem">{r.top.title}</h1> : <h1 style="margin-top:.5rem">ابدأ من أحد الأبواب</h1>}
+        {r.top?.description && <p class="lead">{r.top.description}</p>}
+      </header>
+      <div class="stack" style="--space:2rem; padding-block:1rem 3rem">
+        {r.top && r.content && r.content.paths.length > 0 && (
+          <section class="stack" style="--space:.8rem">
+            <h2 style="font-size:1.4rem">ابدأ بهذا المسار</h2>
+            {r.content.paths.slice(0, 2).map((p) => <PathCard path={p} />)}
+          </section>
+        )}
+        {r.top && r.content && r.content.materials.length > 0 && (
+          <section class="stack" style="--space:.8rem">
+            <h2 style="font-size:1.4rem">{r.content.paths.length ? 'ومواد تساعدك' : 'ابدأ بهذه المواد'}</h2>
+            <MaterialList items={r.content.materials} />
+          </section>
+        )}
+        {r.top && (
+          <p><a class="btn btn-primary" href={`/needs/${r.top.slug}`}>كل ما يخص «{r.top.title}»</a></p>
+        )}
+        {(!r.top || (r.content && !r.content.paths.length && !r.content.materials.length)) && (
+          <div class="notice">نجهّز المحتوى لهذا الجانب بعناية. حتى ذلك الحين تصفّح الأبواب، أو اطلب أن يتابع معك أحد من الفريق.
+            <div class="row" style="margin-top:.8rem"><a class="btn btn-primary btn-sm" href="/discover">اكتشف احتياجك</a><a class="btn btn-ghost btn-sm" href="/support">متابعة من الفريق</a></div>
+          </div>
+        )}
+        {r.others.length > 0 && (
+          <section class="stack" style="--space:.6rem">
+            <h2 style="font-size:1.2rem">قد يهمك أيضًا</h2>
+            <ul class="mats">{r.others.map((n) => <li><a class="mat" href={`/needs/${n.slug}`}><h3>{n.title}</h3></a></li>)}</ul>
+          </section>
+        )}
+        <div class="row">
+          <a class="btn btn-ghost btn-sm" href="/journey/goals/new">أو اكتب هدفك بنفسك</a>
+          <a class="btn btn-ghost btn-sm" href="/start">أعد الأسئلة</a>
+        </div>
+      </div>
+    </div>
+  )}
+</Base>

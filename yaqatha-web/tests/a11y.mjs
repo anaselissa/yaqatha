@@ -1,9 +1,10 @@
 // فحص إمكانية الوصول بـ axe-core على الصفحات الرئيسية. الاستخدام: node tests/a11y.mjs [/paths...]
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { readFileSync } from 'node:fs';
 const axe = readFileSync(new URL('../node_modules/axe-core/axe.min.js', import.meta.url), 'utf8');
-const paths = process.argv.length > 2 ? process.argv.slice(2) : ['/', '/discover', '/doors/closer-to-allah', '/needs/anger-control', '/domains', '/library', '/library/dev-article-anger', '/library/dev-video-prayer', '/paths', '/paths/dev-anger-7days', '/paths/dev-anger-7days/steps/2', '/search?q=غضب', '/about', '/nothing'];
-const b = await chromium.launch({ executablePath: process.env.CHROME || '/opt/pw-browsers/chromium-1243/chrome-linux64/chrome', args: ['--no-sandbox'] });
+const paths = process.argv.length > 2 ? process.argv.slice(2) : ['/', '/discover', '/doors/closer-to-allah', '/needs/anger-control', '/domains', '/library', '/library/dev-article-anger', '/library/dev-video-prayer', '/paths', '/paths/dev-anger-7days', '/paths/dev-anger-7days/steps/2', '/search?q=غضب', '/about', '/start', '/support', '/nothing'];
+const b = await chromium.launch({ executablePath: process.env.CHROME || ['/opt/pw-browsers/chromium-1243/chrome-linux64/chrome', '/usr/bin/google-chrome'].find((p) => existsSync(p)), args: ['--no-sandbox'] });
 const page = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 let total = 0;
 for (const p of paths) {
