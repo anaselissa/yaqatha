@@ -16,7 +16,7 @@ const REASON: Record<string, string> = { migrated: 'انتقلتَ منه إلى
   {!data ? <ErrorState /> : (
     <div class="container">
       <header class="page-head"><h1>مساراتي</h1><JourneyNav /></header>
-      <section class="section" style="padding-block-start:1rem">
+      <section class="section pbs-1">
         {data.active.length ? (
           <><h2 class="sr-only">مساراتي الجارية</h2><div class="grid grid-2">{data.active.map((e) => {
             const p = data.prog.get(e.id);
@@ -28,11 +28,11 @@ const REASON: Record<string, string> = { migrated: 'انتقلتَ منه إلى
         )}
       </section>
       {data.archived.length > 0 && (
-        <section class="section" style="padding-block-start:0">
+        <section class="section pbs-0">
           <details class="fold"><summary>مسارات مؤرشفة ({data.archived.length})</summary>
-            <ul class="mats" style="margin-top:1rem">{data.archived.map((e) => {
+            <ul class="mats mt-1">{data.archived.map((e) => {
               const p = data.prog.get(e.id);
-              return <li><a class="mat" href={`/journey/paths/${e.id}`}><h3>{e.path_versions?.title} <span class="faint" style="font-size:1rem">(الإصدار {e.path_versions?.version_no})</span></h3><p>{REASON[e.archive_reason ?? ''] ?? ''}{p ? ` · ${p.completed_steps} من ${p.total_steps} خطوات مكتملة` : ''}</p></a></li>;
+              return <li><a class="mat" href={`/journey/paths/${e.id}`}><h3>{e.path_versions?.title} <span class="faint fs-1">(الإصدار {e.path_versions?.version_no})</span></h3><p>{REASON[e.archive_reason ?? ''] ?? ''}{p ? ` · ${p.completed_steps} من ${p.total_steps} خطوات مكتملة` : ''}</p></a></li>;
             })}</ul>
           </details>
         </section>

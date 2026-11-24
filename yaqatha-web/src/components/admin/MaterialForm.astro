@@ -39,7 +39,7 @@ const draftBadge = (s: string) => (s === 'published' ? '' : ' (غير منشور
     {yt && <div class="yt-preview"><img src={youtubeThumb(yt)} alt="" /><span class="dim">معاينة المقطع</span></div>}
     <div class="field">
       <label for="description">وصف قصير</label>
-      <textarea id="description" name="description" maxlength="1000" style="min-height:5rem">{m.description ?? ''}</textarea>
+      <textarea class="minh-5" id="description" name="description" maxlength="1000">{m.description ?? ''}</textarea>
       <span class="hint">يظهر تحت العنوان في القوائم. جملة أو جملتان عمّا سيستفيده الزائر.</span>
     </div>
     <div class="field">
@@ -74,7 +74,7 @@ const draftBadge = (s: string) => (s === 'published' ? '' : ' (غير منشور
 
   <fieldset>
     <legend>أين تظهر</legend>
-    <p class="hint faint" style="margin:0">اختر احتياجًا أو مجالًا واحدًا على الأقل. تظهر المادة للزائر في صفحات ما تربطها به إذا كان منشورًا.</p>
+    <p class="hint faint m-0">اختر احتياجًا أو مجالًا واحدًا على الأقل. تظهر المادة للزائر في صفحات ما تربطها به إذا كان منشورًا.</p>
     <div class="checks" role="group" aria-label="الاحتياجات">
       {doors.map((d) => (
         <>
@@ -87,7 +87,7 @@ const draftBadge = (s: string) => (s === 'published' ? '' : ' (غير منشور
     </div>
     <details class="fold">
       <summary>المجالات ({domainIds.length} مختار)</summary>
-      <div class="checks" role="group" aria-label="المجالات" style="margin-top:.6rem">
+      <div class="checks mt-0_6" role="group" aria-label="المجالات">
         {domains.map((d) => <label><input type="checkbox" name="domain" value={d.id} checked={domainIds.includes(d.id)} />{d.title}<span class="faint">{draftBadge(d.status)}</span></label>)}
       </div>
     </details>
@@ -110,11 +110,11 @@ const draftBadge = (s: string) => (s === 'published' ? '' : ' (غير منشور
     </div>
     <div class="field">
       <label for="internal_note">ملاحظة للفريق</label>
-      <textarea id="internal_note" name="internal_note" maxlength="2000" style="min-height:4rem">{review?.internal_note ?? ''}</textarea>
+      <textarea class="minh-4" id="internal_note" name="internal_note" maxlength="2000">{review?.internal_note ?? ''}</textarea>
     </div>
     <details class="fold">
       <summary>الرابط في الموقع</summary>
-      <div class="field" style="margin-top:.6rem">
+      <div class="field mt-0_6">
         <label for="slug">الرابط</label>
         <input id="slug" name="slug" type="text" dir="ltr" maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*" value={m.slug ?? ''} placeholder="يُولَّد تلقائيًا من العنوان" />
         <span class="hint">أحرف إنجليزية صغيرة وأرقام وشرطات. تغييره لاحقًا يحوّل الرابط القديم تلقائيًا.</span>

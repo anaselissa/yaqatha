@@ -33,12 +33,12 @@ const MOVES: [string, string][] = g?.status === 'in_progress' ? [['paused', 'أ�
     <div class="container narrow">
       <header class="page-head">
         <Breadcrumbs items={[{ label: 'رحلتي', href: '/journey' }, { label: 'أهدافي', href: '/journey/goals' }, { label: g.title }]} />
-        <div class="meta" style="margin-bottom:.8rem"><span class="state">{GOAL_STATUS[g.status]}</span></div>
+        <div class="meta mb-0_8"><span class="state">{GOAL_STATUS[g.status]}</span></div>
         <h1>{g.title}</h1>
-        {g.description && <p class="lead" style="white-space:pre-line">{g.description}</p>}
+        {g.description && <p class="lead ws-pre-line">{g.description}</p>}
       </header>
 
-      <div class="stack" style="--space:2rem; padding-bottom:3rem">
+      <div class="stack sp-2 pb-3">
         <div class="row">
           {archived
             ? <PostButton action="goal-restore" fields={{ id: g.id }} label="استعادة الهدف" kind="primary" small={false} />
@@ -47,38 +47,38 @@ const MOVES: [string, string][] = g?.status === 'in_progress' ? [['paused', 'أ�
         </div>
 
         <section aria-labelledby="enr-h">
-          <h2 id="enr-h" style="font-size:1.5rem; margin-bottom:.8rem">المسارات المرتبطة</h2>
+          <h2 class="fs-1_5 mb-0_8" id="enr-h">المسارات المرتبطة</h2>
           {d.links.enrollments.length ? (
             <ul class="mats">{d.links.enrollments.map((l) => (
-              <li class="row" style="justify-content:space-between; padding-block:.8rem; border-bottom:1px solid var(--line)">
+              <li class="row justify-between py-0_8 bb-line">
                 <a href={`/journey/paths/${l.enrollment_id}`}>{l.enrollments?.path_versions?.title ?? 'مسار'}</a>
                 {!archived && <PostButton action="goal-unlink" fields={{ goal_id: g.id, enrollment_id: l.enrollment_id, next: here }} label="إزالة الربط" />}
               </li>))}</ul>
           ) : <p class="dim">لا مسارات مرتبطة. هدفك قائم بذاته، وهذا مقبول.</p>}
           {!archived && d.myEnrs.filter((e) => !linkedEnr.has(e.id)).length > 0 && (
-            <form method="post" action="/api/goal-link" class="row" style="margin-top:.8rem">
+            <form method="post" action="/api/goal-link" class="row mt-0_8">
               <input type="hidden" name="goal_id" value={g.id} /><input type="hidden" name="next" value={here} />
               <label class="sr-only" for="enrollment_id">مسار</label>
-              <select id="enrollment_id" name="enrollment_id" class="input" style="width:auto">{d.myEnrs.filter((e) => !linkedEnr.has(e.id)).map((e) => <option value={e.id}>{e.path_versions?.title}</option>)}</select>
+              <select id="enrollment_id" name="enrollment_id" class="input w-auto">{d.myEnrs.filter((e) => !linkedEnr.has(e.id)).map((e) => <option value={e.id}>{e.path_versions?.title}</option>)}</select>
               <button class="btn btn-ghost btn-sm" type="submit">اربط مسارًا</button>
             </form>
           )}
         </section>
 
         <section aria-labelledby="mat-h">
-          <h2 id="mat-h" style="font-size:1.5rem; margin-bottom:.8rem">المواد المرتبطة</h2>
+          <h2 class="fs-1_5 mb-0_8" id="mat-h">المواد المرتبطة</h2>
           {d.links.materials.length ? (
             <ul class="mats">{d.links.materials.map((l) => (
-              <li class="row" style="justify-content:space-between; padding-block:.8rem; border-bottom:1px solid var(--line)">
+              <li class="row justify-between py-0_8 bb-line">
                 {l.materials ? <a href={`/library/${l.materials.slug}`}>{l.materials.title} <span class="chip">{MATERIAL_TYPE[l.materials.type]}</span></a> : <span class="unavailable">مادة غير متاحة حاليًا</span>}
                 {!archived && <PostButton action="goal-material-remove" fields={{ goal_id: g.id, material_id: l.material_id }} label="إزالة" />}
               </li>))}</ul>
           ) : <p class="dim">لا مواد مرتبطة. يمكنك ربط مادة من المحفوظات.</p>}
           {!archived && d.saved.filter((s) => s.materials && !linkedMat.has(s.material_id)).length > 0 && (
-            <form method="post" action="/api/goal-material-add" class="row" style="margin-top:.8rem">
+            <form method="post" action="/api/goal-material-add" class="row mt-0_8">
               <input type="hidden" name="goal_id" value={g.id} />
               <label class="sr-only" for="material_id">مادة</label>
-              <select id="material_id" name="material_id" class="input" style="width:auto">{d.saved.filter((s) => s.materials && !linkedMat.has(s.material_id)).map((s) => <option value={s.material_id}>{s.materials!.title}</option>)}</select>
+              <select id="material_id" name="material_id" class="input w-auto">{d.saved.filter((s) => s.materials && !linkedMat.has(s.material_id)).map((s) => <option value={s.material_id}>{s.materials!.title}</option>)}</select>
               <button class="btn btn-ghost btn-sm" type="submit">اربط مادة محفوظة</button>
             </form>
           )}
@@ -86,7 +86,7 @@ const MOVES: [string, string][] = g?.status === 'in_progress' ? [['paused', 'أ�
 
         {!archived && (
           <details class="fold"><summary>تعديل الهدف</summary>
-            <form method="post" action="/api/goal-update" class="stack" style="--space:1rem; margin-top:1rem">
+            <form method="post" action="/api/goal-update" class="stack sp-1 mt-1">
               <input type="hidden" name="id" value={g.id} /><input type="hidden" name="next" value={here} />
               <div class="field"><label for="title">العنوان</label><input id="title" name="title" type="text" required maxlength="120" value={g.title} /></div>
               <div class="field"><label for="description">التفاصيل</label><textarea id="description" name="description" maxlength="2000">{g.description ?? ''}</textarea></div>
@@ -99,7 +99,7 @@ const MOVES: [string, string][] = g?.status === 'in_progress' ? [['paused', 'أ�
 
         {archived && (
           <details class="fold"><summary>حذف الهدف نهائيًا</summary>
-            <p class="dim" style="margin-block:.8rem">يُمحى الهدف ووصفه نهائيًا ولا يمكن استرجاعه. أما المسارات والمواد المرتبطة فتبقى كما هي.</p>
+            <p class="dim my-0_8">يُمحى الهدف ووصفه نهائيًا ولا يمكن استرجاعه. أما المسارات والمواد المرتبطة فتبقى كما هي.</p>
             <PostButton action="goal-delete" fields={{ id: g.id }} label="احذف الهدف نهائيًا" kind="danger" />
           </details>
         )}

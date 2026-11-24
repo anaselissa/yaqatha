@@ -25,9 +25,9 @@ const GROUPS: { kind: SearchHit['kind']; label: string; href: (s: string) => str
       <header class="page-head">
         <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'بحث' }]} />
         <h1>بحث</h1>
-        <div style="margin-top:1.2rem"><SearchForm q={q} autofocus={!q} /></div>
+        <div class="mt-1_2"><SearchForm q={q} autofocus={!q} /></div>
       </header>
-      <section class="section" style="padding-block-start:1rem" aria-live="polite">
+      <section class="section pbs-1" aria-live="polite">
         {!q ? (
           <p class="dim">اكتب ما يشغلك بكلماتك: «الغضب»، «الصلاة»، «بر الوالدين»…</p>
         ) : data.hits.length === 0 ? (
@@ -35,13 +35,13 @@ const GROUPS: { kind: SearchHit['kind']; label: string; href: (s: string) => str
             {data.doors.map((d) => <a class="btn btn-ghost" href={`/doors/${d.slug}`}>{d.title}</a>)}
           </EmptyState>
         ) : (
-          <div class="stack" style="--space:2.2rem">
+          <div class="stack sp-2_2">
             <p class="faint">{data.hits.length} نتيجة لـ«{q}»</p>
             {GROUPS.map((g) => {
               const items = data.hits.filter((h) => h.kind === g.kind);
               return items.length ? (
                 <div>
-                  <h2 class="section-title" style="font-size:1.5rem">{g.label}</h2>
+                  <h2 class="section-title fs-1_5">{g.label}</h2>
                   <ul class="mats">
                     {items.map((h) => (
                       <li><a class="mat" href={g.href(h.slug)}><h3>{h.title}</h3>{h.description && <p>{h.description}</p>}</a></li>

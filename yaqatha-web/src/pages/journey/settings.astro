@@ -9,29 +9,29 @@ const role = await getStaffRole(s.token, s.userId).catch(() => null);
 <Base title="الإعدادات" noindex>
   <div class="container narrow">
     <header class="page-head"><h1>الإعدادات</h1><JourneyNav /></header>
-    <div class="stack" style="--space:2rem; padding-block:1rem 3rem">
+    <div class="stack sp-2 py-1-3">
       <section>
-        <h2 style="font-size:1.5rem; margin-bottom:.6rem">حسابك</h2>
+        <h2 class="fs-1_5 mb-0_6">حسابك</h2>
         <p class="dim">{s.name ? `${s.name} · ` : ''}<span dir="ltr">{s.email}</span></p>
-        <p class="faint" style="font-size:.95rem; margin-block:.4rem 1rem">يأتي الاسم والبريد من حساب Google، ولا نخزّن غيرهما عنك سوى أهدافك وتقدمك ومحفوظاتك.</p>
+        <p class="faint fs-0_95 my-0_4-1">يأتي الاسم والبريد من حساب Google، ولا نخزّن غيرهما عنك سوى أهدافك وتقدمك ومحفوظاتك.</p>
         <form method="post" action="/auth/logout"><button class="btn btn-ghost" type="submit">تسجيل الخروج</button></form>
       </section>
       <section>
-        <h2 style="font-size:1.5rem; margin-bottom:.6rem">التطبيق والتذكير</h2>
+        <h2 class="fs-1_5 mb-0_6">التطبيق والتذكير</h2>
         <AppTools compact />
       </section>
       {role && (
         <section>
-          <h2 style="font-size:1.5rem; margin-bottom:.6rem">فريق يقظة</h2>
-          <p class="dim" style="margin-bottom:1rem">أنت {ROLE[role]} في الفريق.</p>
+          <h2 class="fs-1_5 mb-0_6">فريق يقظة</h2>
+          <p class="dim mb-1">أنت {ROLE[role]} في الفريق.</p>
           <a class="btn btn-primary" href="/admin">لوحة الإدارة</a>
         </section>
       )}
       <section>
         <details class="fold"><summary>حذف الحساب والبيانات</summary>
-          <div class="stack" style="--space:.9rem; margin-top:1rem">
+          <div class="stack sp-0_9 mt-1">
             <p>سيُحذف حسابك وكل ما يتصل به نهائيًا: أهدافك، ومساراتك وتقدمك، ومحفوظاتك. لا يمكن التراجع عن ذلك. أما المحتوى العام للموقع فلا يتأثر.</p>
-            <form method="post" action="/api/delete-account" class="stack" style="--space:.8rem">
+            <form method="post" action="/api/delete-account" class="stack sp-0_8">
               <input type="hidden" name="next" value="/journey/settings" />
               <div class="field"><label for="confirm">للتأكيد اكتب: احذف</label><input id="confirm" name="confirm" type="text" autocomplete="off" required /></div>
               <div><button class="btn btn-danger" type="submit">احذف حسابي وبياناتي</button></div>

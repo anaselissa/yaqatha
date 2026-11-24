@@ -26,20 +26,20 @@ const empty = !!data && !data.enrs.length && !data.goals.length && !data.saved.l
       <header class="page-head"><h1>رحلتي في يقظة</h1><JourneyNav /></header>
 
       {data.me && (data.me.points > 0 || data.me.answered > 0) && (
-        <section class="section" style="padding-block:0 1rem" aria-label="تقدمي">
+        <section class="section py-0-1" aria-label="تقدمي">
           <div class="points">
             <div class="stat"><b>{data.me.points}</b><span>نقطة</span></div>
             <div class="stat"><b>{data.me.streak_days}</b><span>{data.me.streak_days === 1 ? 'يوم متتالٍ' : 'أيام متتالية'}</span></div>
             <div class="stat"><b>{data.me.steps_done}</b><span>خطوة أكملتها</span></div>
           </div>
-          <p class="faint" style="margin:.6rem 0 0; font-size:.92rem">
+          <p class="faint m-0_6-0-0 fs-0_92">
             {data.me.active_today ? 'أنجزت شيئًا اليوم. ' : data.me.streak_days > 0 ? 'أكمل خطوة اليوم لتستمر سلسلتك. ' : ''}نافس نفسك فقط؛ النقاط تسجّل التزامك وتعلّمك، والأجر عند الله.
           </p>
         </section>
       )}
 
       {empty && (
-        <section class="section" style="padding-block-start:1rem">
+        <section class="section pbs-1">
           <div class="empty">
             <h2>ابدأ رحلتك من أي طرف</h2>
             <p>اختر الأقرب إليك، ولا شيء ملزِم.</p>
@@ -53,7 +53,7 @@ const empty = !!data && !data.enrs.length && !data.goals.length && !data.saved.l
       )}
 
       {data.enrs.length > 0 && (
-        <section class="section" style="padding-block-start:1rem" aria-labelledby="paths-h">
+        <section class="section pbs-1" aria-labelledby="paths-h">
           <div class="section-title"><h2 id="paths-h">مساراتي الجارية</h2><a href="/journey/paths">كل مساراتي</a></div>
           <div class="grid grid-2">
             {data.enrs.map((e) => {
@@ -80,7 +80,7 @@ const empty = !!data && !data.enrs.length && !data.goals.length && !data.saved.l
       )}
 
       {(active.length > 0 || data.enrs.length > 0 || !empty) && (
-        <section class="section" style="padding-block-start:1rem" aria-labelledby="goals-h">
+        <section class="section pbs-1" aria-labelledby="goals-h">
           <div class="section-title"><h2 id="goals-h">أهدافي النشطة</h2><a href="/journey/goals/new">هدف جديد</a></div>
           {active.length ? (
             <ul class="mats">{active.map((g) => (
@@ -91,21 +91,21 @@ const empty = !!data && !data.enrs.length && !data.goals.length && !data.saved.l
       )}
 
       {paused.length > 0 && (
-        <section class="section" style="padding-block-start:0" aria-labelledby="paused-h">
-          <h2 id="paused-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">أهداف متوقفة مؤقتًا</h2>
+        <section class="section pbs-0" aria-labelledby="paused-h">
+          <h2 id="paused-h" class="section-title fs-1_4 c-dim">أهداف متوقفة مؤقتًا</h2>
           <ul class="mats">{paused.map((g) => <li><a class="mat" href={`/journey/goals/${g.id}`}><h3>{g.title}</h3></a></li>)}</ul>
         </section>
       )}
 
-      {!empty && <section class="section" style="padding-block-start:0"><AppTools compact /></section>}
+      {!empty && <section class="section pbs-0"><AppTools compact /></section>}
 
-      <section class="section" style="padding-block-start:0">
+      <section class="section pbs-0">
         <div class="notice"><strong>تحب أن يتابع معك أحد من الفريق؟</strong> رفيق يذكّرك ويشجعك على ما بدأت. <a href="/support">اطلب متابعة</a></div>
       </section>
 
       {data.saved.length > 0 && (
-        <section class="section" style="padding-block-start:0" aria-labelledby="saved-h">
-          <div class="section-title"><h2 id="saved-h" style="font-size:1.4rem">آخر ما حفظت</h2><a href="/journey/saved">كل المحفوظات</a></div>
+        <section class="section pbs-0" aria-labelledby="saved-h">
+          <div class="section-title"><h2 class="fs-1_4" id="saved-h">آخر ما حفظت</h2><a href="/journey/saved">كل المحفوظات</a></div>
           <ul class="mats">{data.saved.map((s) => s.materials
             ? <li><a class="mat" href={`/library/${s.materials.slug}`}><div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[s.materials.type]}</span></div><h3>{s.materials.title}</h3></a></li>
             : <li class="mat unavailable">مادة غير متاحة حاليًا</li>)}</ul>
@@ -113,10 +113,10 @@ const empty = !!data && !data.enrs.length && !data.goals.length && !data.saved.l
       )}
 
       {data.activity.length > 0 && (
-        <section class="section" style="padding-block-start:0" aria-labelledby="act-h">
-          <h2 id="act-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">آخر ما أنجزت</h2>
-          <ul style="list-style:none; padding:0; margin:0" class="dim">{data.activity.map((a) => (
-            <li style="display:flex; gap:.6rem; align-items:baseline; padding-block:.3rem"><Star /><span>{a.steps?.title ?? 'خطوة'} — {a.enrollments?.path_versions?.title ?? ''}</span></li>
+        <section class="section pbs-0" aria-labelledby="act-h">
+          <h2 id="act-h" class="section-title fs-1_4 c-dim">آخر ما أنجزت</h2>
+          <ul class="dim list-none p-0 m-0">{data.activity.map((a) => (
+            <li class="d-flex gap-0_6 items-baseline py-0_3"><Star /><span>{a.steps?.title ?? 'خطوة'} — {a.enrollments?.path_versions?.title ?? ''}</span></li>
           ))}</ul>
         </section>
       )}

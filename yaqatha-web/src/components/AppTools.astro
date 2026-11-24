@@ -12,15 +12,15 @@ const gcal = `https://calendar.google.com/calendar/render?${new URLSearchParams(
   <div class="notice" data-install hidden>
     <strong>ثبّت يقظة على هاتفك</strong>
     <span class="dim"> وافتحها بلمسة مثل أي تطبيق، بلا متجر ولا مساحة تُذكر.</span>
-    <div style="margin-top:.6rem"><button class="btn btn-primary btn-sm" type="button" data-install-btn hidden>ثبّت الآن</button></div>
-    <p data-install-ios hidden style="margin:.5rem 0 0">على iPhone: اضغط زر المشاركة <span aria-hidden="true">⎋</span> في Safari، ثم «إضافة إلى الشاشة الرئيسية».</p>
+    <div class="mt-0_6"><button class="btn btn-primary btn-sm" type="button" data-install-btn hidden>ثبّت الآن</button></div>
+    <p class="m-0_5-0-0" data-install-ios hidden>على iPhone: اضغط زر المشاركة <span aria-hidden="true">⎋</span> في Safari، ثم «إضافة إلى الشاشة الرئيسية».</p>
   </div>
   <div class="notice" data-reminder>
     <strong>تذكير يومي بخطوتك</strong>
     <span class="dim"> يصلك من تقويم هاتفك في الوقت الذي تختاره. تلغيه من التقويم متى شئت.</span>
-    <div class="row" style="margin-top:.7rem; align-items:center">
+    <div class="row mt-0_7 items-center">
       <label class="sr-only" for="rem-time">وقت التذكير</label>
-      <select id="rem-time" class="input" style="max-width:11rem; min-height:2.5rem">
+      <select id="rem-time" class="input maxw-11 minh-2_5">
         {times.map((t) => <option value={t} selected={t === '20:00'}>{label(t)}</option>)}
       </select>
       <a class="btn btn-primary btn-sm" data-gcal href={gcal} target="_blank" rel="noopener">أضف إلى تقويم Google</a>

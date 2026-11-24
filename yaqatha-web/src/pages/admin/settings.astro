@@ -13,7 +13,7 @@ const [st, mentors] = data ?? [null, null];
 ---
 <Admin title="الإعدادات">
   {!st || !mentors ? <ErrorState /> : (
-    <div class="stack" style="--space:2rem">
+    <div class="stack sp-2">
       <form method="post" action="/api/admin/settings-save" class="adm-form">
         <fieldset>
           <legend>المتابعة المباشرة</legend>
@@ -29,27 +29,27 @@ const [st, mentors] = data ?? [null, null];
           </div>
           <div class="field">
             <label for="days">نتواصل مع صاحب الطلب خلال (أيام)</label>
-            <input id="days" name="mentorship_response_days" type="number" min="1" max="30" class="input" style="max-width:8rem" value={st.mentorship_response_days} />
+            <input id="days" name="mentorship_response_days" type="number" min="1" max="30" class="input maxw-8" value={st.mentorship_response_days} />
             <span class="hint">يُكتب للمستخدم بعد إرسال طلبه، فاختر مدة تستطيعون الالتزام بها.</span>
           </div>
         </fieldset>
         <div><button class="btn btn-primary" type="submit">حفظ الإعدادات</button></div>
       </form>
 
-      <section id="mentors" class="stack" style="--space:.8rem">
-        <h2 style="font-size:1.35rem">المتابِعون</h2>
-        <p class="faint" style="margin:0">المتابِع يدخل اللوحة ببريد Google ويرى طلبات المتابعة المسندة إليه فقط، ولا يرى المحتوى ولا غيره.</p>
+      <section id="mentors" class="stack sp-0_8">
+        <h2 class="fs-1_35">المتابِعون</h2>
+        <p class="faint m-0">المتابِع يدخل اللوحة ببريد Google ويرى طلبات المتابعة المسندة إليه فقط، ولا يرى المحتوى ولا غيره.</p>
         <ul class="adm-list">
           {mentors.map((m) => (
             <li class="adm-row">
-              <div class="grow"><span dir="ltr" style="font-weight:600">{m.email}</span><div class="meta"><span class="faint" style="font-size:.85rem">أُضيف {formatDate(m.created_at)}</span></div></div>
+              <div class="grow"><span class="fw-600" dir="ltr">{m.email}</span><div class="meta"><span class="faint fs-0_85">أُضيف {formatDate(m.created_at)}</span></div></div>
               <form method="post" action="/api/admin/mentor-remove" class="acts"><input type="hidden" name="email" value={m.email} /><button class="btn btn-ghost btn-sm" type="submit">إزالة</button></form>
             </li>
           ))}
         </ul>
         <form method="post" action="/api/admin/mentor-add" class="row">
           <label class="sr-only" for="m-email">بريد المتابِع</label>
-          <input id="m-email" name="email" type="email" dir="ltr" required class="input" placeholder="name@gmail.com" style="flex:1; min-width:12rem" />
+          <input id="m-email" name="email" type="email" dir="ltr" required class="input flex-1 minw-12" placeholder="name@gmail.com" />
           <button class="btn btn-primary btn-sm" type="submit">أضف متابِعًا</button>
         </form>
       </section>

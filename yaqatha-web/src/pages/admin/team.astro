@@ -11,9 +11,9 @@ const team = await load(Astro.response, () => listTeam(s.token));
 ---
 <Admin title="الفريق">
   {!team ? <ErrorState /> : (
-    <div class="stack" style="--space:2rem">
-      <section class="stack" style="--space:.9rem">
-        <h2 style="font-size:1.35rem">أضف عضوًا</h2>
+    <div class="stack sp-2">
+      <section class="stack sp-0_9">
+        <h2 class="fs-1_35">أضف عضوًا</h2>
         <form method="post" action="/api/admin/team-invite" class="adm-form">
           <div class="field">
             <label for="email">بريد Google الخاص به</label>
@@ -32,14 +32,14 @@ const team = await load(Astro.response, () => listTeam(s.token));
       </section>
 
       {team.invites.length > 0 && (
-        <section class="stack" style="--space:.6rem">
-          <h2 style="font-size:1.35rem">بانتظار أول دخول</h2>
+        <section class="stack sp-0_6">
+          <h2 class="fs-1_35">بانتظار أول دخول</h2>
           <ul class="adm-list">
             {team.invites.map((i) => (
               <li class="adm-row">
                 <div class="grow">
-                  <span dir="ltr" style="font-weight:600">{i.email}</span>
-                  <div class="meta"><span class="chip">{ROLE[i.role]}</span><span class="faint" style="font-size:.85rem">أُضيف {formatDate(i.created_at)}</span></div>
+                  <span class="fw-600" dir="ltr">{i.email}</span>
+                  <div class="meta"><span class="chip">{ROLE[i.role]}</span><span class="faint fs-0_85">أُضيف {formatDate(i.created_at)}</span></div>
                 </div>
                 <form method="post" action="/api/admin/team-uninvite" class="acts">
                   <input type="hidden" name="email" value={i.email} />
@@ -51,15 +51,15 @@ const team = await load(Astro.response, () => listTeam(s.token));
         </section>
       )}
 
-      <section class="stack" style="--space:.6rem">
-        <h2 style="font-size:1.35rem">أعضاء الفريق</h2>
+      <section class="stack sp-0_6">
+        <h2 class="fs-1_35">أعضاء الفريق</h2>
         <ul class="adm-list">
           {team.members.map((m) => {
             const me = m.user_id === s.userId;
             return (
               <li class="adm-row">
                 <div class="grow">
-                  <span dir="ltr" style="font-weight:600">{m.email}</span>
+                  <span class="fw-600" dir="ltr">{m.email}</span>
                   <div class="meta"><span class="chip chip-gold">{ROLE[m.role]}</span>{me && <span class="chip">أنت</span>}</div>
                 </div>
                 <div class="acts">
@@ -79,7 +79,7 @@ const team = await load(Astro.response, () => listTeam(s.token));
             );
           })}
         </ul>
-        <p class="faint" style="margin:0">الإزالة لا تحذف حسابه في الموقع؛ يعود مستخدمًا عاديًا.</p>
+        <p class="faint m-0">الإزالة لا تحذف حسابه في الموقع؛ يعود مستخدمًا عاديًا.</p>
       </section>
     </div>
   )}

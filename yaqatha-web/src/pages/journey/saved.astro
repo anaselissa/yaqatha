@@ -12,17 +12,17 @@ const saved = await load(Astro.response, () => getSaved(Astro.locals.session!.to
   {!saved ? <ErrorState /> : (
     <div class="container">
       <header class="page-head"><h1>المحفوظات</h1><JourneyNav /></header>
-      <section class="section" style="padding-block-start:1rem">
+      <section class="section pbs-1">
         {saved.length ? (
           <ul class="mats">{saved.map((s) => (
-            <li style="padding-block:.4rem">
+            <li class="py-0_4">
               {s.materials ? (
-                <div class="row" style="justify-content:space-between; align-items:flex-start">
-                  <a class="mat" href={`/library/${s.materials.slug}`} style="flex:1"><div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[s.materials.type]}</span></div><h3>{s.materials.title}</h3></a>
+                <div class="row justify-between items-start">
+                  <a class="mat flex-1" href={`/library/${s.materials.slug}`}><div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[s.materials.type]}</span></div><h3>{s.materials.title}</h3></a>
                   <PostButton action="unsave-material" fields={{ material_id: s.material_id }} label="إزالة" />
                 </div>
               ) : (
-                <div class="row" style="justify-content:space-between"><span class="unavailable">هذه المادة غير متاحة حاليًا</span>
+                <div class="row justify-between"><span class="unavailable">هذه المادة غير متاحة حاليًا</span>
                   <PostButton action="unsave-material" fields={{ material_id: s.material_id }} label="إزالة" /></div>
               )}
             </li>))}</ul>

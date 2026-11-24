@@ -20,22 +20,22 @@ const link = (k: 'status' | 'type', v: string) => {
 };
 ---
 <Admin title="المواد">
-  <div class="stack" style="--space:1.2rem">
-    <div class="row" style="justify-content:space-between">
+  <div class="stack sp-1_2">
+    <div class="row justify-between">
       <a class="btn btn-primary" href="/admin/materials/new">أضف مادة</a>
-      <form method="get" action="/admin/materials" class="row" role="search" style="flex:1; max-width:24rem">
+      <form method="get" action="/admin/materials" class="row flex-1 maxw-24" role="search">
         {f.status && <input type="hidden" name="status" value={f.status} />}
         {f.type && <input type="hidden" name="type" value={f.type} />}
         <label class="sr-only" for="q">ابحث في العناوين</label>
-        <input class="input" id="q" name="q" type="search" value={f.q} placeholder="ابحث في العناوين" style="flex:1; min-height:2.6rem" />
+        <input class="input flex-1 minh-2_6" id="q" name="q" type="search" value={f.q} placeholder="ابحث في العناوين" />
         <button class="btn btn-ghost btn-sm" type="submit">بحث</button>
       </form>
     </div>
-    <nav class="filters" aria-label="الحالة" style="margin:0">
+    <nav class="filters m-0" aria-label="الحالة">
       <a href={link('status', '')} aria-current={!f.status ? 'true' : undefined}>الكل</a>
       {Object.entries(PUBLISH_STATUS).map(([k, l]) => <a href={link('status', k)} aria-current={f.status === k ? 'true' : undefined}>{l}</a>)}
     </nav>
-    <nav class="filters" aria-label="النوع" style="margin:0">
+    <nav class="filters m-0" aria-label="النوع">
       <a href={link('type', '')} aria-current={!f.type ? 'true' : undefined}>كل الأنواع</a>
       {Object.entries(MATERIAL_TYPE).map(([k, l]) => <a href={link('type', k)} aria-current={f.type === k ? 'true' : undefined}>{l}</a>)}
     </nav>
@@ -46,7 +46,7 @@ const link = (k: 'status' | 'type', v: string) => {
       </EmptyState>
     ) : (
       <>
-        <p class="faint" style="margin:0">{data.total} مادة</p>
+        <p class="faint m-0">{data.total} مادة</p>
         <ul class="adm-list">
           {data.items.map((m) => {
             const yt = m.type === 'video' ? parseYoutubeId(m.url ?? '') : null;
@@ -59,7 +59,7 @@ const link = (k: 'status' | 'type', v: string) => {
                     <span class={`state st-${m.status}`}>{PUBLISH_STATUS[m.status]}</span>
                     <span class="chip">{MATERIAL_TYPE[m.type]}</span>
                     <span class="chip">{REVIEW_STATUS[m.review]}</span>
-                    <span class="faint" style="font-size:.85rem">{formatDate(m.updated_at)}</span>
+                    <span class="faint fs-0_85">{formatDate(m.updated_at)}</span>
                   </div>
                 </div>
                 <div class="acts">

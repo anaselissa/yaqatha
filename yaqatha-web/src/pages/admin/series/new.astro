@@ -15,17 +15,17 @@ const tax = await load(Astro.response, () => taxonomyOptions(s.token));
         <legend>السلسلة</legend>
         <div class="field"><label for="title">اسم السلسلة</label><input id="title" name="title" type="text" required maxlength="200" placeholder="مثال: سلسلة إصلاح القلوب" /></div>
         <div class="field"><label for="author">الشيخ أو المحاضر</label><input id="author" name="author" type="text" maxlength="200" /></div>
-        <div class="field"><label for="description">وصف قصير</label><textarea id="description" name="description" maxlength="2000" style="min-height:5rem"></textarea></div>
+        <div class="field"><label for="description">وصف قصير</label><textarea class="minh-5" id="description" name="description" maxlength="2000"></textarea></div>
         <div class="field"><label for="source_url">رابط قائمة التشغيل <span class="faint">(اختياري)</span></label><input id="source_url" name="source_url" type="url" dir="ltr" maxlength="500" placeholder="https://www.youtube.com/playlist?list=…" /></div>
       </fieldset>
       <fieldset>
         <legend>الحلقات</legend>
         <div class="field">
           <label for="links">روابط الحلقات من يوتيوب، رابط في كل سطر وبترتيبها</label>
-          <textarea id="links" name="links" dir="ltr" style="min-height:9rem" placeholder={'https://youtu.be/…\nhttps://www.youtube.com/watch?v=…'}></textarea>
+          <textarea class="minh-9" id="links" name="links" dir="ltr" placeholder={'https://youtu.be/…\nhttps://www.youtube.com/watch?v=…'}></textarea>
           <span class="hint">حتى {MAX_BATCH} رابطًا في المرة. نجلب عنوان كل حلقة واسم القناة تلقائيًا، والمقطع الموجود مسبقًا في المكتبة لا يتكرر. يمكنك ترك الحقل فارغًا وإضافة الحلقات لاحقًا.</span>
         </div>
-        <p class="hint faint" style="margin:0">اربط الحلقات الجديدة باحتياج أو مجال (مطلوب لنشرها):</p>
+        <p class="hint faint m-0">اربط الحلقات الجديدة باحتياج أو مجال (مطلوب لنشرها):</p>
         <LinkPicker {...tax} needIds={[]} domainIds={[]} />
         <div class="checks"><label><input type="checkbox" name="publish" />انشر الحلقات الجديدة مباشرة</label></div>
       </fieldset>

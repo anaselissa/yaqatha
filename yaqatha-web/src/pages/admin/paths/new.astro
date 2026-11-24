@@ -19,16 +19,16 @@ const tax = await load(Astro.response, () => taxonomyOptions(s.token));
         </div>
         <div class="field">
           <label for="description">وصف قصير</label>
-          <textarea id="description" name="description" maxlength="1000" style="min-height:5rem"></textarea>
+          <textarea class="minh-5" id="description" name="description" maxlength="1000"></textarea>
           <span class="hint">يظهر في بطاقة المسار. لمن هذا المسار، وماذا سيخرج منه؟</span>
         </div>
         <div class="field">
           <label for="purpose">الهدف منه</label>
-          <textarea id="purpose" name="purpose" maxlength="2000" style="min-height:4rem"></textarea>
+          <textarea class="minh-4" id="purpose" name="purpose" maxlength="2000"></textarea>
         </div>
         <div class="field">
           <label for="duration_days">المدة بالأيام <span class="faint">(اختياري)</span></label>
-          <input id="duration_days" name="duration_days" type="number" min="1" max="365" inputmode="numeric" class="input" style="max-width:10rem" />
+          <input id="duration_days" name="duration_days" type="number" min="1" max="365" inputmode="numeric" class="input maxw-10" />
           <span class="hint">اتركه فارغًا لمسار مفتوح بلا مدة. لا تتغير المدة بعد النشر إلا بإصدار جديد.</span>
         </div>
         <div class="field">

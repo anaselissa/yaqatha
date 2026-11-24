@@ -44,7 +44,7 @@ const link = (over: Record<string, string | undefined>) => {
         <h1>المواد والمحتوى</h1>
         <p class="lead">لكل مادة مصدرها الأصلي. ونميّز بين المادة الأصلية وما أعدّه فريق يقظة.</p>
       </header>
-      <section class="section" style="padding-block-start:1rem">
+      <section class="section pbs-1">
         <div class="filters" role="group" aria-label="النوع">
           <a href={link({ type: undefined, page: undefined })} aria-current={!f.type ? 'true' : undefined}>كل الأنواع</a>
           {Object.entries(MATERIAL_TYPE).map(([k, v]) => <a href={link({ type: k })} aria-current={f.type === k ? 'true' : undefined}>{v}</a>)}
@@ -55,11 +55,11 @@ const link = (over: Record<string, string | undefined>) => {
             {data.domains.map((d) => <a href={link({ domain: d.slug })} aria-current={f.domain === d.slug ? 'true' : undefined}>{d.title}</a>)}
           </div>
         )}
-        {(f.need || f.topic) && <p class="dim" style="margin-bottom:1rem">تصفية حسب {f.need ? 'احتياج' : 'موضوع'} محدد. <a href={link({ need: undefined, topic: undefined })}>إزالة التصفية</a></p>}
+        {(f.need || f.topic) && <p class="dim mb-1">تصفية حسب {f.need ? 'احتياج' : 'موضوع'} محدد. <a href={link({ need: undefined, topic: undefined })}>إزالة التصفية</a></p>}
 
         {data.list.items.length ? (
           <>
-            <p class="faint" style="margin-bottom:0.8rem" aria-live="polite">{data.list.total} {data.list.total === 1 ? 'مادة' : 'مواد'}</p>
+            <p class="faint mb-0_8" aria-live="polite">{data.list.total} {data.list.total === 1 ? 'مادة' : 'مواد'}</p>
             <h2 class="sr-only">قائمة المواد</h2>
             <MaterialList items={data.list.items} />
             <Pager page={data.list.page} pages={data.list.pages} base="/library" params={f} />

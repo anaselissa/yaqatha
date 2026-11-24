@@ -12,8 +12,8 @@ const slides = [
 <Base title="ابدأ من هنا" description="ثلاثة أسئلة قصيرة، ونقترح عليك من أين تبدأ في يقظة.">
   <div class="container narrow">
     <header class="page-head">
-      <p class="gold" style="display:flex; gap:.5rem; align-items:center; margin:0"><Star />دقيقة واحدة</p>
-      <h1 style="margin-top:.5rem">من أين أبدأ؟</h1>
+      <p class="gold d-flex gap-0_5 items-center m-0"><Star />دقيقة واحدة</p>
+      <h1 class="mt-0_5">من أين أبدأ؟</h1>
     </header>
     <div class="onb-slides" aria-label="تعريف قصير بيقظة">
       {slides.map(([h, p], i) => (
@@ -27,19 +27,19 @@ const slides = [
     </div>
 
     {qs.length === 0 ? (
-      <p style="padding-block:2rem"><a class="btn btn-primary" href="/discover">اكتشف احتياجك</a></p>
+      <p class="py-2"><a class="btn btn-primary" href="/discover">اكتشف احتياجك</a></p>
     ) : (
-      <form id="questions" method="get" action="/start/result" class="stack" style="--space:1.5rem; padding-block:2rem 3rem">
+      <form id="questions" method="get" action="/start/result" class="stack sp-1_5 py-2-3">
         {qs.map((q, n) => (
           <fieldset class="onb-q">
             <legend><span class="gold">{n + 1}.</span> {q.prompt}</legend>
-            {q.hint && <p class="faint" style="margin:.2rem 0 .5rem; font-size:.95rem">{q.hint}</p>}
+            {q.hint && <p class="faint m-0_2-0-0_5 fs-0_95">{q.hint}</p>}
             {q.onboarding_options.map((o) => (
               <label class="onb-opt"><input type="radio" name={`q${n}`} value={o.id} required={n === 0} />{o.label}</label>
             ))}
           </fieldset>
         ))}
-        <p class="faint" style="margin:0; font-size:.92rem">لا نحفظ إجاباتك؛ نستعملها فقط لنقترح عليك الآن.</p>
+        <p class="faint m-0 fs-0_92">لا نحفظ إجاباتك؛ نستعملها فقط لنقترح عليك الآن.</p>
         <div><button class="btn btn-primary" type="submit">اقترح عليّ بداية</button></div>
       </form>
     )}

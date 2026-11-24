@@ -17,11 +17,11 @@ const back = status ? `?status=${status}` : '';
 const tabs: [string, string][] = [['', 'المفتوحة'], ['new', 'جديدة'], ['contacted', 'تم التواصل'], ['active', 'مستمرة'], ['closed', 'منتهية']];
 ---
 <Admin title="طلبات المتابعة">
-  <div class="stack" style="--space:1.2rem">
-    <nav class="filters" aria-label="الحالة" style="margin:0">
+  <div class="stack sp-1_2">
+    <nav class="filters m-0" aria-label="الحالة">
       {tabs.map(([k, l]) => <a href={k ? `/admin/requests?status=${k}` : '/admin/requests'} aria-current={status === k ? 'true' : undefined}>{l}</a>)}
     </nav>
-    {role === 'mentor' && <p class="faint" style="margin:0">تظهر هنا الطلبات المسندة إليك فقط.</p>}
+    {role === 'mentor' && <p class="faint m-0">تظهر هنا الطلبات المسندة إليك فقط.</p>}
     {!items ? <ErrorState /> : items.length === 0 ? (
       <EmptyState title="لا طلبات هنا" text={role === 'mentor' ? 'حين يُسند إليك المدير طلبًا يظهر هنا.' : 'حين يطلب أحد متابعة من الفريق يظهر هنا.'} />
     ) : (
@@ -29,25 +29,25 @@ const tabs: [string, string][] = [['', 'المفتوحة'], ['new', 'جديدة'
         {items.map((r) => {
           const wa = waLink(r.phone, `السلام عليكم ${r.name}، معك فريق يقظة بخصوص طلب المتابعة`);
           return (
-            <li id={`r-${r.id}`} class="adm-row" style="display:block">
-              <div class="row" style="justify-content:space-between">
+            <li id={`r-${r.id}`} class="adm-row d-block">
+              <div class="row justify-between">
                 <strong>{r.name}</strong>
                 <span class={`state st-${r.status === 'closed' ? 'archived' : r.status === 'new' ? 'draft' : 'published'}`}>{REQUEST_STATUS[r.status]}</span>
               </div>
-              <div class="meta" style="margin-top:.4rem">
+              <div class="meta mt-0_4">
                 <span class="chip chip-gold">{TOPICS[r.topic] ?? r.topic}</span>
                 <span class="chip">{r.gender === 'female' ? 'أخت' : 'أخ'}</span>
                 {r.preferred_time && <span class="chip">الوقت المناسب: {r.preferred_time}</span>}
-                <span class="faint" style="font-size:.85rem">{formatDate(r.created_at)}</span>
+                <span class="faint fs-0_85">{formatDate(r.created_at)}</span>
               </div>
-              <div class="row" style="margin-top:.7rem">
+              <div class="row mt-0_7">
                 {wa && <a class="btn btn-primary btn-sm" href={wa} target="_blank" rel="noopener">واتساب</a>}
                 {r.phone && <a class="btn btn-ghost btn-sm" href={`tel:${r.phone.replace(/[^\d+]/g, '')}`} dir="ltr">{r.phone}</a>}
-                {r.other_contact && <span class="dim" style="font-size:.95rem">تواصل آخر: <span dir="auto">{r.other_contact}</span></span>}
+                {r.other_contact && <span class="dim fs-0_95">تواصل آخر: <span dir="auto">{r.other_contact}</span></span>}
               </div>
-              <details class="fold" style="margin-top:.8rem">
+              <details class="fold mt-0_8">
                 <summary>المتابعة{r.assigned_to ? ` · ${r.assigned_to}` : ' · غير مسنَد'}</summary>
-                <form method="post" action="/api/admin/request-update" class="adm-form" style="margin-top:.8rem">
+                <form method="post" action="/api/admin/request-update" class="adm-form mt-0_8">
                   <input type="hidden" name="id" value={r.id} />
                   <input type="hidden" name="back" value={back} />
                   <div class="field"><label for={`st-${r.id}`}>الحالة</label>
@@ -61,7 +61,7 @@ const tabs: [string, string][] = [['', 'المفتوحة'], ['new', 'جديدة'
                       <span class="hint">أضف متابِعين من «الإعدادات».</span></div>
                   )}
                   <div class="field"><label for={`n-${r.id}`}>ملاحظة للفريق</label>
-                    <textarea id={`n-${r.id}`} name="staff_note" maxlength="2000" style="min-height:4rem">{r.staff_note ?? ''}</textarea>
+                    <textarea class="minh-4" id={`n-${r.id}`} name="staff_note" maxlength="2000">{r.staff_note ?? ''}</textarea>
                     <span class="hint">لا تكتب تفاصيل شخصية أو ذنوبًا؛ يكفي ما يساعد على المتابعة.</span></div>
                   <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ</button></div>
                 </form>

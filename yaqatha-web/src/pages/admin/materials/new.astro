@@ -41,7 +41,7 @@ if (ytId) {
       </div>
     </form>
   ) : !tax ? <ErrorState /> : (
-    <div class="stack" style="--space:1.2rem">
+    <div class="stack sp-1_2">
       {note && <div class="notice" role="alert">{note}</div>}
       {ytId && m.title && <div class="notice" role="status"><strong>تم جلب بيانات المقطع.</strong> راجعها، ثم اختر أين تظهر المادة واحفظ.</div>}
       <MaterialForm m={m} needIds={[]} domainIds={[]} review={null} {...tax} />

@@ -3,7 +3,7 @@
 interface Props { action: string; fields?: Record<string, string>; label: string; kind?: 'primary' | 'ghost' | 'danger'; small?: boolean }
 const { action, fields = {}, label, kind = 'ghost', small = true } = Astro.props;
 ---
-<form method="post" action={`/api/${action}`} style="display:inline">
+<form class="d-inline" method="post" action={`/api/${action}`}>
   {Object.entries(fields).map(([k, v]) => <input type="hidden" name={k} value={v} />)}
   <button class={`btn btn-${kind}${small ? ' btn-sm' : ''}`} type="submit">{label}</button>
 </form>

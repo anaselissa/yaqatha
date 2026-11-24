@@ -16,11 +16,11 @@ const domains = await load(Astro.response, getDomains);
         <h1>المجالات</h1>
         <p class="lead">المجال هو الجانب الذي يتعلق به التغيير. اختر مجالًا لترى موضوعاته ومساراته ومواده.</p>
       </header>
-      <section class="section" style="padding-block-start:1rem">
+      <section class="section pbs-1">
         {domains.length ? (
           <ul class="statements">
             {domains.map((d) => (
-              <li><a href={`/domains/${d.slug}`}><Star /><span>{d.title}{d.description && <small class="dim" style="display:block; font-family:var(--font-ui); font-size:1rem; line-height:1.7">{d.description}</small>}</span></a></li>
+              <li><a href={`/domains/${d.slug}`}><Star /><span>{d.title}{d.description && <small class="dim d-block ff-ui fs-1 lh-1_7">{d.description}</small>}</span></a></li>
             ))}
           </ul>
         ) : (

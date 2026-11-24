@@ -27,8 +27,8 @@ const goalId = crypto.randomUUID();
         <h1>هدف جديد</h1>
         <p class="lead">اكتب ما تريد أن تعمل عليه بكلماتك. لا حاجة إلى موعد، ويمكنك تعديل كل شيء لاحقًا.</p>
       </header>
-      {guest && <div class="notice" style="margin-bottom:1.5rem">يمكنك كتابة هدفك الآن. عند الحفظ سنطلب منك تسجيل الدخول بـ Google، ثم يُحفظ ما كتبته تلقائيًا.</div>}
-      <form id="goal-form" method="post" action="/api/goal-create" class="stack" style="--space:1.3rem; padding-bottom:3rem" data-guest={guest ? '1' : '0'}>
+      {guest && <div class="notice mb-1_5">يمكنك كتابة هدفك الآن. عند الحفظ سنطلب منك تسجيل الدخول بـ Google، ثم يُحفظ ما كتبته تلقائيًا.</div>}
+      <form id="goal-form" method="post" action="/api/goal-create" class="stack sp-1_3 pb-3" data-guest={guest ? '1' : '0'}>
         <input type="hidden" name="id" value={goalId} />
         <input type="hidden" name="enrollment_id" value={enrollment} />
         <input type="hidden" name="next" value="/journey/goals/new?resume=1" />

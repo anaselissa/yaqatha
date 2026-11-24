@@ -14,25 +14,25 @@ const [item, tax] = data ?? [null, null];
 ---
 <Admin title={item ? item.material.title : 'تعديل مادة'}>
   {!item || !tax ? <ErrorState /> : (
-    <div class="stack" style="--space:1.2rem">
-      <p class="row" style="margin:0">
+    <div class="stack sp-1_2">
+      <p class="row m-0">
         <span class={`state st-${item.material.status}`}>{PUBLISH_STATUS[item.material.status]}</span>
       </p>
       <MaterialForm m={item.material} needIds={item.needIds} domainIds={item.domainIds} review={item.review} {...tax} />
 
-      <section id="questions" class="stack" style="--space:.8rem; max-width:44rem; padding-top:1.5rem">
-        <h2 style="font-size:1.35rem">اختبر فهمك: أسئلة بعد المادة</h2>
-        <p class="faint" style="margin:0">تظهر تحت المادة للزوار. اختيار من متعدد، مع شرح قصير بعد الإجابة. الإجابة الصحيحة الأولى تمنح المستخدم نقاطًا.</p>
+      <section id="questions" class="stack sp-0_8 maxw-44 pt-1_5">
+        <h2 class="fs-1_35">اختبر فهمك: أسئلة بعد المادة</h2>
+        <p class="faint m-0">تظهر تحت المادة للزوار. اختيار من متعدد، مع شرح قصير بعد الإجابة. الإجابة الصحيحة الأولى تمنح المستخدم نقاطًا.</p>
         {item.questions.length > 0 && (
-          <ol class="adm-list" style="list-style:none">
+          <ol class="adm-list list-none">
             {item.questions.map((q, n) => (
-              <li class="adm-row" style="align-items:flex-start">
+              <li class="adm-row items-start">
                 <div class="grow">
                   <strong>{n + 1}. {q.prompt}</strong>
-                  <ul style="margin:.4rem 0 0; padding-inline-start:1.2rem">
+                  <ul class="m-0_4-0-0 ps-1_2">
                     {q.options.map((o, i) => <li class={i === q.correct_index ? 'gold' : 'dim'}>{o}{i === q.correct_index ? ' ✓' : ''}</li>)}
                   </ul>
-                  {q.explanation && <p class="faint" style="margin:.3rem 0 0; font-size:.92rem">{q.explanation}</p>}
+                  {q.explanation && <p class="faint m-0_3-0-0 fs-0_92">{q.explanation}</p>}
                 </div>
                 <form method="post" action="/api/admin/question-delete" class="acts">
                   <input type="hidden" name="material_id" value={item.material.id} /><input type="hidden" name="question_id" value={q.id} />
@@ -44,13 +44,13 @@ const [item, tax] = data ?? [null, null];
         )}
         <details class="fold" open={item.questions.length === 0}>
           <summary><strong>+ أضف سؤالًا</strong></summary>
-          <form method="post" action="/api/admin/question-add" class="adm-form" style="margin-top:1rem">
+          <form method="post" action="/api/admin/question-add" class="adm-form mt-1">
             <input type="hidden" name="material_id" value={item.material.id} />
             <div class="field"><label for="q-prompt">السؤال</label><input id="q-prompt" name="prompt" type="text" required maxlength="500" /></div>
-            <div class="field"><label for="q-options">الخيارات، كل خيار في سطر (من 2 إلى 5)</label><textarea id="q-options" name="options" required style="min-height:7rem"></textarea></div>
+            <div class="field"><label for="q-options">الخيارات، كل خيار في سطر (من 2 إلى 5)</label><textarea class="minh-7" id="q-options" name="options" required></textarea></div>
             <div class="field"><label for="q-correct">رقم الإجابة الصحيحة</label>
               <select id="q-correct" name="correct">{[1, 2, 3, 4, 5].map((i) => <option value={i}>الخيار {i}</option>)}</select></div>
-            <div class="field"><label for="q-exp">شرح يظهر بعد الإجابة <span class="faint">(اختياري)</span></label><textarea id="q-exp" name="explanation" maxlength="2000" style="min-height:4rem"></textarea></div>
+            <div class="field"><label for="q-exp">شرح يظهر بعد الإجابة <span class="faint">(اختياري)</span></label><textarea class="minh-4" id="q-exp" name="explanation" maxlength="2000"></textarea></div>
             <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف السؤال</button></div>
           </form>
         </details>

@@ -9,7 +9,7 @@ const s = Astro.locals.session!;
 const paths = await load(Astro.response, () => listAdminPaths(s.token));
 ---
 <Admin title="المسارات">
-  <div class="stack" style="--space:1.2rem">
+  <div class="stack sp-1_2">
     <div><a class="btn btn-primary" href="/admin/paths/new">مسار جديد</a></div>
     {!paths ? <ErrorState /> : paths.length === 0 ? (
       <EmptyState title="ابدأ بأول مسار" text="المسار خطوات متتابعة يمشي فيها المستخدم يومًا بيوم: مقطع، ثم سؤال للتفكير، ثم تمرين عملي…">
@@ -25,7 +25,7 @@ const paths = await load(Astro.response, () => listAdminPaths(s.token));
                 <span class={`state st-${p.status === 'draft' ? 'draft' : p.status}`}>{PATH_STATUS[p.status]}</span>
                 {p.published && <span class="chip chip-gold">منشور: الإصدار {p.published.version_no}</span>}
                 {p.draft && <span class="chip">مسودة: الإصدار {p.draft.version_no}</span>}
-                <span class="faint" style="font-size:.85rem">{formatDate(p.updated_at)}</span>
+                <span class="faint fs-0_85">{formatDate(p.updated_at)}</span>
               </div>
             </div>
             <div class="acts">

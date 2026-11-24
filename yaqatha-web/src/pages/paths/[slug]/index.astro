@@ -27,7 +27,7 @@ const ld = path && data && 'steps' in data ? {
     <div class="container">
       <header class="page-head">
         <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المسارات', href: '/paths' }, { label: path.title }]} />
-        <div class="meta" style="margin-bottom:0.9rem">
+        <div class="meta mb-0_9">
           <span class="chip chip-gold">{durationLabel(path.duration_days)}</span>
           <span class="chip">{stepsLabel(data.steps.length)}</span>
           {path.change_type && <span class="chip">{CHANGE_TYPE[path.change_type]}</span>}
@@ -36,7 +36,7 @@ const ld = path && data && 'steps' in data ? {
         {path.description && <p class="lead">{path.description}</p>}
       </header>
 
-      <div class="stack" style="--space:1.5rem; padding-block:1rem 2rem; max-width:var(--measure)">
+      <div class="stack sp-1_5 py-1-2 maxw-measure">
         {path.purpose && <div class="notice"><strong>الغرض من المسار: </strong>{path.purpose}</div>}
         {path.duration_days && <p class="dim">المدة المقترحة {durationLabel(path.duration_days)}، وهي للتوضيح فقط. سِر بالسرعة التي تناسبك ولا حرج في التوقف والعودة.</p>}
         {FEATURES.accounts && data.steps.length > 0 && (
@@ -46,18 +46,18 @@ const ld = path && data && 'steps' in data ? {
               <input type="hidden" name="next" value={`/paths/${path.slug}`} />
               <button class="btn btn-primary" type="submit">ابدأ هذا المسار</button>
             </form>
-            <p class="faint" style="font-size:0.9rem; margin-top:.5rem">يُحفظ تقدمك بحساب Google، وتستطيع التوقف والعودة متى شئت.</p>
+            <p class="faint fs-0_9 mt-0_5">يُحفظ تقدمك بحساب Google، وتستطيع التوقف والعودة متى شئت.</p>
           </div>
         )}
         {path.version_no > 1 && data.changelog && <div class="notice"><strong>ما الجديد في هذا الإصدار: </strong>{data.changelog}</div>}
       </div>
 
-      <section class="section" style="padding-block-start:1rem" aria-labelledby="steps-h">
+      <section class="section pbs-1" aria-labelledby="steps-h">
         <div class="section-title"><h2 id="steps-h">خطوات المسار</h2></div>
         <ol class="steps">
           {data.steps.map((s) => (
             <li class="step">
-              <div class="stack" style="--space:0.5rem; grid-column:2">
+              <div class="stack sp-0_5 col-2">
                 <div class="meta"><span class="chip chip-gold">{STEP_TYPE[s.type] ?? s.type}</span></div>
                 <h3><a href={`/paths/${path.slug}/steps/${s.position}`}>{s.title}</a></h3>
                 {s.instructions && <p class="ins">{s.instructions}</p>}
@@ -75,15 +75,15 @@ const ld = path && data && 'steps' in data ? {
       </section>
 
       {(data.needs.length > 0 || data.domains.length > 0) && (
-        <section class="section" style="padding-block-start:0">
-          <h2 class="section-title" style="font-size:1.4rem; color:var(--dim)">يرتبط بـ</h2>
+        <section class="section pbs-0">
+          <h2 class="section-title fs-1_4 c-dim">يرتبط بـ</h2>
           <div class="filters">
             {data.needs.map((n) => <a href={`/needs/${n.slug}`}>{n.title}</a>)}
             {data.domains.map((d) => <a href={`/domains/${d.slug}`}>{d.title}</a>)}
           </div>
         </section>
       )}
-      <p class="faint" style="font-size:0.9rem; padding-bottom:1rem">الإصدار {path.version_no}{path.published_at ? ` · نُشر في ${formatDate(path.published_at)}` : ''}</p>
+      <p class="faint fs-0_9 pb-1">الإصدار {path.version_no}{path.published_at ? ` · نُشر في ${formatDate(path.published_at)}` : ''}</p>
     </div>
   )}
 </Base>

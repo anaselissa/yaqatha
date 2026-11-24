@@ -9,13 +9,13 @@ const doors = (await load({}, getDoors)) ?? [];
 ---
 <Base title="الصفحة غير موجودة" noindex>
   <div class="container narrow section">
-    <p class="gold" style="font-family:var(--font-display); font-size:1.3rem; display:flex; gap:.6rem; align-items:center"><Star />٤٠٤</p>
-    <h1 style="margin-block:.6rem 1rem">لم نجد هذه الصفحة</h1>
-    <p class="dim" style="margin-bottom:1.5rem">ربما تغيّر الرابط أو لم تعد المادة متاحة. ابحث عمّا تريد أو ابدأ من أحد الأبواب.</p>
+    <p class="gold ff-display fs-1_3 d-flex gap-0_6 items-center"><Star />٤٠٤</p>
+    <h1 class="my-0_6-1">لم نجد هذه الصفحة</h1>
+    <p class="dim mb-1_5">ربما تغيّر الرابط أو لم تعد المادة متاحة. ابحث عمّا تريد أو ابدأ من أحد الأبواب.</p>
     <SearchForm />
     {doors.length > 0 && (
-      <div class="filters" style="margin-top:1.8rem">{doors.map((d) => <a href={`/doors/${d.slug}`}>{d.title}</a>)}</div>
+      <div class="filters mt-1_8">{doors.map((d) => <a href={`/doors/${d.slug}`}>{d.title}</a>)}</div>
     )}
-    <p style="margin-top:1.5rem"><a class="btn btn-ghost" href="/">الرئيسية</a></p>
+    <p class="mt-1_5"><a class="btn btn-ghost" href="/">الرئيسية</a></p>
   </div>
 </Base>

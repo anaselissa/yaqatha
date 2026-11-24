@@ -38,7 +38,7 @@ const link = (over: Record<string, string | undefined>) => {
         <h1>المسارات</h1>
         <p class="lead">المسار تجربة متتابعة بخطوات مرتّبة تساعدك على غرض محدد. ولا حرج في أن تسير فيه بالسرعة التي تناسبك.</p>
       </header>
-      <section class="section" style="padding-block-start:1rem">
+      <section class="section pbs-1">
         <div class="filters" role="group" aria-label="المدة">
           <a href={link({ duration: undefined })} aria-current={!duration ? 'true' : undefined}>كل المسارات</a>
           <a href={link({ duration: 'fixed' })} aria-current={duration === 'fixed' ? 'true' : undefined}>بمدة محددة</a>

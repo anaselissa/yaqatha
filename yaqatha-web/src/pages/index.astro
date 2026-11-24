@@ -30,7 +30,7 @@ const ld = [
             <a class="btn btn-primary" href="/start">لا أعرف من أين أبدأ</a>
             <a class="btn btn-ghost" href="/discover">اكتشف احتياجك</a>
           </div>
-          <p style="margin-top:1.2rem"><a href="/journey/goals/new" class="dim">أو أنشئ هدفك بنفسك مباشرة</a></p>
+          <p class="mt-1_2"><a href="/journey/goals/new" class="dim">أو أنشئ هدفك بنفسك مباشرة</a></p>
         </div>
       </section>
       <hr class="horizon" />
@@ -52,7 +52,7 @@ const ld = [
       </section>
 
       {data.home.startHere.length > 0 && (
-        <section class="section" style="padding-block-start:0" aria-labelledby="start-h">
+        <section class="section pbs-0" aria-labelledby="start-h">
           <div class="container">
             <div class="section-title"><h2 id="start-h">ابدأ من هنا</h2><a href="/paths">كل المسارات</a></div>
             <div class="grid grid-2">{data.home.startHere.map((p) => <PathCard path={p} />)}</div>
@@ -60,7 +60,7 @@ const ld = [
         </section>
       )}
       {data.home.featuredPaths.length > 0 && (
-        <section class="section" style="padding-block-start:0" aria-labelledby="fp-h">
+        <section class="section pbs-0" aria-labelledby="fp-h">
           <div class="container">
             <div class="section-title"><h2 id="fp-h">مسارات مختارة</h2><a href="/paths">كل المسارات</a></div>
             <div class="grid grid-2">{data.home.featuredPaths.map((p) => <PathCard path={p} />)}</div>
@@ -68,17 +68,17 @@ const ld = [
         </section>
       )}
       {data.home.featuredMaterials.length > 0 && (
-        <section class="section" style="padding-block-start:0" aria-labelledby="fm-h">
-          <div class="container narrow" style="max-width: 70rem">
+        <section class="section pbs-0" aria-labelledby="fm-h">
+          <div class="container narrow maxw-70">
             <div class="section-title"><h2 id="fm-h">مواد مختارة</h2><a href="/library">كل المواد</a></div>
             <MaterialList items={data.home.featuredMaterials} />
           </div>
         </section>
       )}
 
-      <section class="section" style="padding-block-start:0" aria-labelledby="values-h">
+      <section class="section pbs-0" aria-labelledby="values-h">
         <div class="container">
-          <div class="divider" style="margin-bottom:2rem"><Star /></div>
+          <div class="divider mb-2"><Star /></div>
           <h2 id="values-h" class="sr-only">ما الذي ستجده هنا</h2>
           <div class="values">
             <div><h3>مسارات عملية</h3><p>خطوات مرتّبة تنقلك من المعرفة إلى التطبيق، لا مجرد محاضرات تُشاهد.</p></div>

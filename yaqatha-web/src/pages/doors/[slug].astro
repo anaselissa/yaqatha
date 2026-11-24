@@ -27,8 +27,8 @@ const door = data?.door;
         {door.description && <p class="lead">{door.description}</p>}
       </header>
 
-      <section class="section" style="padding-block-start:1rem" aria-labelledby="needs-h">
-        <h2 id="needs-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">اختر ما يعبّر عنك</h2>
+      <section class="section pbs-1" aria-labelledby="needs-h">
+        <h2 id="needs-h" class="section-title fs-1_4 c-dim">اختر ما يعبّر عنك</h2>
         {data.needs.length > 0 ? <NeedList needs={data.needs} /> : (
           <EmptyState title="لم ننشر بعد احتياجات لهذا الباب" text="نعمل على إعداد المحتوى بعناية. يمكنك في الأثناء البحث أو تصفّح الأبواب الأخرى.">
             <a class="btn btn-primary" href="/search">ابحث</a>
@@ -37,16 +37,16 @@ const door = data?.door;
         )}
       </section>
 
-      <section class="section" style="padding-block-start:0" aria-labelledby="find-h">
+      <section class="section pbs-0" aria-labelledby="find-h">
         <div class="notice">
-          <h2 id="find-h" style="font-size:1.35rem; margin-bottom:0.6rem;">لم تجد ما يعبّر عنك؟</h2>
-          <p style="margin-bottom:1rem;">اكتب ما يشغلك بكلماتك.</p>
+          <h2 class="fs-1_35 mb-0_6" id="find-h">لم تجد ما يعبّر عنك؟</h2>
+          <p class="mb-1">اكتب ما يشغلك بكلماتك.</p>
           <SearchForm />
         </div>
       </section>
 
-      <section class="section" style="padding-block-start:0" aria-labelledby="other-h">
-        <h2 id="other-h" class="section-title" style="font-size:1.4rem; color:var(--dim)">الأبواب الأخرى</h2>
+      <section class="section pbs-0" aria-labelledby="other-h">
+        <h2 id="other-h" class="section-title fs-1_4 c-dim">الأبواب الأخرى</h2>
         <div class="filters">
           {data.doors.filter((d) => d.id !== door.id).map((d) => <a href={`/doors/${d.slug}`}>{d.title}</a>)}
         </div>

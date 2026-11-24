@@ -10,15 +10,15 @@ const needTitle = new Map(tax?.needs.map((n) => [n.id, n]) ?? []);
 ---
 <Admin title="ابدأ من هنا">
   {!qs || !tax ? <ErrorState /> : (
-    <div class="stack" style="--space:2rem">
+    <div class="stack sp-2">
       <div class="notice">
         هذه أسئلة صفحة <a href="/start" target="_blank" rel="noopener">«من أين أبدأ؟»</a>. كل خيار يرجّح احتياجًا بوزن (0 إلى 5)، ونقترح على الزائر الاحتياج الأعلى مجموعًا مع مساراته وموادّه. الإجابات لا تُحفظ أبدًا.
         <strong>تذكير:</strong> اسأل عن المجال والحال، لا عن تفاصيل الذنوب.
       </div>
       {qs.map((q, n) => (
-        <section id={`q-${q.id}`} class="stack" style="--space:.6rem">
-          <div class="row" style="justify-content:space-between">
-            <h2 style="font-size:1.25rem; margin:0">{n + 1}. {q.prompt}</h2>
+        <section id={`q-${q.id}`} class="stack sp-0_6">
+          <div class="row justify-between">
+            <h2 class="fs-1_25 m-0">{n + 1}. {q.prompt}</h2>
             <span class={`state st-${q.status}`}>{q.status === 'published' ? 'ظاهر' : 'مخفي'}</span>
           </div>
           <ul class="adm-list">
@@ -26,7 +26,7 @@ const needTitle = new Map(tax?.needs.map((n) => [n.id, n]) ?? []);
               const need = o.need_id ? needTitle.get(o.need_id) : null;
               return (
                 <li class="adm-row">
-                  <div class="grow"><span style="font-weight:600">{o.label}</span>
+                  <div class="grow"><span class="fw-600">{o.label}</span>
                     <div class="meta">{need ? <span class="chip chip-gold">← {need.title} · وزن {o.weight}</span> : <span class="chip">لا يرجّح احتياجًا</span>}{need && need.status !== 'published' && <span class="chip">الاحتياج غير منشور</span>}</div></div>
                   <form method="post" action="/api/admin/onb-option-delete" class="acts"><input type="hidden" name="option_id" value={o.id} /><button class="btn btn-ghost btn-sm" type="submit">حذف</button></form>
                 </li>
@@ -35,14 +35,14 @@ const needTitle = new Map(tax?.needs.map((n) => [n.id, n]) ?? []);
           </ul>
           <details class="fold">
             <summary><strong>+ أضف خيارًا</strong></summary>
-            <form method="post" action="/api/admin/onb-option-add" class="adm-form" style="margin-top:.8rem">
+            <form method="post" action="/api/admin/onb-option-add" class="adm-form mt-0_8">
               <input type="hidden" name="question_id" value={q.id} />
               <div class="field"><label for={`l-${q.id}`}>نص الخيار</label><input id={`l-${q.id}`} name="label" type="text" required maxlength="200" /></div>
               <div class="field"><label for={`n-${q.id}`}>يرجّح الاحتياج</label>
                 <select id={`n-${q.id}`} name="need_id"><option value="">— لا شيء —</option>
                   {tax.doors.map((d) => <optgroup label={d.title}>{tax.needs.filter((x) => x.door_id === d.id).map((x) => <option value={x.id}>{x.title}</option>)}</optgroup>)}
                 </select></div>
-              <div class="field"><label for={`w-${q.id}`}>الوزن</label><input id={`w-${q.id}`} name="weight" type="number" min="0" max="5" value="2" class="input" style="max-width:6rem" /></div>
+              <div class="field"><label for={`w-${q.id}`}>الوزن</label><input id={`w-${q.id}`} name="weight" type="number" min="0" max="5" value="2" class="input maxw-6" /></div>
               <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف</button></div>
             </form>
           </details>
@@ -54,7 +54,7 @@ const needTitle = new Map(tax?.needs.map((n) => [n.id, n]) ?? []);
       ))}
       <details class="fold" open={qs.length === 0}>
         <summary><strong>+ أضف سؤالًا</strong></summary>
-        <form method="post" action="/api/admin/onb-question-add" class="adm-form" style="margin-top:.8rem">
+        <form method="post" action="/api/admin/onb-question-add" class="adm-form mt-0_8">
           <div class="field"><label for="nq">السؤال</label><input id="nq" name="prompt" type="text" required maxlength="300" /></div>
           <div class="field"><label for="nh">توضيح صغير <span class="faint">(اختياري)</span></label><input id="nh" name="hint" type="text" maxlength="300" /></div>
           <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف السؤال</button></div>

@@ -15,8 +15,9 @@ rmSync(out, { recursive: true, force: true }); mkdirSync(out, { recursive: true 
 
 const PUBLIC = ['/', '/start', '/discover', '/doors/closer-to-allah', '/needs/faith-and-certainty', '/domains', '/paths',
   '/paths/dev-anger-7days', '/library', '/library/dev-article-anger', '/search?q=الغضب', '/support', '/about', '/login', '/no-such-page'];
-const USER = ['/journey', '/journey/settings', '/journey/saved'];
-const ADMIN = ['/admin', '/admin/materials', '/admin/paths', '/admin/reports', '/admin/onboarding'];
+const USER = ['/journey', '/journey/settings', '/journey/saved', '/support'];
+const ADMIN = ['/admin', '/admin/materials', '/admin/materials/new', '/admin/paths', '/admin/paths/new', '/admin/series', '/admin/series/new',
+  '/admin/reports', '/admin/onboarding', '/admin/taxonomy', '/admin/team', '/admin/settings', '/admin/requests'];
 
 const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox', '--font-render-hinting=none'] });
 const css = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important} .toast{display:none!important}';
@@ -41,6 +42,8 @@ async function shoot(p, path, name) {
 // زائر
 const v = await ctx(null);
 for (const path of PUBLIC) await shoot(v, path);
+const opts = sql(`select string_agg(id::text, '&o=') from (select id from onboarding_options order by question_id, position limit 2) x`);
+await shoot(v, `/start/result?o=${opts}`, '_start_result');
 // مستخدم ثابت (بريد ثابت كي تتطابق الصفحات بين التشغيلين) مسجَّل في مسار
 const u = await ctx('visual-user@y.test');
 if (sql(`select count(*) from enrollments e join auth.users a on a.id=e.user_id where a.email='visual-user@y.test'`) === '0') {
@@ -54,6 +57,8 @@ await shoot(u, `/journey/paths/${eid}`, '_journey_path');
 // مدير
 const m = await ctx('visual-manager@admin.test', 'manager');
 for (const path of ADMIN) await shoot(m, path);
+await shoot(m, `/admin/materials/${sql(`select id from materials where slug='dev-article-anger'`)}`, '_admin_material_edit');
+await shoot(m, `/admin/paths/${sql(`select id from paths where slug='dev-anger-7days'`)}`, '_admin_path_edit');
 await browser.close();
-console.log(`${mode}: ${PUBLIC.length + USER.length + 1 + ADMIN.length} صفحة → ${out}`);
+console.log(`${mode}: ${PUBLIC.length + USER.length + ADMIN.length + 4} صفحة → ${out}`);
 if (mode === 'compare') execFileSync('python3', ['tests/visual_diff.py'], { stdio: 'inherit' });

@@ -16,7 +16,7 @@ const draftBadge = (s: string) => (s === 'published' ? '' : ' (غير منشور
 </div>
 <details class="fold">
   <summary>المجالات ({domainIds.length} مختار)</summary>
-  <div class="checks" role="group" aria-label="المجالات" style="margin-top:.6rem">
+  <div class="checks mt-0_6" role="group" aria-label="المجالات">
     {domains.map((d) => <label><input type="checkbox" name="domain" value={d.id} checked={domainIds.includes(d.id)} />{d.title}<span class="faint">{draftBadge(d.status)}</span></label>)}
   </div>
 </details>

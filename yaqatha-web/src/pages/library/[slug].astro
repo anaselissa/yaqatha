@@ -39,7 +39,7 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
     <div class="container">
       <header class="page-head">
         <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المواد والمحتوى', href: '/library' }, { label: m.title }]} />
-        <div class="meta" style="margin-bottom:0.9rem">
+        <div class="meta mb-0_9">
           {sr && <a class="chip chip-gold" href={`/series/${sr.slug}`}>{sr.title} · الحلقة {sr.index} من {sr.total}</a>}
           <span class="chip chip-gold">{MATERIAL_TYPE[m.type] ?? m.type}</span>
           <span class="chip">{NATURE[m.nature]}</span>
@@ -48,7 +48,7 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
         {m.description && <p class="lead">{m.description}</p>}
       </header>
 
-      <div class="stack" style="--space:2rem; padding-block: 1rem 2rem">
+      <div class="stack sp-2 py-1-2">
         {yt && (
           <div class="video-shell" data-yt={yt}>
             <button type="button" aria-label="تشغيل الفيديو">
@@ -57,13 +57,13 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
             </button>
           </div>
         )}
-        {yt && <p class="faint" style="font-size:0.9rem; max-width:var(--measure)">لا يُحمَّل الفيديو من الخارج إلا حين تنقر التشغيل، حفاظًا على خصوصيتك وسرعة الصفحة.</p>}
+        {yt && <p class="faint fs-0_9 maxw-measure">لا يُحمَّل الفيديو من الخارج إلا حين تنقر التشغيل، حفاظًا على خصوصيتك وسرعة الصفحة.</p>}
         {!yt && m.url && <p><a class="btn btn-primary" href={m.url} target="_blank" rel="noopener nofollow">افتح المصدر ↗</a></p>}
         {html && <div class="prose" set:html={html} />}
 
         {questions.length > 0 && (
           <section class="quiz" aria-labelledby="quiz-h">
-            <h2 id="quiz-h" style="font-size:1.5rem">اختبر فهمك</h2>
+            <h2 class="fs-1_5" id="quiz-h">اختبر فهمك</h2>
             {questions.map((q, n) => {
               const a = answered(q.id);
               return (
@@ -81,7 +81,7 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
                   {a === null ? <button class="btn btn-ghost btn-sm" type="submit">تحقّق</button> : (
                     <div class="notice" role="status">
                       <strong>{a === q.correct_index ? 'إجابة صحيحة، بارك الله فيك.' : 'ليست هذه. الصحيحة مظلّلة أعلاه.'}</strong>
-                      {q.explanation && <p style="margin:.3rem 0 0">{q.explanation}</p>}
+                      {q.explanation && <p class="m-0_3-0-0">{q.explanation}</p>}
                     </div>
                   )}
                 </form>
@@ -107,7 +107,7 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
       </div>
 
       {FEATURES.accounts && (
-        <section class="section" style="padding-block-start:0" aria-label="إجراءات المادة">
+        <section class="section pbs-0" aria-label="إجراءات المادة">
           <div class="row">
             <form method="post" action="/api/save-material" data-material-state={m.id}>
               <input type="hidden" name="material_id" value={m.id} />
@@ -115,8 +115,8 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
               <button class="btn btn-primary btn-sm" type="submit">احفظ للرجوع إليها</button>
             </form>
           </div>
-          <details class="fold" style="margin-top:1rem; max-width:var(--measure)"><summary>أبلغ عن مشكلة في هذه المادة</summary>
-            <form method="post" action="/api/report-material" class="stack" style="--space:.8rem; margin-top:1rem">
+          <details class="fold mt-1 maxw-measure"><summary>أبلغ عن مشكلة في هذه المادة</summary>
+            <form method="post" action="/api/report-material" class="stack sp-0_8 mt-1">
               <input type="hidden" name="material_id" value={m.id} />
               <input type="hidden" name="next" value={`/library/${m.slug}`} />
               <div class="field"><label for="note">ما المشكلة؟ (رابط لا يعمل، خطأ في المحتوى…)</label><textarea id="note" name="note" maxlength="1000" required></textarea></div>
@@ -127,14 +127,14 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
       )}
 
       {rel.needs.length > 0 && (
-        <section class="section" style="padding-block-start:1rem">
+        <section class="section pbs-1">
           <div class="section-title"><h2>احتياجات ترتبط بهذه المادة</h2></div>
           <NeedList needs={rel.needs} />
         </section>
       )}
       {rel.topics.length > 0 && (
-        <section class="section" style="padding-block-start:0">
-          <h2 class="section-title" style="font-size:1.4rem; color:var(--dim)">موضوعات</h2>
+        <section class="section pbs-0">
+          <h2 class="section-title fs-1_4 c-dim">موضوعات</h2>
           <div class="filters">{rel.topics.map((t) => <a href={`/topics/${t.slug}`}>{t.title}</a>)}</div>
         </section>
       )}

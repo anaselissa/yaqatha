@@ -15,16 +15,16 @@ const s = data?.series;
     <div class="container">
       <header class="page-head">
         <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المواد والمحتوى', href: '/library' }, { label: s.title }]} />
-        <div class="meta" style="margin-bottom:.9rem">
+        <div class="meta mb-0_9">
           <span class="chip chip-gold">سلسلة · {data.items.length} حلقة</span>
           {s.author && <span class="chip">{s.author}</span>}
         </div>
         <h1>{s.title}</h1>
         {s.description && <p class="lead">{s.description}</p>}
-        {data.items[0] && <p style="margin-top:1.2rem"><a class="btn btn-primary" href={`/library/${data.items[0].slug}`}>ابدأ من الحلقة الأولى</a></p>}
+        {data.items[0] && <p class="mt-1_2"><a class="btn btn-primary" href={`/library/${data.items[0].slug}`}>ابدأ من الحلقة الأولى</a></p>}
       </header>
-      <section class="section" style="padding-block-start:0" aria-label="الحلقات">
-        <ol class="mats" style="list-style:none">
+      <section class="section pbs-0" aria-label="الحلقات">
+        <ol class="mats list-none">
           {data.items.map((m, i) => (
             <li>
               <a class="mat" href={`/library/${m.slug}`}>
@@ -35,7 +35,7 @@ const s = data?.series;
             </li>
           ))}
         </ol>
-        {s.source_url && <p class="faint" style="margin-top:1.5rem">المصدر: <a href={s.source_url} target="_blank" rel="noopener nofollow">قائمة التشغيل الأصلية ↗</a></p>}
+        {s.source_url && <p class="faint mt-1_5">المصدر: <a href={s.source_url} target="_blank" rel="noopener nofollow">قائمة التشغيل الأصلية ↗</a></p>}
       </section>
     </div>
   )}

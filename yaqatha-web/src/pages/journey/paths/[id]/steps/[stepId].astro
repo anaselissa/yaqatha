@@ -32,14 +32,14 @@ const here = `/journey/paths/${id}/steps/${stepId}`;
     <div class="container narrow">
       <header class="page-head">
         <Breadcrumbs items={[{ label: 'رحلتي', href: '/journey' }, { label: e.path_versions?.title ?? 'مسار', href: `/journey/paths/${e.id}` }, { label: `الخطوة ${step.position}` }]} />
-        <div class="meta" style="margin-bottom:.8rem"><span class="chip chip-gold">{STEP_TYPE[step.type]}</span><span class="chip">الخطوة {step.position} من {data.steps.length}</span></div>
+        <div class="meta mb-0_8"><span class="chip chip-gold">{STEP_TYPE[step.type]}</span><span class="chip">الخطوة {step.position} من {data.steps.length}</span></div>
         <h1>{step.title}</h1>
       </header>
-      <div class="stack" style="--space:1.5rem; padding-block:1rem 2rem">
-        {step.instructions && <p class="prose" style="font-size:1.3rem">{step.instructions}</p>}
+      <div class="stack sp-1_5 py-1-2">
+        {step.instructions && <p class="prose fs-1_3">{step.instructions}</p>}
         {step.step_materials.length > 0 && (
           <div>
-            <h2 style="font-size:1.4rem; margin-bottom:.8rem">المواد المرتبطة</h2>
+            <h2 class="fs-1_4 mb-0_8">المواد المرتبطة</h2>
             <ul class="mats">{step.step_materials.map((sm) => sm.materials
               ? <li><a class="mat" href={`/library/${sm.materials.slug}`}><div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[sm.materials.type]}</span></div><h3>{sm.materials.title}</h3>{sm.materials.description && <p>{sm.materials.description}</p>}</a></li>
               : <li class="mat unavailable">هذه المادة غير متاحة حاليًا</li>)}</ul>
@@ -47,7 +47,7 @@ const here = `/journey/paths/${id}/steps/${stepId}`;
         )}
         <StepControls enrollmentId={e.id} stepId={step.id} state={data.state(step.id)} next={here} readonly={e.status !== 'active'} />
       </div>
-      <nav class="pager" aria-label="التنقل بين الخطوات" style="padding-bottom:2rem">
+      <nav class="pager pb-2" aria-label="التنقل بين الخطوات">
         {prev ? <a href={`/journey/paths/${e.id}/steps/${prev.id}`} rel="prev">الخطوة السابقة</a> : <span class="off">الخطوة السابقة</span>}
         <a href={`/journey/paths/${e.id}`}>كل الخطوات</a>
         {next ? <a href={`/journey/paths/${e.id}/steps/${next.id}`} rel="next">الخطوة التالية</a> : <span class="off">الخطوة التالية</span>}

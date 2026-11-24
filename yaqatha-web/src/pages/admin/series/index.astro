@@ -10,7 +10,7 @@ const s = Astro.locals.session!;
 const list = await load(Astro.response, () => listAdminSeries(s.token));
 ---
 <Admin title="السلاسل">
-  <div class="stack" style="--space:1.2rem">
+  <div class="stack sp-1_2">
     <div><a class="btn btn-primary" href="/admin/series/new">سلسلة جديدة</a></div>
     {!list ? <ErrorState /> : list.length === 0 ? (
       <EmptyState title="أضف أول سلسلة" text="الصق روابط حلقات شيخ من يوتيوب دفعة واحدة، فتُنشأ الحلقات وترتيبها تلقائيًا، ثم حوّلها إلى مسار بنقرة.">
@@ -26,7 +26,7 @@ const list = await load(Astro.response, () => listAdminSeries(s.token));
                 <span class={`state st-${x.status}`}>{PUBLISH_STATUS[x.status]}</span>
                 <span class="chip">{x.count} حلقة</span>
                 {x.author && <span class="chip">{x.author}</span>}
-                <span class="faint" style="font-size:.85rem">{formatDate(x.updated_at)}</span>
+                <span class="faint fs-0_85">{formatDate(x.updated_at)}</span>
               </div>
             </div>
             <div class="acts">
