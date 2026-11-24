@@ -1,5 +1,5 @@
 import { PAGE_SIZE } from '../config';
-import { inList, one, rest, rpc } from './api';
+import { DataError, inList, one, rest, rpc } from './api';
 
 export interface Door { id: number; slug: string; title: string; description: string | null; sort_order: number }
 export interface Domain { id: string; slug: string; title: string; description: string | null; updated_at: string }
@@ -229,12 +229,23 @@ export async function resolveRedirect(type: keyof typeof REDIRECT_TABLE, slug: s
 
 // ---------- ابدأ من هنا (الأسئلة التعريفية) ----------
 export interface OnbOption { id: string; label: string; need_id: string | null; weight: number; position: number }
-export interface OnbQuestion { id: string; prompt: string; hint: string | null; onboarding_options: OnbOption[] }
-export async function getOnboarding(): Promise<OnbQuestion[]> {
+export type Branch = 'fix' | 'grow';
+export const BRANCHES: Record<Branch, string> = { fix: 'في شيء أريد أن أُصلحه', grow: 'أريد أن أزداد من الخير وأتقرّب أكثر' };
+export interface OnbQuestion { id: string; prompt: string; hint: string | null; branch: Branch; onboarding_options: OnbOption[] }
+/** أسئلة «من أين أبدأ» (لفرع واحد أو للكل). قبل الهجرة 12 لا يوجد عمود branch: تُعامَل كلها كفرع «أصلح» */
+export async function getOnboarding(branch?: Branch): Promise<OnbQuestion[]> {
+  const sel = 'id,prompt,hint,onboarding_options(id,label,need_id,weight,position)';
+  const tidy = (rows: OnbQuestion[]) => rows
+    .map((q) => ({ ...q, branch: q.branch ?? 'fix', onboarding_options: [...q.onboarding_options].sort((a, b) => a.position - b.position) }))
+    .filter((q) => q.onboarding_options.length && (!branch || q.branch === branch));
   try {
-    const { rows } = await rest<OnbQuestion>('onboarding_questions', { select: 'id,prompt,hint,onboarding_options(id,label,need_id,weight,position)', order: 'position' });
-    return rows.map((q) => ({ ...q, onboarding_options: [...q.onboarding_options].sort((a, b) => a.position - b.position) })).filter((q) => q.onboarding_options.length);
-  } catch (e) { console.error('[onboarding]', (e as Error).message); return []; }
+    return tidy((await rest<OnbQuestion>('onboarding_questions', { select: `${sel},branch`, order: 'position' })).rows);
+  } catch (e) {
+    if (e instanceof DataError && (e.code === '42703' || e.code === 'PGRST100' || e.status === 400)) {
+      try { return tidy((await rest<OnbQuestion>('onboarding_questions', { select: sel, order: 'position' })).rows); } catch { /* يقع أدناه */ }
+    }
+    console.error('[onboarding]', (e as Error).message); return [];
+  }
 }
 
 /** الاقتراح من الاختيارات (لا يُحفظ شيء): أعلى الاحتياجات وزنًا، مع مساراته وأول مواده */

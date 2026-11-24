@@ -31,7 +31,7 @@
 yaqatha-db/supabase/migrations/20261109000001_types_and_helpers.sql
 … 0002_content.sql   … 0003_user_data.sql   … 0004_functions.sql
 … 0005_rls_and_grants.sql   … 0006_account_deletion.sql   … 0007_reorder_steps.sql
-… 20261122000008_series_and_path_ending.sql   … 20261122000009_followup_and_stats.sql   … 20261124000010_quizzes_and_points.sql   … 20261124000011_onboarding.sql
+… 20261122000008_series_and_path_ending.sql   … 20261122000009_followup_and_stats.sql   … 20261124000010_quizzes_and_points.sql   … 20261124000011_onboarding.sql   … 20261124000012_onboarding_branches.sql
 yaqatha-db/supabase/seed.sql
 ```
 *بديل:* Supabase CLI (`supabase link` ثم `supabase db push`) يطبّق مجلد `migrations`؛ ثم شغّل `seed.sql` في SQL Editor.

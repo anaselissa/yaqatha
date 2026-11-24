@@ -1,35 +1,49 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Star from '../../components/Star.astro';
-import { getOnboarding } from '../../lib/data';
-const qs = await getOnboarding();
+import { BRANCHES, getOnboarding, type Branch } from '../../lib/data';
+const b = Astro.url.searchParams.get('b');
+const branch: Branch | null = b === 'fix' || b === 'grow' ? b : null;
+const qs = branch ? await getOnboarding(branch) : [];
 const slides = [
   ['يقظة رفيقك في التغيير', 'ليست مكتبة محاضرات فقط: نساعدك أن تنتقل من «أعرف» إلى «أعمل»، بخطوات صغيرة تناسب يومك.'],
   ['مسارات قصيرة وعملية', 'كل مسار أيام معدودة: مقطع، ثم سؤال تفكّر فيه، ثم خطوة تطبقها. وكل مادة بمصدرها.'],
   ['بلا حكم وبلا اختبارات للإيمان', 'لا نسألك عن ذنوبك ولا نحفظ إجاباتك هنا. فقط نفهم من أين تبدأ.'],
 ];
 ---
-<Base title="ابدأ من هنا" description="ثلاثة أسئلة قصيرة، ونقترح عليك من أين تبدأ في يقظة.">
+<Base title="ابدأ من هنا" description="سؤال واحد ثم ثلاثة أسئلة قصيرة، ونقترح عليك من أين تبدأ في يقظة.">
   <div class="container narrow">
     <header class="page-head">
       <p class="gold d-flex gap-0_5 items-center m-0"><Star />دقيقة واحدة</p>
       <h1 class="mt-0_5">من أين أبدأ؟</h1>
     </header>
-    <div class="onb-slides" aria-label="تعريف قصير بيقظة">
-      {slides.map(([h, p], i) => (
-        <section class="onb-slide" id={`s${i + 1}`}>
-          <span class="chip chip-gold">{i + 1} / {slides.length}</span>
-          <h2>{h}</h2>
-          <p class="dim">{p}</p>
-          <a class="btn btn-ghost btn-sm" href={i < slides.length - 1 ? `#s${i + 2}` : '#questions'}>{i < slides.length - 1 ? 'التالي ←' : 'إلى الأسئلة ↓'}</a>
-        </section>
-      ))}
-    </div>
 
-    {qs.length === 0 ? (
+    {!branch ? (
+      <>
+        <section class="onb-q onb-branch" aria-labelledby="why-h">
+          <h2 id="why-h" class="onb-legend">ما الذي جاء بك اليوم؟</h2>
+          {(Object.keys(BRANCHES) as Branch[]).map((k) => (
+            <a class="onb-opt onb-choice" href={`/start?b=${k}#questions`}><Star />{BRANCHES[k]}</a>
+          ))}
+        </section>
+        <h2 class="block-title mt-2">تعرّف على يقظة</h2>
+        <div class="onb-slides mt-0_8" aria-label="تعريف قصير بيقظة">
+          {slides.map(([h, p], i) => (
+            <section class="onb-slide" id={`s${i + 1}`}>
+              <span class="chip chip-gold">{i + 1} من {slides.length}</span>
+              <h2>{h}</h2>
+              <p class="dim">{p}</p>
+              {i < slides.length - 1 && <a class="btn btn-ghost btn-sm" href={`#s${i + 2}`}>التالي ←</a>}
+            </section>
+          ))}
+        </div>
+        <div class="py-2" />
+      </>
+    ) : qs.length === 0 ? (
       <p class="py-2"><a class="btn btn-primary" href="/discover">اكتشف احتياجك</a></p>
     ) : (
-      <form id="questions" method="get" action="/start/result" class="stack sp-1_5 py-2-3">
+      <form id="questions" method="get" action="/start/result" class="stack sp-1_5 py-1-3">
+        <p class="row m-0"><span class="chip chip-gold">{BRANCHES[branch]}</span><a class="faint" href="/start">غيّر اختيارك</a></p>
         {qs.map((q, n) => (
           <fieldset class="onb-q">
             <legend><span class="gold">{n + 1}.</span> {q.prompt}</legend>

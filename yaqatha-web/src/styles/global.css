@@ -431,3 +431,11 @@ details.fold summary { cursor: pointer; font-weight: 600; }
 .sp-1_5 { --space: 1.5rem !important; }
 .sp-2 { --space: 2rem !important; }
 .sp-2_2 { --space: 2.2rem !important; }
+
+/* «من أين أبدأ»: سؤال الفرع الأول */
+.onb-legend { font-family: var(--font-ui); font-weight: 600; font-size: 1.12rem; margin: 0 0 .35rem; }
+.onb-choice { text-decoration: none; font-weight: 600; font-size: 1.05rem; min-height: 3.6rem; }
+.onb-choice .star { color: var(--gold); width: 1.1rem; height: 1.1rem; flex: none; }
+.onb-choice:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); color: var(--text); }
+.mt-2 { margin-top: 2rem !important; }
+.onb-slide .chip { justify-self: start; }

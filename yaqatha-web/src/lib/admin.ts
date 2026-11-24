@@ -228,18 +228,30 @@ ADMIN_HANDLERS['question-delete'] = async ({ token, form }) => {
 };
 
 // ---------- الأسئلة التعريفية ----------
-export async function listOnboarding(token: string) {
-  return (await rest<{ id: string; position: number; prompt: string; hint: string | null; status: string; onboarding_options: { id: string; label: string; need_id: string | null; weight: number; position: number }[] }>(
-    'onboarding_questions', { select: 'id,position,prompt,hint,status,onboarding_options(id,label,need_id,weight,position)', order: 'position,created_at' }, { token })).rows
-    .map((q) => ({ ...q, onboarding_options: [...q.onboarding_options].sort((a, b) => a.position - b.position) }));
+type OnbAdminQ = { id: string; position: number; prompt: string; hint: string | null; status: string; branch: 'fix' | 'grow'; onboarding_options: { id: string; label: string; need_id: string | null; weight: number; position: number }[] };
+/** قبل الهجرة 12 لا يوجد عمود branch: تُعرض كل الأسئلة في فرع «أصلح»، ويُخفى فرع «أزداد» */
+export async function listOnboarding(token: string): Promise<{ qs: OnbAdminQ[]; branches: boolean }> {
+  const sel = 'id,position,prompt,hint,status,onboarding_options(id,label,need_id,weight,position)';
+  const tidy = (rows: OnbAdminQ[]) => rows.map((q) => ({ ...q, branch: q.branch ?? 'fix', onboarding_options: [...q.onboarding_options].sort((a, b) => a.position - b.position) }));
+  try {
+    return { qs: tidy((await rest<OnbAdminQ>('onboarding_questions', { select: `${sel},branch`, order: 'position,created_at' }, { token })).rows), branches: true };
+  } catch (e) {
+    if (!(e instanceof DataError) || e.status !== 400) throw e;
+    return { qs: tidy((await rest<OnbAdminQ>('onboarding_questions', { select: sel, order: 'position,created_at' }, { token })).rows), branches: false };
+  }
 }
 const ONB = '/admin/onboarding';
 const nextPos = async (token: string, table: string, filter: Record<string, string> = {}) =>
   ((await rest<{ position: number }>(table, { select: 'position', order: 'position.desc', limit: 1, ...filter }, { token })).rows[0]?.position ?? 0) + 1;
 ADMIN_HANDLERS['onb-question-add'] = async ({ token, form }) => {
   const prompt = str(form, 'prompt', 300); if (!prompt) throw new BadInput('prompt');
-  await mutate('POST', 'onboarding_questions', token, { body: { prompt, hint: opt(form, 'hint', 300), position: await nextPos(token, 'onboarding_questions') } });
-  return { to: ONB, flash: 'أُضيف السؤال. أضف خياراته الآن' };
+  const body: Record<string, unknown> = { prompt, hint: opt(form, 'hint', 300) };
+  if (form.has('branch')) {
+    body.branch = oneOf(form, 'branch', ['fix', 'grow']);
+    body.position = await nextPos(token, 'onboarding_questions', { branch: `eq.${body.branch}` });
+  } else body.position = await nextPos(token, 'onboarding_questions');
+  await mutate('POST', 'onboarding_questions', token, { body });
+  return { to: `${ONB}${body.branch ? `#b-${body.branch}` : ''}`, flash: 'أُضيف السؤال. أضف خياراته الآن' };
 };
 ADMIN_HANDLERS['onb-question-status'] = async ({ token, form }) => {
   const status = oneOf(form, 'status', ['published', 'hidden']);

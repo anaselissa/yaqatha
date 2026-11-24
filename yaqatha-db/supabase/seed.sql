@@ -44,3 +44,4 @@ join public.domains d on d.slug = v.dom;
 
 -- الأسئلة التعريفية الافتراضية (الهجرة 11): بعد إنشاء الاحتياجات؛ لا تفعل شيئًا إن وُجدت
 select public.seed_default_onboarding();
+select public.seed_grow_onboarding();

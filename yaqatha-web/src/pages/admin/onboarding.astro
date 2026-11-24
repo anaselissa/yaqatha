@@ -3,9 +3,12 @@ import Admin from '../../layouts/Admin.astro';
 import ErrorState from '../../components/ErrorState.astro';
 import { listOnboarding, taxonomyOptions } from '../../lib/admin';
 import { load } from '../../lib/page';
+import { BRANCHES, type Branch } from '../../lib/data';
 const s = Astro.locals.session!;
 const data = await load(Astro.response, () => Promise.all([listOnboarding(s.token), taxonomyOptions(s.token)]));
-const [qs, tax] = data ?? [null, null];
+const [onb, tax] = data ?? [null, null];
+const qs = onb?.qs ?? null;
+const groups: [Branch, string][] = onb?.branches ? (Object.entries(BRANCHES) as [Branch, string][]) : [['fix', '']];
 const needTitle = new Map(tax?.needs.map((n) => [n.id, n]) ?? []);
 ---
 <Admin title="ابدأ من هنا">
@@ -14,8 +17,14 @@ const needTitle = new Map(tax?.needs.map((n) => [n.id, n]) ?? []);
       <div class="notice">
         هذه أسئلة صفحة <a href="/start" target="_blank" rel="noopener">«من أين أبدأ؟»</a>. كل خيار يرجّح احتياجًا بوزن (0 إلى 5)، ونقترح على الزائر الاحتياج الأعلى مجموعًا مع مساراته وموادّه. الإجابات لا تُحفظ أبدًا.
         <strong>تذكير:</strong> اسأل عن المجال والحال، لا عن تفاصيل الذنوب.
+        {onb?.branches && <> الزائر يختار أولًا «ما الذي جاء بك اليوم؟» ثم يرى أسئلة فرعه فقط.</>}
       </div>
-      {qs.map((q, n) => (
+      {groups.map(([branch, label]) => {
+        const list = qs.filter((q) => q.branch === branch);
+        return (
+      <section id={`b-${branch}`} class="stack sp-1_5">
+      {label && <h2 class="block-title m-0">فرع: «{label}»</h2>}
+      {list.map((q, n) => (
         <section id={`q-${q.id}`} class="stack sp-0_6">
           <div class="row justify-between">
             <h2 class="fs-1_25 m-0">{n + 1}. {q.prompt}</h2>
@@ -52,14 +61,18 @@ const needTitle = new Map(tax?.needs.map((n) => [n.id, n]) ?? []);
           </div>
         </section>
       ))}
-      <details class="fold" open={qs.length === 0}>
-        <summary><strong>+ أضف سؤالًا</strong></summary>
+      <details class="fold" open={list.length === 0}>
+        <summary><strong>+ أضف سؤالًا{label && ' لهذا الفرع'}</strong></summary>
         <form method="post" action="/api/admin/onb-question-add" class="adm-form mt-0_8">
-          <div class="field"><label for="nq">السؤال</label><input id="nq" name="prompt" type="text" required maxlength="300" /></div>
-          <div class="field"><label for="nh">توضيح صغير <span class="faint">(اختياري)</span></label><input id="nh" name="hint" type="text" maxlength="300" /></div>
+          {onb?.branches && <input type="hidden" name="branch" value={branch} />}
+          <div class="field"><label for={`nq-${branch}`}>السؤال</label><input id={`nq-${branch}`} name="prompt" type="text" required maxlength="300" /></div>
+          <div class="field"><label for={`nh-${branch}`}>توضيح صغير <span class="faint">(اختياري)</span></label><input id={`nh-${branch}`} name="hint" type="text" maxlength="300" /></div>
           <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف السؤال</button></div>
         </form>
       </details>
+      </section>
+        );
+      })}
     </div>
   )}
 </Admin>

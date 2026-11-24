@@ -512,16 +512,33 @@ select test.throws($$select public.my_progress()$$, 'visitors have no progress',
 
 -- ---------- 20. الأسئلة التعريفية (الهجرة 11) ----------
 select test.as_anon();
-select test.ok((select count(*) from public.onboarding_questions) = 3, 'default onboarding questions are public');
+select test.ok((select count(*) from public.onboarding_questions where branch = 'fix') = 3, 'default onboarding questions are public');
 select test.ok((select count(*) from public.onboarding_options where need_id is not null) >= 10, 'default options map to seeded needs');
 select test.throws($$insert into public.onboarding_questions (prompt) values ('x')$$, 'visitor cannot add onboarding questions');
 select test.as_user(:'edt');
-update public.onboarding_questions set status = 'hidden' where position = 3;
+update public.onboarding_questions set status = 'hidden' where position = 3 and branch = 'fix';
 select test.as_anon();
-select test.ok((select count(*) from public.onboarding_questions) = 2, 'hidden question disappears for visitors');
-select test.ok(not exists (select 1 from public.onboarding_options o join public.onboarding_questions q on q.id = o.question_id where q.position = 3), 'and its options too');
+select test.ok((select count(*) from public.onboarding_questions where branch = 'fix') = 2, 'hidden question disappears for visitors');
+select test.ok(not exists (select 1 from public.onboarding_options o join public.onboarding_questions q on q.id = o.question_id where q.position = 3 and q.branch = 'fix'), 'and its options too');
 select test.as_super();
 select test.ok(not exists (select 1 from information_schema.tables where table_schema = 'public' and table_name like 'onboarding_answer%'), 'answers are never stored (no table for them)');
+
+-- ---------- 21. فرعا «من أين أبدأ» واحتياج السنن (الهجرة 12) ----------
+select test.as_anon();
+select test.ok((select count(*) from public.onboarding_questions where branch = 'grow') = 3, 'grow branch has its default questions');
+select test.ok((select count(distinct branch) from public.onboarding_questions) = 2, 'both branches exist');
+select test.as_super();
+select test.ok(exists (select 1 from public.needs where slug = 'revive-sunnah' and door_id = 1 and change_type = 'acquire_good_deed'), 'sunnah need exists under «closer to Allah»');
+select test.ok((select status from public.needs where slug = 'revive-sunnah') = 'draft', 'new need starts as draft (published from the panel when it has content)');
+select test.ok(exists (select 1 from public.onboarding_options o join public.needs n on n.id = o.need_id where n.slug = 'revive-sunnah'), 'grow options point to the sunnah need');
+select public.seed_grow_onboarding();
+select test.ok((select count(*) from public.onboarding_questions where branch = 'grow') = 3, 'seeding again adds nothing (idempotent)');
+select test.throws($$insert into public.onboarding_questions (branch, prompt) values ('other', 'x')$$, 'unknown branch rejected', 'check');
+select test.as_user(:'edt');
+insert into public.onboarding_questions (branch, position, prompt) values ('grow', 9, 'سؤال من المحرر');
+select test.ok(exists (select 1 from public.onboarding_questions where prompt = 'سؤال من المحرر' and branch = 'grow'), 'editor can add a grow question');
+select test.as_anon();
+select test.throws($$select public.seed_grow_onboarding()$$, 'visitors cannot run the seeding function', 'permission denied');
 
 select 'ALL TESTS PASSED' as result;
 rollback;
