@@ -70,7 +70,10 @@ export const HANDLERS: Record<string, Handler> = {
   'report-material': async ({ token, form }) => {
     const kind = str(form, 'kind', 20);
     const KINDS = ['broken_link', 'content_error', 'unclear_source', 'other'];
-    await mutate('POST', 'material_reports', token, { body: { material_id: uuid(form, 'material_id'), note: str(form, 'note', 1000) || null, ...(KINDS.includes(kind) ? { kind } : {}) } });
+    const body = { material_id: uuid(form, 'material_id'), note: str(form, 'note', 1000) || null };
+    // نوع البلاغ من الهجرة 13؛ قبلها يُرسل البلاغ بلا نوع
+    await mutate('POST', 'material_reports', token, { body: { ...body, ...(KINDS.includes(kind) ? { kind } : {}) } })
+      .catch((e) => { if (e instanceof DataError && /kind|column/i.test(e.message)) return mutate('POST', 'material_reports', token, { body }); throw e; });
     return { to: back(form, '/'), flash: 'شكرًا لك، وصل بلاغك إلى فريق يقظة' };
   },
   'goal-create': async ({ token, form }) => {
@@ -144,7 +147,10 @@ export const HANDLERS: Record<string, Handler> = {
     if (!name || (!phone && !other)) throw new BadInput('contact');
     const topic = str(form, 'topic', 30), gender = str(form, 'gender', 10);
     const share = str(form, 'share_progress', 3) === 'on';
-    await mutate('POST', 'mentorship_requests', token, { body: { name, phone, other_contact: other, preferred_time: str(form, 'preferred_time', 100) || null, topic, gender, ...(share ? { share_progress: true } : {}) } });
+    const body = { name, phone, other_contact: other, preferred_time: str(form, 'preferred_time', 100) || null, topic, gender };
+    // موافقة المشاركة من الهجرة 13؛ قبلها يُرسل الطلب بدونها
+    await mutate('POST', 'mentorship_requests', token, { body: { ...body, ...(share ? { share_progress: true } : {}) } })
+      .catch((e) => { if (share && e instanceof DataError && /share_progress|column/i.test(e.message)) return mutate('POST', 'mentorship_requests', token, { body }); throw e; });
     return { to: '/support', flash: 'وصل طلبك إلى فريق يقظة. سنتواصل معك قريبًا بإذن الله' };
   },
   'share-progress': async ({ token, form }) => {
