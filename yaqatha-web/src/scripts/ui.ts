@@ -34,14 +34,16 @@ async function hydrateState() {
     if (s.enrollmentId) {
       pathForms.forEach((f) => {
         const a = document.createElement('a');
-        a.className = 'btn btn-primary'; a.href = `/journey/paths/${s.enrollmentId}`; a.textContent = 'تابع مسارك';
+        a.className = 'btn btn-primary btn-block'; a.href = `/journey/paths/${s.enrollmentId}`; a.textContent = 'تابع مسارك';
         f.replaceWith(a);
       });
     }
     if (s.saved) {
       matForms.forEach((f) => {
         f.action = '/api/unsave-material';
-        const b = f.querySelector('button'); if (b) { b.textContent = 'محفوظة ✓ إزالة من المحفوظات'; b.classList.replace('btn-primary', 'btn-ghost'); }
+        const b = f.querySelector('button');
+        if (b?.hasAttribute('data-save-btn')) { b.setAttribute('aria-label', 'محفوظة. أزلها من المحفوظات'); b.classList.add('is-saved'); }
+        else if (b) { b.textContent = 'محفوظة ✓ إزالة من المحفوظات'; b.classList.replace('btn-primary', 'btn-ghost'); }
       });
     }
   } catch { /* بلا شبكة: تبقى الأزرار الافتراضية */ }
@@ -49,7 +51,10 @@ async function hydrateState() {
 
 document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((b) =>
   b.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(location.href); b.textContent = 'تم النسخ ✓'; } catch { b.textContent = 'انسخه من شريط العنوان'; }
+    const icon = !!b.querySelector('svg');
+    if (icon && navigator.share) { navigator.share({ title: document.title, url: location.href }).catch(() => {}); return; }
+    const say = (t: string) => (icon ? b.setAttribute('aria-label', t) : (b.textContent = t));
+    try { await navigator.clipboard.writeText(location.href); say('تم النسخ ✓'); if (icon) b.classList.add('is-saved'); } catch { say('انسخه من شريط العنوان'); }
   }));
 
 // ---------- التطبيق على الهاتف ----------

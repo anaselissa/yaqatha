@@ -79,7 +79,14 @@ export const HANDLERS: Record<string, Handler> = {
     // هدف يومي (الهجرة 13): يُرسل النوع فقط إن اختاره المستخدم، فيبقى الهدف العادي يعمل قبل الهجرة
     const daily = str(form, 'kind', 10) === 'daily';
     const days = Math.min(365, Math.max(1, Number(str(form, 'days', 4)) || 30));
-    await mutate('POST', 'goals', token, { body: { id, ...goalFields(form), domain_id: dom, ...(daily ? { kind: 'daily', days, status: 'in_progress' } : {}) }, ignoreDuplicates: true });
+    const base = { id, ...goalFields(form), domain_id: dom };
+    try {
+      await mutate('POST', 'goals', token, { body: { ...base, ...(daily ? { kind: 'daily', days, status: 'in_progress' } : {}) }, ignoreDuplicates: true });
+    } catch (e) {
+      // قبل تطبيق الهجرة 13 لا يوجد عمود النوع: يُحفظ هدفًا عاديًا بدل أن يضيع ما كتبه
+      if (!daily || !(e instanceof DataError) || !/kind|days|column/i.test(e.message)) throw e;
+      await mutate('POST', 'goals', token, { body: base, ignoreDuplicates: true });
+    }
     const enr = str(form, 'enrollment_id', 40);
     if (UUID.test(enr)) await mutate('POST', 'goal_enrollments', token, { body: { goal_id: id, enrollment_id: enr }, ignoreDuplicates: true });
     return { to: `/journey/goals/${id}`, flash: 'تم حفظ هدفك' };

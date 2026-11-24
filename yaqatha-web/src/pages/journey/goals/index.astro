@@ -1,37 +1,78 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import JourneyNav from '../../../components/JourneyNav.astro';
 import ErrorState from '../../../components/ErrorState.astro';
+import BackBtn from '../../../components/BackBtn.astro';
+import Chev from '../../../components/Chev.astro';
 import { getGoals } from '../../../lib/user';
+import { getDailyGoals, localDate } from '../../../lib/today';
 import { GOAL_STATUS } from '../../../lib/labels';
 import { load } from '../../../lib/page';
 const t = Astro.locals.session!.token;
 const TABS: Record<string, [string, string[]]> = {
-  active: ['النشطة', ['not_started', 'in_progress']], paused: ['المتوقفة مؤقتًا', ['paused']],
-  completed: ['المكتملة', ['completed']], archived: ['المؤرشفة', ['archived']],
+  active: ['النشطة', ['not_started', 'in_progress']], paused: ['المتوقفة', ['paused']],
+  completed: ['حقّقتها', ['completed']], archived: ['المؤرشفة', ['archived']],
 };
 const tab = Astro.url.searchParams.get('status') ?? 'active';
 const cur = TABS[tab] ? tab : 'active';
-const goals = await load(Astro.response, () => getGoals(t, TABS[cur][1]));
+const today = localDate(Astro.cookies);
+const data = await load(Astro.response, async () => {
+  const [goals, daily, done] = await Promise.all([getGoals(t, TABS[cur][1]), cur === 'active' ? getDailyGoals(t, today) : Promise.resolve(null), cur === 'active' ? getGoals(t, ['completed']) : Promise.resolve([])]);
+  return { goals, daily: daily ?? [], done: done.slice(0, 5) };
+});
+const dailyIds = new Set(data?.daily.map((d) => d.id));
+const others = data?.goals.filter((g) => !dailyIds.has(g.id)) ?? [];
 ---
 <Base title="أهدافي" noindex>
-  {!goals ? <ErrorState /> : (
-    <div class="container">
-      <header class="page-head"><h1>أهدافي</h1><JourneyNav /></header>
-      <section class="section section-tight">
-        <div class="section-title"><div class="filters m-0" role="group" aria-label="الحالة">
-          {Object.entries(TABS).map(([k, [l]]) => <a href={`/journey/goals?status=${k}`} aria-current={cur === k ? 'true' : undefined}>{l}</a>)}
-        </div><a class="btn btn-primary btn-sm" href="/journey/goals/new">هدف جديد</a></div>
-        {goals.length ? (
-          <><h2 class="sr-only">قائمة الأهداف</h2>
-          <ul class="mats">{goals.map((g) => (
-            <li><a class="mat" href={`/journey/goals/${g.id}`}><div class="meta"><span class="state">{GOAL_STATUS[g.status]}</span>{g.target_date && <span class="chip">الموعد: {g.target_date}</span>}</div><h3>{g.title}</h3>{g.description && <p>{g.description}</p>}</a></li>
-          ))}</ul></>
-        ) : (
-          <div class="empty"><h2>{cur === 'active' ? 'لا أهداف نشطة' : 'لا أهداف هنا'}</h2><p>الهدف جملة تكتبها بكلماتك لما تريد أن تعمل عليه، ولا تحتاج إلى موعد.</p>
-            <div class="actions"><a class="btn btn-primary" href="/journey/goals/new">أنشئ هدفًا</a></div></div>
-        )}
-      </section>
+  {!data ? <ErrorState /> : (
+    <div class="app-col screen">
+      <div class="screen-head"><BackBtn href="/account" label="رجوع إلى حسابي" /><h1>أهدافي</h1></div>
+      <nav class="filters" aria-label="الحالة">
+        {Object.entries(TABS).map(([k, [l]]) => <a href={`/journey/goals?status=${k}`} aria-current={cur === k ? 'true' : undefined}>{l}</a>)}
+      </nav>
+
+      {data.daily.map((g) => {
+        const total = g.days ?? 30;
+        return (
+          <section class="card" aria-labelledby={`g-${g.id}`}>
+            <div class="title-row"><h2 id={`g-${g.id}`} class="fs-1_05"><a class="plain" href={`/journey/goals/${g.id}`}>{g.title}</a></h2><span class="coral fw-600 fs-0_9">{g.doneCount} من {total}</span></div>
+            <div class="days-strip" aria-hidden="true">{Array.from({ length: total }, (_, i) => <i class={i < g.doneCount ? 'on' : ''}></i>)}</div>
+            {g.today === null ? (
+              <form method="post" action="/api/goal-checkin" class="row">
+                <input type="hidden" name="goal_id" value={g.id} /><input type="hidden" name="day" value={today} data-local-day /><input type="hidden" name="next" value="/journey/goals" />
+                <button class="btn btn-teal grow-btn" type="submit" name="done" value="1">فعلتها اليوم</button>
+                <button class="btn btn-ghost" type="submit" name="done" value="0">ليس اليوم</button>
+              </form>
+            ) : <p class="teal fs-0_9">{g.today ? 'علّمتها اليوم' : 'ليس اليوم، وغدًا يوم جديد'}</p>}
+          </section>
+        );
+      })}
+
+      {others.length > 0 && (
+        <ul class="list">
+          {others.map((g) => (
+            <li><a class="row-link card-link" href={`/journey/goals/${g.id}`}>
+              <span class="grow"><span class="t">{g.title}</span><span class="s">{GOAL_STATUS[g.status]}{g.target_date ? `، الموعد ${g.target_date}` : ''}</span></span><Chev />
+            </a></li>
+          ))}
+        </ul>
+      )}
+
+      {!data.daily.length && !others.length && (
+        <div class="card-dashed">
+          <p>{cur === 'active' ? 'لا أهداف نشطة.' : 'لا أهداف هنا.'} الهدف جملة تكتبها بكلماتك لما تريد أن تعمل عليه.</p>
+        </div>
+      )}
+
+      {cur === 'active' && data.done.length > 0 && (
+        <section class="screen-sec" aria-labelledby="done-h">
+          <h2 id="done-h" class="sec-title">حقّقتها</h2>
+          <ul class="list">{data.done.map((g) => (
+            <li><a class="row-link card-quiet plain" href={`/journey/goals/${g.id}`}><svg class="mini-arc" viewBox="0 0 34 22" aria-hidden="true"><circle cx="17" cy="13" r="7" fill="var(--gold)"></circle><path d="M2 20h30" stroke="var(--teal)" stroke-width="2" stroke-linecap="round"></path></svg><span class="grow"><span class="t">{g.title}</span></span></a></li>
+          ))}</ul>
+        </section>
+      )}
+
+      <div class="dock dock-app"><a class="btn btn-primary btn-block" href="/journey/goals/new">هدف جديد</a></div>
     </div>
   )}
 </Base>

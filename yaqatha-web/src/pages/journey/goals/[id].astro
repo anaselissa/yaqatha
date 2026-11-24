@@ -1,6 +1,8 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import BackBtn from '../../../components/BackBtn.astro';
+import Horizon from '../../../components/Horizon.astro';
+import { getDailyGoals, localDate } from '../../../lib/today';
 import ErrorState from '../../../components/ErrorState.astro';
 import PostButton from '../../../components/PostButton.astro';
 import { getDomainsList, getEnrollments, getGoal, getGoalLinks, getSaved } from '../../../lib/user';
@@ -10,11 +12,12 @@ import { load } from '../../../lib/page';
 const id = Astro.params.id!;
 if (!/^[0-9a-f-]{36}$/i.test(id)) return Astro.rewrite('/404');
 const t = Astro.locals.session!.token;
+const today = localDate(Astro.cookies);
 const data = await load(Astro.response, async () => {
   const goal = await getGoal(t, id);
   if (!goal) return { goal: null };
-  const [links, domains, myEnrs, saved] = await Promise.all([getGoalLinks(t, id), getDomainsList(), getEnrollments(t), getSaved(t, 100)]);
-  return { goal, links, domains, myEnrs, saved };
+  const [links, domains, myEnrs, saved, daily] = await Promise.all([getGoalLinks(t, id), getDomainsList(), getEnrollments(t), getSaved(t, 100), getDailyGoals(t, today, id)]);
+  return { goal, links, domains, myEnrs, saved, daily: daily?.[0] ?? null };
 });
 if (data && !data.goal) return Astro.rewrite('/404'); // لا نكشف وجود هدف مستخدم آخر
 const d = data && data.goal ? data : null;
@@ -27,19 +30,44 @@ const dom = d?.domains.find((x) => x.id === g?.domain_id)?.slug ?? '';
 const MOVES: [string, string][] = g?.status === 'in_progress' ? [['paused', 'أوقفه مؤقتًا'], ['completed', 'أكملته']]
   : g?.status === 'paused' ? [['in_progress', 'استأنف'], ['completed', 'أكملته']]
   : g?.status === 'completed' ? [['in_progress', 'أعد فتحه']] : [['in_progress', 'ابدأ العمل عليه'], ['paused', 'أوقفه مؤقتًا']];
+// الهدف اليومي: مربعات الأيام من يوم إنشائه (المنجز، والفائت، واليوم)
+const dg = d?.daily ?? null;
+const total = dg?.days ?? 30;
+const startDay = dg ? dg.created_at.slice(0, 10) : today;
+const dayIndex = (iso: string) => Math.round((Date.parse(iso) - Date.parse(startDay)) / 86400000);
+const todayIdx = dg ? Math.max(0, dayIndex(today)) : 0;
+const cells = dg ? Array.from({ length: total }, (_, i) => {
+  const c = dg.checkins.find((x) => dayIndex(x.day) === i);
+  return { n: i + 1, k: c?.done ? 'd-done' : (c && !c.done) || i < todayIdx ? 'd-miss' : i === todayIdx ? 'd-today' : '' };
+}) : [];
+const left = Math.max(0, total - dg?.doneCount! - (dg ? cells.filter((c) => c.k === 'd-miss').length : 0));
 ---
 <Base title={g?.title ?? 'هدف'} noindex>
   {!d || !g ? <ErrorState /> : (
-    <div class="container narrow">
-      <header class="page-head">
-        <Breadcrumbs items={[{ label: 'رحلتي', href: '/journey' }, { label: 'أهدافي', href: '/journey/goals' }, { label: g.title }]} />
-        <div class="meta mb-0_8"><span class="state">{GOAL_STATUS[g.status]}</span></div>
-        <h1>{g.title}</h1>
-        {g.description && <p class="lead ws-pre-line">{g.description}</p>}
-      </header>
+    <div class="app-col screen">
+      <div class="screen-head"><BackBtn href="/journey/goals" label="رجوع إلى أهدافي" /><h1>{g.title}</h1></div>
+      {g.description && <p class="step-text ws-pre-line">{g.description}</p>}
+      {dg && !archived ? (
+        <section class="stack sp-1" aria-label="أيام الهدف">
+          <div class="center goal-sun">
+            <Horizon done={dg.doneCount} total={total} label={`${dg.doneCount} من ${total} يومًا`} height={80} />
+            <p class="big-count"><b>{dg.doneCount}</b> من {total} يومًا</p>
+            {left > 0 && <p class="lead-dim">{left === 1 ? 'بقي يوم واحد' : left === 2 ? 'بقي يومان' : `بقي ${left} ${left <= 10 ? 'أيام' : 'يومًا'}`}</p>}
+          </div>
+          <div class="days" role="img" aria-label={`${dg.doneCount} أيام منجزة من ${total}`}>{cells.map((c) => <span class={c.k}>{c.n}</span>)}</div>
+          <p class="legend"><span><i style="background:var(--teal)"></i>فعلتها</span><span><i style="border:1.5px dashed var(--line-strong)"></i>فاتت</span><span><i style="border:1.5px solid var(--gold)"></i>اليوم</span></p>
+          {dg.today === null ? (
+            <form method="post" action="/api/goal-checkin" class="stack sp-0_5">
+              <input type="hidden" name="goal_id" value={g.id} /><input type="hidden" name="day" value={today} data-local-day /><input type="hidden" name="next" value={here} />
+              <button class="btn btn-primary btn-block" type="submit" name="done" value="1">فعلتها اليوم</button>
+              <button class="link-quiet center-self" type="submit" name="done" value="0">ليس اليوم</button>
+            </form>
+          ) : <p class="pill pill-teal justify-self-start">{dg.today ? 'علّمتها اليوم، بارك الله فيك' : 'ليس اليوم، وغدًا يوم جديد'}</p>}
+        </section>
+      ) : <p class="pill pill-teal justify-self-start">{GOAL_STATUS[g.status]}</p>}
 
-      <div class="stack sp-2 pb-3">
-        <div class="row">
+      <div class="stack sp-1_5 pb-3">
+        <div class={dg && !archived ? 'row goal-moves quiet' : 'row goal-moves'}>
           {archived
             ? <PostButton action="goal-restore" fields={{ id: g.id }} label="استعادة الهدف" kind="primary" small={false} />
             : <>{MOVES.map(([s, l]) => <PostButton action="goal-status" fields={{ id: g.id, status: s }} label={l} kind={s === 'completed' ? 'primary' : 'ghost'} />)}
@@ -47,7 +75,7 @@ const MOVES: [string, string][] = g?.status === 'in_progress' ? [['paused', 'أ�
         </div>
 
         <section aria-labelledby="enr-h">
-          <h2 class="fs-1_5 mb-0_8" id="enr-h">المسارات المرتبطة</h2>
+          <h2 class="sec-title" id="enr-h">من مسار</h2>
           {d.links.enrollments.length ? (
             <ul class="mats">{d.links.enrollments.map((l) => (
               <li class="row justify-between py-0_8 bb-line">
@@ -66,7 +94,7 @@ const MOVES: [string, string][] = g?.status === 'in_progress' ? [['paused', 'أ�
         </section>
 
         <section aria-labelledby="mat-h">
-          <h2 class="fs-1_5 mb-0_8" id="mat-h">المواد المرتبطة</h2>
+          <h2 class="sec-title" id="mat-h">المواد المرتبطة</h2>
           {d.links.materials.length ? (
             <ul class="mats">{d.links.materials.map((l) => (
               <li class="row justify-between py-0_8 bb-line">

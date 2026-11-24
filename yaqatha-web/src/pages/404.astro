@@ -1,21 +1,20 @@
 ---
 import Base from '../layouts/Base.astro';
-import SearchForm from '../components/SearchForm.astro';
-import Star from '../components/Star.astro';
-import { getDoors } from '../lib/data';
-import { load } from '../lib/page';
 Astro.response.status = 404;
-const doors = (await load({}, getDoors)) ?? [];
 ---
-<Base title="الصفحة غير موجودة" noindex>
-  <div class="container narrow section">
-    <p class="gold ff-display fs-1_3 d-flex gap-0_6 items-center"><Star />٤٠٤</p>
-    <h1 class="my-0_6-1">لم نجد هذه الصفحة</h1>
-    <p class="dim mb-1_5">ربما تغيّر الرابط أو لم تعد المادة متاحة. ابحث عمّا تريد أو ابدأ من أحد الأبواب.</p>
-    <SearchForm />
-    {doors.length > 0 && (
-      <div class="filters mt-1_8">{doors.map((d) => <a href={`/doors/${d.slug}`}>{d.title}</a>)}</div>
-    )}
-    <p class="mt-1_5"><a class="btn btn-ghost" href="/">الرئيسية</a></p>
+<Base title="طريق غير نافذ" noindex>
+  <div class="app-col state-screen">
+    <svg class="art" viewBox="0 0 260 170" aria-hidden="true">
+      <circle cx="214" cy="58" r="22" fill="var(--gold)" opacity=".55"></circle>
+      <path d="M20 152 C60 130 100 134 150 122" fill="none" stroke="var(--track)" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 12"></path>
+      <path d="M148 100 V140 M196 100 V140" stroke="var(--line-strong)" stroke-width="5" stroke-linecap="round"></path>
+      <rect x="138" y="92" width="68" height="14" rx="4" fill="var(--gold)"></rect>
+      <path d="M152 92h9l-7 14h-9z M170 92h9l-7 14h-9z M188 92h9l-7 14h-9z" fill="var(--bg)"></path>
+      <path d="M0 150 C80 136 150 166 260 146 V170 H0z" fill="var(--bg-2)"></path>
+    </svg>
+    <h1>طريق غير نافذ</h1>
+    <p class="lead-dim">هذه الصفحة غير موجودة، أو نُقلت.</p>
+    <a class="btn btn-primary btn-block" href="/">ارجع إلى يومك</a>
+    <a class="link-quiet" href="/discover">أو ابحث في «اكتشف»</a>
   </div>
 </Base>

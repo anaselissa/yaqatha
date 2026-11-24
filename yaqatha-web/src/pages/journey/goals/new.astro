@@ -1,47 +1,62 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import ErrorState from '../../../components/ErrorState.astro';
-import { getDomainsList } from '../../../lib/user';
+import BackBtn from '../../../components/BackBtn.astro';
+import { getDomainsList, getEnrollments } from '../../../lib/user';
 import { getNeed } from '../../../lib/data';
 import { load } from '../../../lib/page';
 
 // متاحة للزائر (F4): يكتب هدفه، وعند الحفظ يُطلب منه الدخول ثم يُحفظ تلقائيًا
-const guest = !Astro.locals.session;
+const s = Astro.locals.session;
+const guest = !s;
 const q = Astro.url.searchParams;
 const data = await load(Astro.response, async () => {
   const needSlug = q.get('need')?.slice(0, 80);
-  const need = needSlug ? await getNeed(needSlug) : null;
-  return { domains: await getDomainsList(), need };
+  const [need, domains, enrs] = await Promise.all([needSlug ? getNeed(needSlug) : null, getDomainsList(), s ? getEnrollments(s.token).catch(() => []) : Promise.resolve([])]);
+  return { domains, need, enrs };
 });
 const needDomain = data?.need?.domain_id ? data.domains.find((d) => d.id === data.need!.domain_id)?.slug : undefined;
-const title = (q.get('title') ?? data?.need?.title ?? '').slice(0, 120);
+const title = (q.get('title') ?? data?.need?.title ?? '').replace(/^\[تجريبي\]\s*/, '').slice(0, 120);
 const enrollment = /^[0-9a-f-]{36}$/i.test(q.get('enrollment') ?? '') ? q.get('enrollment')! : '';
 const goalId = crypto.randomUUID();
+const picks = (data?.enrs ?? []).map((e) => (e.path_versions?.title ?? '').replace(/^\[تجريبي\]\s*/, '')).filter(Boolean).slice(0, 3);
 ---
 <Base title="هدف جديد" noindex>
   {!data ? <ErrorState /> : (
-    <div class="container narrow">
-      <header class="page-head">
-        <Breadcrumbs items={[{ label: 'رحلتي', href: '/journey' }, { label: 'أهدافي', href: '/journey/goals' }, { label: 'هدف جديد' }]} />
-        <h1>هدف جديد</h1>
-        <p class="lead">اكتب ما تريد أن تعمل عليه بكلماتك. لا حاجة إلى موعد، ويمكنك تعديل كل شيء لاحقًا.</p>
-      </header>
-      {guest && <div class="notice mb-1_5">يمكنك كتابة هدفك الآن. عند الحفظ سنطلب منك تسجيل الدخول بـ Google، ثم يُحفظ ما كتبته تلقائيًا.</div>}
-      <form id="goal-form" method="post" action="/api/goal-create" class="stack sp-1_3 pb-3" data-guest={guest ? '1' : '0'}>
+    <div class="app-col screen">
+      <div class="screen-head"><BackBtn href={guest ? '/' : '/journey/goals'} /><h1>هدف جديد</h1></div>
+      {guest && <p class="notice">اكتب هدفك الآن. عند الحفظ نطلب منك الدخول بـ Google، ثم يُحفظ ما كتبته تلقائيًا.</p>}
+      <form id="goal-form" method="post" action="/api/goal-create" class="stack sp-1_3 pb-1" data-guest={guest ? '1' : '0'}>
         <input type="hidden" name="id" value={goalId} />
         <input type="hidden" name="enrollment_id" value={enrollment} />
         <input type="hidden" name="next" value="/journey/goals/new?resume=1" />
         <div class="field"><label for="title">ما الذي تريد أن تعمل عليه؟</label>
-          <input id="title" name="title" type="text" required maxlength="120" value={title} autocomplete="off" /></div>
-        <div class="field"><label for="description">تفاصيل (اختياري)</label>
-          <textarea id="description" name="description" maxlength="2000"></textarea>
-          <span class="hint">لا حاجة إلى كتابة أسماء أو تفاصيل الذنوب أو معلومات حساسة. يكفي أن تصف ما تريد العمل عليه.</span></div>
-        <div class="field"><label for="domain">المجال (اختياري)</label>
-          <select id="domain" name="domain"><option value="">—</option>{data.domains.map((d) => <option value={d.slug} selected={d.slug === needDomain}>{d.title}</option>)}</select></div>
-        <div class="field"><label for="target_date">موعد مستهدف (اختياري)</label>
-          <input id="target_date" name="target_date" type="date" /><span class="hint">اتركه فارغًا للأهداف المستمرة.</span></div>
-        <div class="row"><button class="btn btn-primary" type="submit">احفظ الهدف</button><a class="btn btn-ghost" href={guest ? '/' : '/journey/goals'}>إلغاء</a></div>
+          <input id="title" name="title" type="text" required maxlength="120" value={title} autocomplete="off" placeholder="مثل: ركعتا الضحى كل يوم" /></div>
+        {picks.length > 0 && (
+          <div class="stack sp-0_5">
+            <p class="faint fs-0_9">أو اختر من مساراتك</p>
+            <div class="chips">{picks.map((p) => <button type="button" data-fill-title={p}>{p}</button>)}</div>
+          </div>
+        )}
+        <fieldset class="stack sp-0_6 kind-pick">
+          <legend class="fw-600 mb-0_6">كيف تتابعه؟</legend>
+          <label class="choice"><input type="radio" name="kind" value="daily" checked /><span class="grow">كل يوم، لمدة 30 يومًا<span class="s">تعلّم عليه يوميًا ويكبر العدّاد</span></span></label>
+          <label class="choice"><input type="radio" name="kind" value="once" /><span class="grow">مرة واحدة، وأعلّم عليه عند إنجازه</span></label>
+          <input type="hidden" name="days" value="30" />
+        </fieldset>
+        <details class="fold">
+          <summary>أضف تفاصيل أو موعدًا</summary>
+          <div class="stack sp-1 mt-1">
+            <div class="field"><label for="description">تفاصيل (اختياري)</label>
+              <textarea id="description" name="description" maxlength="2000"></textarea>
+              <span class="hint">لا حاجة إلى كتابة تفاصيل الذنوب أو معلومات حساسة. يكفي أن تصف ما تريد العمل عليه.</span></div>
+            <div class="field"><label for="domain">المجال (اختياري)</label>
+              <select id="domain" name="domain"><option value="">—</option>{data.domains.map((d) => <option value={d.slug} selected={d.slug === needDomain}>{d.title}</option>)}</select></div>
+            <div class="field"><label for="target_date">موعد مستهدف (اختياري)</label>
+              <input id="target_date" name="target_date" type="date" /></div>
+          </div>
+        </details>
+        <button class="btn btn-primary btn-block" type="submit">احفظ الهدف</button>
       </form>
     </div>
   )}
@@ -52,6 +67,7 @@ const goalId = crypto.randomUUID();
   const form = document.getElementById('goal-form') as HTMLFormElement | null;
   if (form) {
     const fields = ['id', 'title', 'description', 'domain', 'target_date', 'enrollment_id'];
+    form.querySelectorAll<HTMLButtonElement>('[data-fill-title]').forEach((b) => b.addEventListener('click', () => { (form.elements.namedItem('title') as HTMLInputElement).value = b.dataset.fillTitle!; }));
     const guest = form.dataset.guest === '1';
     const resume = new URLSearchParams(location.search).get('resume') === '1';
     if (resume && !guest) {
@@ -60,6 +76,7 @@ const goalId = crypto.randomUUID();
         sessionStorage.removeItem(KEY);
         if (d?.title) {
           for (const k of fields) { const el = form.elements.namedItem(k) as HTMLInputElement | null; if (el && d[k] != null) el.value = d[k]; }
+          if (d.kind === 'once') (form.querySelector('input[name=kind][value=once]') as HTMLInputElement).checked = true;
           form.requestSubmit();
         }
       } catch { /* لا مسودة */ }
@@ -68,6 +85,7 @@ const goalId = crypto.randomUUID();
       if (!guest) return;
       const d: Record<string, string> = {};
       for (const k of fields) d[k] = (form.elements.namedItem(k) as HTMLInputElement)?.value ?? '';
+      d.kind = (form.querySelector('input[name=kind]:checked') as HTMLInputElement)?.value ?? 'daily';
       try { sessionStorage.setItem(KEY, JSON.stringify(d)); } catch { /* تخزين غير متاح */ }
     });
   }

@@ -1,9 +1,10 @@
 ---
-interface Props { q?: string; autofocus?: boolean }
-const { q = '', autofocus = false } = Astro.props;
+interface Props { q?: string; autofocus?: boolean; placeholder?: string }
+const { q = '', autofocus = false, placeholder = 'الغضب، الفجر، بر الوالدين…' } = Astro.props;
 ---
-<form class="search" action="/search" method="get" role="search">
+<form class="searchbox" action="/search" method="get" role="search">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
   <label class="sr-only" for="q">ابحث في يقظة</label>
-  <input id="q" name="q" type="search" value={q} placeholder="ابحث: الغضب، الصلاة، بر الوالدين…" maxlength="80" autocomplete="off" autofocus={autofocus} />
-  <button class="btn btn-primary" type="submit">بحث</button>
+  <input id="q" name="q" type="search" value={q} placeholder={placeholder} maxlength="80" autocomplete="off" autofocus={autofocus} />
+  <button class="search-go" type="submit">بحث</button>
 </form>

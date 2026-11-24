@@ -1,11 +1,11 @@
 ---
+// صفحة المادة: المحتوى أولًا، ثم الحفظ والمشاركة في الأعلى، والإبلاغ في ورقة صغيرة.
 import Base from '../../layouts/Base.astro';
-import Breadcrumbs from '../../components/Breadcrumbs.astro';
-import NeedList from '../../components/NeedList.astro';
 import ErrorState from '../../components/ErrorState.astro';
+import BackBtn from '../../components/BackBtn.astro';
+import MaterialContent from '../../components/MaterialContent.astro';
 import { getMaterial, getMaterialQuestions, getMaterialRelations, getMaterialSeries, resolveRedirect } from '../../lib/data';
 import { MATERIAL_TYPE, NATURE, formatDate } from '../../lib/labels';
-import { renderMarkdown, youtubeId } from '../../lib/markdown';
 import { FEATURES } from '../../config';
 import { load } from '../../lib/page';
 
@@ -24,136 +24,93 @@ const m = data?.material;
 const rel = data && 'rel' in data ? data.rel : null;
 const sr = data && 'series' in data ? data.series : null;
 const questions = data && 'questions' in data ? data.questions : [];
-const [qaId, qaIdx] = (Astro.url.searchParams.get('qa') ?? '').split('.');
-const answered = (id: string) => (qaId === id && /^\d$/.test(qaIdx ?? '') ? Number(qaIdx) : null);
-const html = m ? renderMarkdown(m.body) : '';
-const yt = m?.type === 'video' ? youtubeId(m.url) : null;
+const words = m?.body ? m.body.trim().split(/\s+/).length : 0;
+const minutes = words ? Math.max(1, Math.round(words / 180)) : 0;
 const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
   '@context': 'https://schema.org', '@type': 'Article', headline: m.title, inLanguage: 'ar',
   description: m.description ?? undefined, dateModified: m.updated_at,
   ...(m.author ? { author: { '@type': 'Person', name: m.author } } : {}),
 } : undefined;
+const KINDS = [['broken_link', 'الرابط لا يعمل'], ['content_error', 'خطأ في المحتوى'], ['unclear_source', 'المصدر غير واضح'], ['other', 'شيء آخر']];
 ---
 <Base title={m?.title} description={m?.description ?? undefined} type="article" jsonLd={ld}>
   {!data || !m || !rel ? <ErrorState /> : (
-    <div class="container">
-      <header class="page-head">
-        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المواد والمحتوى', href: '/library' }, { label: m.title }]} />
-        <div class="meta mb-0_9">
-          {sr && <a class="chip chip-gold" href={`/series/${sr.slug}`}>{sr.title} · الحلقة {sr.index} من {sr.total}</a>}
-          <span class="chip chip-gold">{MATERIAL_TYPE[m.type] ?? m.type}</span>
-          <span class="chip">{NATURE[m.nature]}</span>
+    <div class="app-col screen">
+      <div class="screen-head">
+        <BackBtn href={sr ? `/series/${sr.slug}` : '/library'} />
+        <div class="end row gap-0_5">
+          <button class="back-btn" type="button" data-copy aria-label="انسخ رابط المادة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="M8.2 10.9l7.6-4.3M8.2 13.1l7.6 4.3"></path></svg></button>
+          {FEATURES.accounts && (
+            <form method="post" action="/api/save-material" data-material-state={m.id} class="save-form">
+              <input type="hidden" name="material_id" value={m.id} />
+              <input type="hidden" name="next" value={`/library/${m.slug}`} />
+              <button class="back-btn" type="submit" aria-label="احفظ للرجوع إليها" data-save-btn><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"></path></svg></button>
+            </form>
+          )}
         </div>
-        <h1>{m.title}</h1>
-        {m.description && <p class="lead">{m.description}</p>}
-      </header>
-
-      <div class="stack sp-2 py-1-2">
-        {yt && (
-          <div class="video-shell" data-yt={yt}>
-            <button type="button" aria-label="تشغيل الفيديو">
-              <span class="play" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg></span>
-              <span>تشغيل الفيديو</span>
-            </button>
-          </div>
-        )}
-        {yt && <p class="faint fs-0_9 maxw-measure">لا يُحمَّل الفيديو من الخارج إلا حين تنقر التشغيل، حفاظًا على خصوصيتك وسرعة الصفحة.</p>}
-        {!yt && m.url && <p><a class="btn btn-primary" href={m.url} target="_blank" rel="noopener nofollow">افتح المصدر ↗</a></p>}
-        {html && <div class="prose" set:html={html} />}
-
-        {questions.length > 0 && (
-          <section class="quiz" aria-labelledby="quiz-h">
-            <h2 class="fs-1_5" id="quiz-h">اختبر فهمك</h2>
-            {questions.map((q, n) => {
-              const a = answered(q.id);
-              return (
-                <form id={`q-${q.id}`} method="post" action="/api/quiz" class="quiz-q">
-                  <input type="hidden" name="slug" value={m.slug} />
-                  <input type="hidden" name="question_id" value={q.id} />
-                  <fieldset>
-                    <legend><span class="gold">{n + 1}.</span> {q.prompt}</legend>
-                    {q.options.map((o, i) => (
-                      <label class={a === null ? '' : i === q.correct_index ? 'is-right' : i === a ? 'is-wrong' : ''}>
-                        <input type="radio" name="choice" value={i} required checked={a === i} />{o}
-                      </label>
-                    ))}
-                  </fieldset>
-                  {a === null ? <button class="btn btn-ghost btn-sm" type="submit">تحقّق</button> : (
-                    <div class="notice" role="status">
-                      <strong>{a === q.correct_index ? 'إجابة صحيحة، بارك الله فيك.' : 'ليست هذه. الصحيحة مظلّلة أعلاه.'}</strong>
-                      {q.explanation && <p class="m-0_3-0-0">{q.explanation}</p>}
-                    </div>
-                  )}
-                </form>
-              );
-            })}
-          </section>
-        )}
-
-        {sr && (sr.prev || sr.next) && (
-          <nav class="series-nav" aria-label={`حلقات ${sr.title}`}>
-            {sr.next && <a class="btn btn-primary" href={`/library/${sr.next.slug}`} rel="next">الحلقة التالية: {sr.next.title}</a>}
-            {sr.prev && <a class="btn btn-ghost btn-sm" href={`/library/${sr.prev.slug}`} rel="prev">السابقة</a>}
-            <a class="btn btn-ghost btn-sm" href={`/series/${sr.slug}`}>كل الحلقات</a>
-          </nav>
-        )}
-
-        <dl class="source-box">
-          {(m.source_title || m.source_url) && (<><dt>المصدر الأصلي</dt><dd>{m.source_url ? <a href={m.source_url} target="_blank" rel="noopener nofollow">{m.source_title ?? m.source_url}</a> : m.source_title}</dd></>)}
-          {m.author && (<><dt>{m.type === 'video' ? 'المحاضر' : 'المؤلف'}</dt><dd>{m.author}</dd></>)}
-          <dt>طبيعة المادة</dt><dd>{NATURE[m.nature]}</dd>
-          <dt>آخر تحديث</dt><dd>{formatDate(m.updated_at)}</dd>
-        </dl>
       </div>
+      <p class="meta-line">
+        <span>{MATERIAL_TYPE[m.type] ?? m.type}</span>
+        {minutes > 0 && m.type !== 'video' && <span>{minutes === 1 ? 'دقيقة' : minutes === 2 ? 'دقيقتان' : `${minutes} دقائق`}</span>}
+        {sr && <span><a href={`/series/${sr.slug}`}>{sr.title}: الحلقة {sr.index} من {sr.total}</a></span>}
+      </p>
+      <h1>{m.title}</h1>
+      {m.description && <p class="step-text">{m.description}</p>}
 
-      {FEATURES.accounts && (
-        <section class="section section-flush" aria-label="إجراءات المادة">
-          <div class="row">
-            <form method="post" action="/api/save-material" data-material-state={m.id}>
-              <input type="hidden" name="material_id" value={m.id} />
-              <input type="hidden" name="next" value={`/library/${m.slug}`} />
-              <button class="btn btn-primary btn-sm" type="submit">احفظ للرجوع إليها</button>
-            </form>
+      <MaterialContent m={m} questions={questions} qa={Astro.url.searchParams.get('qa')} />
+
+      {sr && (sr.prev || sr.next) && (
+        <nav class="stack" aria-label={`حلقات ${sr.title}`}>
+          {sr.next && <a class="btn btn-primary btn-block" href={`/library/${sr.next.slug}`} rel="next">تابع: {sr.next.title}</a>}
+          <div class="row justify-center gap-1_2">
+            {sr.prev && <a class="link-quiet" href={`/library/${sr.prev.slug}`} rel="prev">الحلقة السابقة</a>}
+            <a class="link-quiet" href={`/series/${sr.slug}`}>كل الحلقات</a>
           </div>
-          <details class="fold mt-1 maxw-measure"><summary>أبلغ عن مشكلة في هذه المادة</summary>
-            <form method="post" action="/api/report-material" class="stack sp-0_8 mt-1">
-              <input type="hidden" name="material_id" value={m.id} />
-              <input type="hidden" name="next" value={`/library/${m.slug}`} />
-              <div class="field"><label for="note">ما المشكلة؟ (رابط لا يعمل، خطأ في المحتوى…)</label><textarea id="note" name="note" maxlength="1000" required></textarea></div>
-              <div><button class="btn btn-ghost btn-sm" type="submit">أرسل البلاغ</button></div>
-            </form>
-          </details>
-        </section>
+        </nav>
       )}
+
+      <dl class="source-box">
+        {(m.source_title || m.source_url) && (<><dt>المصدر الأصلي</dt><dd>{m.source_url ? <a href={m.source_url} target="_blank" rel="noopener nofollow">{m.source_title ?? m.source_url}</a> : m.source_title}</dd></>)}
+        {m.author && (<><dt>{m.type === 'video' ? 'المحاضر' : 'المؤلف'}</dt><dd>{m.author}</dd></>)}
+        <dt>طبيعة المادة</dt><dd>{NATURE[m.nature]}</dd>
+        <dt>آخر تحديث</dt><dd>{formatDate(m.updated_at)}</dd>
+      </dl>
 
       {rel.needs.length > 0 && (
-        <section class="section section-tight">
-          <div class="section-title"><h2>احتياجات ترتبط بهذه المادة</h2></div>
-          <NeedList needs={rel.needs} />
+        <section class="screen-sec" aria-labelledby="needs-h">
+          <h2 id="needs-h" class="sec-title">ترتبط بـ</h2>
+          <nav class="filters">{rel.needs.map((n) => <a href={`/needs/${n.slug}`}>{n.title}</a>)}{rel.topics.map((t) => <a href={`/topics/${t.slug}`}>{t.title}</a>)}</nav>
         </section>
       )}
-      {rel.topics.length > 0 && (
-        <section class="section section-flush">
-          <h2 class="section-title fs-1_4 c-dim">موضوعات</h2>
-          <div class="filters">{rel.topics.map((t) => <a href={`/topics/${t.slug}`}>{t.title}</a>)}</div>
-        </section>
+
+      {FEATURES.accounts && (
+        <>
+          <button class="link-quiet center-self" type="button" data-open="report">أبلغ عن مشكلة في هذه المادة</button>
+          <dialog class="sheet" id="report" aria-labelledby="rep-h">
+            <div class="grab" aria-hidden="true"></div>
+            <form method="post" action="/api/report-material" class="stack sp-1">
+              <div class="title-row"><h2 id="rep-h">ما المشكلة؟</h2><button class="back-btn" type="button" data-close aria-label="إغلاق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+              <input type="hidden" name="material_id" value={m.id} />
+              <input type="hidden" name="next" value={`/library/${m.slug}`} />
+              <fieldset class="chips chips-radio"><legend class="sr-only">نوع المشكلة</legend>
+                {KINDS.map(([v, l], i) => <label><input type="radio" name="kind" value={v} checked={i === 1} />{l}</label>)}
+              </fieldset>
+              <div class="field"><label for="note">وضّح أكثر</label><textarea id="note" name="note" maxlength="1000" placeholder="مثل: الآية في الفقرة الثانية ناقصة كلمة." required></textarea></div>
+              <button class="btn btn-primary btn-block" type="submit">أرسل البلاغ</button>
+              <p class="faint fs-0_85 center">يراجعه الفريق، ويصلك ردّ إن طلبت متابعة.</p>
+            </form>
+          </dialog>
+        </>
       )}
     </div>
   )}
 </Base>
 <script>
-  // تحميل الفيديو بالنقر فقط (youtube-nocookie)
-  document.querySelectorAll<HTMLElement>('.video-shell[data-yt]').forEach((box) => {
-    box.querySelector('button')?.addEventListener('click', () => {
-      const id = box.dataset.yt;
-      if (!id || !/^[\w-]{6,20}$/.test(id)) return;
-      const f = document.createElement('iframe');
-      f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
-      f.title = 'مشغّل الفيديو';
-      f.allow = 'accelerometer; autoplay; encrypted-media; picture-in-picture';
-      f.allowFullscreen = true;
-      f.referrerPolicy = 'strict-origin-when-cross-origin';
-      box.replaceChildren(f);
-    });
+  document.querySelectorAll<HTMLButtonElement>('[data-open]').forEach((b) => {
+    const d = document.getElementById(b.dataset.open!) as HTMLDialogElement | null;
+    if (!d) return;
+    b.addEventListener('click', () => d.showModal());
+    d.querySelector('[data-close]')?.addEventListener('click', () => d.close());
+    d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
   });
 </script>

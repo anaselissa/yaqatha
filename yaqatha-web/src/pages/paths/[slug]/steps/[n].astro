@@ -1,53 +1,52 @@
 ---
+// معاينة الخطوة لمن لم يبدأ المسار: يقرأها كاملة، ودعوة واحدة لبدء المسار كي يُحفظ أين وصل.
 import Base from '../../../../layouts/Base.astro';
-import Breadcrumbs from '../../../../components/Breadcrumbs.astro';
 import ErrorState from '../../../../components/ErrorState.astro';
-import { getPath } from '../../../../lib/data';
-import { MATERIAL_TYPE, STEP_TYPE } from '../../../../lib/labels';
+import BackBtn from '../../../../components/BackBtn.astro';
+import MaterialContent from '../../../../components/MaterialContent.astro';
+import { getMaterialsFull, getPath } from '../../../../lib/data';
 import { load } from '../../../../lib/page';
 
 const { slug, n } = Astro.params;
 const num = Number(n);
-const data = await load(Astro.response, () => getPath(slug!));
+const qa = Astro.url.searchParams.get('qa');
+const data = await load(Astro.response, async () => {
+  const p = await getPath(slug!);
+  if (!p) return null;
+  const step = p.steps.find((s) => s.position === num);
+  const mats = step ? await getMaterialsFull(step.step_materials.map((sm) => sm.materials?.id).filter((x): x is string => !!x)) : [];
+  return { ...p, step, mats };
+});
 if (data === null && Astro.response.status !== 503) return Astro.rewrite('/404');
-const step = data?.steps.find((s) => s.position === num);
+const step = data?.step;
 if (data && !step) return Astro.rewrite('/404');
-const prev = data?.steps.find((s) => s.position === num - 1);
 const next = data?.steps.find((s) => s.position === num + 1);
 ---
 <!-- صفحة الخطوة لا تُفهرس (canonical إلى صفحة المسار) لتجنب تكرار المحتوى -->
-<Base title={step && data ? `${step.title} — ${data.path.title}` : undefined} canonical={`/paths/${slug}`} noindex>
+<Base title={step && data ? `${step.title} — ${data.path.title}` : undefined} canonical={`/paths/${slug}`} noindex chrome="focus">
   {!data || !step ? <ErrorState /> : (
-    <div class="container narrow">
-      <header class="page-head">
-        <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'المسارات', href: '/paths' }, { label: data.path.title, href: `/paths/${data.path.slug}` }, { label: `الخطوة ${step.position}` }]} />
-        <div class="meta mb-0_9">
-          <span class="chip chip-gold">{STEP_TYPE[step.type] ?? step.type}</span>
-          <span class="chip">الخطوة {step.position} من {data.steps.length}</span>
+    <div class="app-col focus-wrap">
+      <header class="focus-top">
+        <div class="line">
+          <BackBtn href={`/paths/${data.path.slug}`} label="رجوع إلى المسار" />
+          <span class="grow-col"><span class="faint fs-0_8">{data.path.title}</span><strong class="fs-0_95">الخطوة {step.position} من {data.steps.length}</strong></span>
         </div>
-        <h1>{step.title}</h1>
       </header>
-      <div class="stack sp-1_5 py-1-2">
-        {step.instructions && <p class="prose fs-1_3">{step.instructions}</p>}
-        {step.step_materials.length > 0 && (
-          <div>
-            <h2 class="fs-1_4 mb-0_8">المواد المرتبطة بهذه الخطوة</h2>
-            <ul class="mats">
-              {step.step_materials.map((sm) => sm.materials ? (
-                <li><a class="mat" href={`/library/${sm.materials.slug}`}>
-                  <div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[sm.materials.type]}</span></div>
-                  <h3>{sm.materials.title}</h3>{sm.materials.description && <p>{sm.materials.description}</p>}
-                </a></li>
-              ) : <li class="mat unavailable">هذه المادة غير متاحة حاليًا</li>)}
-            </ul>
-          </div>
-        )}
+      <div class="focus-body">
+        <h1 class="step-title">{step.title}</h1>
+        {step.instructions && <p class="step-text">{step.instructions}</p>}
+        {data.mats.map((m) => <MaterialContent m={m} questions={m.questions} qa={qa} heading={data.mats.length > 1 || !!step.instructions} />)}
+        {step.step_materials.some((sm) => !sm.materials) && <p class="unavailable">بعض مواد هذه الخطوة غير متاحة حاليًا.</p>}
       </div>
-      <nav class="pager pb-2" aria-label="التنقل بين الخطوات">
-        {prev ? <a href={`/paths/${data.path.slug}/steps/${prev.position}`} rel="prev">الخطوة السابقة</a> : <span class="off">الخطوة السابقة</span>}
-        <a href={`/paths/${data.path.slug}`}>كل الخطوات</a>
-        {next ? <a href={`/paths/${data.path.slug}/steps/${next.position}`} rel="next">الخطوة التالية</a> : <span class="off">الخطوة التالية</span>}
-      </nav>
+      <div class="sheet-cta">
+        <p class="fs-1 fw-600">ابدأ المسار ليتذكّر الموقع أين وصلت</p>
+        <form method="post" action="/api/start-path" data-path-state={data.path.path_id}>
+          <input type="hidden" name="path_id" value={data.path.path_id} />
+          <input type="hidden" name="next" value={`/paths/${data.path.slug}`} />
+          <button class="btn btn-primary btn-block" type="submit">ابدأ هذا المسار</button>
+        </form>
+        {next ? <a class="link-quiet" href={`/paths/${data.path.slug}/steps/${next.position}`}>أكمل القراءة فقط</a> : <a class="link-quiet" href={`/paths/${data.path.slug}`}>كل الخطوات</a>}
+      </div>
     </div>
   )}
 </Base>
