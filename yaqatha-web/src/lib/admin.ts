@@ -7,6 +7,7 @@ import { BadInput, SLUG, UUID, httpUrl, oneOf, opt, slugify, str, uuid, uuids, t
 import { PATH_HANDLERS, PATH_MESSAGES } from './admin-paths';
 import { SERIES_HANDLERS, SERIES_MESSAGES } from './admin-series';
 import { FOLLOWUP_HANDLERS, FOLLOWUP_MESSAGES } from './admin-followup';
+import { REPORT_HANDLERS } from './admin-reports';
 import { parseYoutubeId, youtubeUrl } from './youtube';
 export { parseYoutubeId, youtubeInfo, youtubeThumb, youtubeUrl } from './youtube';
 export { slugify };
@@ -261,7 +262,7 @@ ADMIN_HANDLERS['onb-option-delete'] = async ({ token, form }) => {
   return { to: ONB, flash: 'حُذف الخيار' };
 };
 
-Object.assign(ADMIN_HANDLERS, PATH_HANDLERS, SERIES_HANDLERS, FOLLOWUP_HANDLERS);
+Object.assign(ADMIN_HANDLERS, PATH_HANDLERS, SERIES_HANDLERS, FOLLOWUP_HANDLERS, REPORT_HANDLERS);
 
 const MESSAGES: [RegExp, string][] = [
   ...PATH_MESSAGES,
@@ -288,6 +289,7 @@ export async function runAdminAction(name: string, form: FormData, token: string
     : /^(path|step|version)-/.test(name) ? (UUID.test(str(form, 'path_id', 40)) ? `/admin/paths/${str(form, 'path_id', 40)}` : '/admin/paths')
     : name.endsWith('-status') ? '/admin/taxonomy' : name.startsWith('team') ? '/admin/team'
     : name.startsWith('onb-') ? '/admin/onboarding'
+    : name.startsWith('report') ? '/admin/reports'
     : name.startsWith('request') ? '/admin/requests' : /^(settings|mentor)-/.test(name) ? '/admin/settings' : '/admin';
   if (!h) return { to: '/admin', flash: 'عملية غير معروفة', error: true };
   try {

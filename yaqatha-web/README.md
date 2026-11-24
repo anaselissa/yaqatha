@@ -80,6 +80,11 @@ sitemap وrobots، تحويل 301 عند تغيير الروابط، JSON-LD (We
 لا يُخزَّن أي محتوى شخصي). زر «ثبّت الآن» على أندرويد وتعليمات iPhone، وتذكير يومي في تقويم الهاتف (Google أو ملف
 `/reminder.ics?t=HH:MM` بوقت الجهاز المحلي) في «رحلتي» و«الإعدادات». `npm run test:app` (4).
 
+**المرحلة 5ب (بلا هجرة):** `/admin/reports` لبلاغات الزوار (المدير والمحرر؛ لا تظهر هوية المبلِّغ) — `npm run test:reports` (4).
+ونقطة دخول Cloudflare مخصصة `src/worker.ts` (معالج Astro نفسه + `scheduled`) مع `wrangler.jsonc` (cron يومي) لإبقاء Supabase
+المجاني نشطًا. تجربتها محليًا: `npx wrangler dev -c dist/server/wrangler.json` ثم
+`curl -X POST 'localhost:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=yaqatha-web' -d '{"cron":"17 5 * * *"}'`.
+
 **التالي:** انظر `../docs/PROGRESS.md`.
 البنية والعمليات في `docs/ADMIN.md`.
 
