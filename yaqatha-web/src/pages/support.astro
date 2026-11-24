@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import Star from '../components/Star.astro';
+import BackBtn from '../components/BackBtn.astro';
 import { getMyRequest, getSettings, REQUEST_STATUS, TOPICS, waLink } from '../lib/support';
 import { formatDate } from '../lib/labels';
 
@@ -8,70 +8,72 @@ const session = Astro.locals.session;
 const [st, mine] = await Promise.all([getSettings(), session ? getMyRequest(session.token, session.userId) : Promise.resolve(null)]);
 const wa = waLink(st.team_whatsapp, 'السلام عليكم، أريد متابعة من فريق يقظة');
 const days = st.mentorship_response_days;
+const lock = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>';
 ---
 <Base title="متابعة من فريق يقظة" description="تحب أن يتابع معك أحد من فريق يقظة؟ تواصل عبر واتساب أو اترك وسيلة تواصل ونتواصل معك.">
-  <div class="container narrow">
-    <header class="page-head">
-      <p class="gold d-flex gap-0_5 items-center m-0"><Star />لست وحدك في الطريق</p>
-      <h1 class="mt-0_5">متابعة من فريق يقظة</h1>
-      <p class="lead">التغيير أسهل مع رفيق. أحد من فريقنا يتابع معك خطوة بخطوة، ويذكّرك ويشجعك، بما يناسب وقتك.</p>
-    </header>
+  <div class="app-col screen">
+    <div class="screen-head"><BackBtn href={session ? '/account' : '/'} /></div>
+    <h1>رفيق من فريق يقظة</h1>
+    <p class="step-text">أخ من الفريق يتواصل معك، يذكّرك ويشجعك على ما بدأت.</p>
 
-    <div class="stack sp-2 py-1-3">
-      <div class="notice">
-        <strong>خصوصيتك أولًا.</strong> لا نسألك عن تفاصيل ذنوبك ولا نريدها؛ يكفينا المجال الذي تريد المساعدة فيه. ولا يرى بيانات التواصل إلا من يتابع معك، ويمكنك سحب طلبك وحذفه متى شئت.
-      </div>
+    {wa && <a class="btn btn-wa btn-block" href={wa} target="_blank" rel="noopener">راسلنا على واتساب</a>}
 
-      {wa && (
-        <section class="stack sp-0_7">
-          <h2 class="fs-1_5">الأسرع: راسلنا على واتساب</h2>
-          <p class="dim m-0">أنت من يبدأ، ولا نحتاج أي بيانات منك هنا.</p>
-          <div><a class="btn btn-primary" href={wa} target="_blank" rel="noopener">تواصل عبر واتساب</a></div>
-        </section>
-      )}
-
-      <section class="stack sp-0_9">
-        <h2 class="fs-1_5">{wa ? 'أو اطلب أن نتواصل معك' : 'اطلب أن نتواصل معك'}</h2>
-        {mine ? (
-          <div class="journey-card">
-            <p class="m-0"><strong>لديك طلب متابعة</strong> في «{TOPICS[mine.topic] ?? mine.topic}» منذ {formatDate(mine.created_at)}.</p>
-            <p class="dim m-0_4-0-1">الحالة: {REQUEST_STATUS[mine.status]}{mine.status === 'new' ? `. نتواصل معك خلال ${days} أيام بإذن الله.` : ''}</p>
-            <form method="post" action="/api/support-withdraw"><input type="hidden" name="id" value={mine.id} /><button class="btn btn-ghost btn-sm" type="submit">اسحب طلبي واحذف بياناتي</button></form>
-          </div>
-        ) : !st.mentorship_open ? (
-          <div class="notice" role="status">استقبال الطلبات متوقف مؤقتًا لأن الفريق يتابع عددًا كبيرًا الآن. {wa ? 'يمكنك مراسلتنا على واتساب.' : 'جرّب بعد أيام.'}</div>
-        ) : !session ? (
-          <div class="stack sp-0_7">
-            <p class="dim m-0">سجّل الدخول بحساب Google أولًا، حتى تستطيع متابعة طلبك أو سحبه متى شئت.</p>
-            <div><a class="btn btn-primary" href="/login?next=%2Fsupport">سجّل الدخول وأكمل الطلب</a></div>
-          </div>
-        ) : (
-          <form method="post" action="/api/support-request" class="stack sp-1_1">
-            <div class="field"><label for="name">بماذا نناديك؟</label>
-              <input id="name" name="name" type="text" required maxlength="80" value={session.name?.split(' ')[0] ?? ''} />
-              <span class="hint">يكفي اسمك الأول أو كنية.</span></div>
-            <fieldset class="field bd-0 p-0 m-0">
-              <legend class="fw-600 mb-0_35">أنت</legend>
-              <div class="row">
-                <label class="chip cursor-pointer"><input type="radio" name="gender" value="male" required checked /> أخ</label>
-                <label class="chip cursor-pointer"><input type="radio" name="gender" value="female" required /> أخت</label>
-              </div>
-              {!st.women_section_open && <span class="hint">قسم الأخوات لم يُفتح بعد، نسأل الله أن يكون قريبًا.</span>}
-            </fieldset>
-            <div class="field"><label for="topic">في أي مجال تحب أن نساعدك؟</label>
-              <select id="topic" name="topic" required>{Object.entries(TOPICS).map(([k, l]) => <option value={k}>{l}</option>)}</select></div>
-            <div class="field"><label for="phone">رقم الهاتف أو واتساب</label>
-              <input id="phone" name="phone" type="tel" dir="ltr" inputmode="tel" maxlength="30" placeholder="+9627XXXXXXXX" class="input" />
-              <span class="hint">مع رمز الدولة. أو اترك الرقم فارغًا واكتب وسيلة أخرى تحت.</span></div>
-            <div class="field"><label for="other">وسيلة تواصل أخرى <span class="faint">(اختياري)</span></label>
-              <input id="other" name="other_contact" type="text" maxlength="200" placeholder="تيليجرام، بريد…" /></div>
-            <div class="field"><label for="time">الوقت المناسب للتواصل <span class="faint">(اختياري)</span></label>
-              <input id="time" name="preferred_time" type="text" maxlength="100" placeholder="مثال: بعد العشاء" /></div>
-            <p class="faint m-0 fs-0_95">بإرسال الطلب توافق على أن يتواصل معك أحد أعضاء فريق يقظة. نتواصل معك خلال {days} أيام بإذن الله.</p>
-            <div><button class="btn btn-primary" type="submit">أرسل الطلب</button></div>
+    {mine ? (
+      <section class="card" aria-labelledby="mine-h">
+        <h2 id="mine-h" class="fs-1_05">لديك طلب متابعة</h2>
+        <p class="sub">في «{TOPICS[mine.topic] ?? mine.topic}» منذ {formatDate(mine.created_at)}. الحالة: {REQUEST_STATUS[mine.status]}{mine.status === 'new' ? `. نتواصل معك خلال ${days} أيام بإذن الله.` : '.'}</p>
+        {mine.share_progress !== undefined && (
+          <form method="post" action="/api/share-progress" class="row">
+            <input type="hidden" name="on" value={mine.share_progress ? '0' : '1'} /><input type="hidden" name="next" value="/support" />
+            <span class="grow-col">مشرفك يرى تقدّمك في مساراتك<span class="faint fs-0_85">{mine.share_progress ? 'مفعّل: يرى المسارات وأين وصلت فقط' : 'متوقف'}</span></span>
+            <button class="btn btn-ghost btn-sm" type="submit">{mine.share_progress ? 'أوقف' : 'شارك'}</button>
           </form>
         )}
+        <form method="post" action="/api/support-withdraw"><input type="hidden" name="id" value={mine.id} /><button class="link-quiet" type="submit">اسحب طلبي واحذف بياناتي</button></form>
       </section>
-    </div>
+    ) : !st.mentorship_open ? (
+      <p class="notice" role="status">استقبال الطلبات متوقف مؤقتًا لأن الفريق يتابع عددًا كبيرًا الآن. {wa ? 'يمكنك مراسلتنا على واتساب.' : 'جرّب بعد أيام.'}</p>
+    ) : !session ? (
+      <div class="card">
+        <p class="sub">سجّل الدخول بحساب Google أولًا، حتى تستطيع متابعة طلبك أو سحبه متى شئت.</p>
+        <a class="btn btn-primary btn-block" href="/login?next=%2Fsupport">سجّل الدخول وأكمل الطلب</a>
+      </div>
+    ) : (
+      <>
+        {wa && <p class="or-line">أو نتواصل نحن معك</p>}
+        <form method="post" action="/api/support-request" class="stack sp-1_1">
+          <div class="field"><label for="phone">رقمك على واتساب</label>
+            <input id="phone" name="phone" type="tel" dir="ltr" inputmode="tel" maxlength="30" placeholder="+9627XXXXXXXX" class="input" autocomplete="tel" />
+            <span class="hint">مع رمز الدولة.</span></div>
+          <details class="more-contact">
+            <summary>أضف وسيلة تواصل أخرى</summary>
+            <div class="stack sp-0_9 mt-0_8">
+              <div class="field"><label for="other">وسيلة أخرى</label><input id="other" name="other_contact" type="text" maxlength="200" placeholder="تيليجرام، بريد…" /></div>
+              <div class="field"><label for="time">الوقت المناسب للتواصل</label><input id="time" name="preferred_time" type="text" maxlength="100" placeholder="مثال: بعد العشاء" /></div>
+            </div>
+          </details>
+          <fieldset class="stack sp-0_5 bd-0 p-0 m-0">
+            <legend class="fw-600 mb-0_6">في ماذا تحب أن نرافقك؟</legend>
+            <div class="chips chips-radio">{Object.entries(TOPICS).map(([k, l], i) => <label><input type="radio" name="topic" value={k} required checked={i === 0} />{l}</label>)}</div>
+          </fieldset>
+          <div class="field"><label for="name">بماذا نناديك؟</label>
+            <input id="name" name="name" type="text" required maxlength="80" value={session.name?.split(' ')[0] ?? ''} /></div>
+          <fieldset class="stack sp-0_5 bd-0 p-0 m-0">
+            <legend class="fw-600 mb-0_6">أنت</legend>
+            <div class="chips chips-radio">
+              <label><input type="radio" name="gender" value="male" required checked />أخ</label>
+              <label><input type="radio" name="gender" value="female" required />أخت</label>
+            </div>
+            {!st.women_section_open && <span class="hint">قسم الأخوات لم يُفتح بعد، نسأل الله أن يكون قريبًا.</span>}
+          </fieldset>
+          <label class="check-card">
+            <input type="checkbox" name="share_progress" />
+            <span><strong>شارك مشرفك تقدّمك في مساراتك</strong><span class="faint fs-0_85">يرى المسارات وأين وصلت فقط، لا ما تكتبه لنفسك. تلغيه متى شئت.</span></span>
+          </label>
+          <p class="privacy-note"><Fragment set:html={lock} />رقمك لا يراه إلا من يتابعك. نتواصل معك خلال {days} أيام بإذن الله.</p>
+          <button class="btn btn-primary btn-block" type="submit">أرسل الطلب</button>
+        </form>
+      </>
+    )}
   </div>
 </Base>

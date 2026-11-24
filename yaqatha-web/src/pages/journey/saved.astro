@@ -1,35 +1,37 @@
 ---
 import Base from '../../layouts/Base.astro';
-import JourneyNav from '../../components/JourneyNav.astro';
 import ErrorState from '../../components/ErrorState.astro';
-import PostButton from '../../components/PostButton.astro';
+import BackBtn from '../../components/BackBtn.astro';
 import { getSaved } from '../../lib/user';
 import { MATERIAL_TYPE } from '../../lib/labels';
 import { load } from '../../lib/page';
 const saved = await load(Astro.response, () => getSaved(Astro.locals.session!.token));
+const ICON: Record<string, string> = { video: 'M8 6v12l10-6z', article: 'M5 4h10l4 4v12H5zM14 4v4h5', external_link: 'M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.5 1-3 14-3.5-1z' };
 ---
 <Base title="المحفوظات" noindex>
   {!saved ? <ErrorState /> : (
-    <div class="container">
-      <header class="page-head"><h1>المحفوظات</h1><JourneyNav /></header>
-      <section class="section section-tight">
-        {saved.length ? (
-          <ul class="mats">{saved.map((s) => (
-            <li class="py-0_4">
-              {s.materials ? (
-                <div class="row justify-between items-start">
-                  <a class="mat flex-1" href={`/library/${s.materials.slug}`}><div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[s.materials.type]}</span></div><h3>{s.materials.title}</h3></a>
-                  <PostButton action="unsave-material" fields={{ material_id: s.material_id }} label="إزالة" />
-                </div>
-              ) : (
-                <div class="row justify-between"><span class="unavailable">هذه المادة غير متاحة حاليًا</span>
-                  <PostButton action="unsave-material" fields={{ material_id: s.material_id }} label="إزالة" /></div>
-              )}
-            </li>))}</ul>
-        ) : (
-          <div class="empty"><h2>لم تحفظ مادة بعد</h2><p>احفظ ما تريد الرجوع إليه من صفحة أي مادة.</p><div class="actions"><a class="btn btn-primary" href="/library">تصفّح المواد</a></div></div>
-        )}
-      </section>
+    <div class="app-col screen">
+      <div class="screen-head"><BackBtn href="/account" label="رجوع إلى حسابي" /><h1>المحفوظات</h1></div>
+      {saved.length > 0 && (
+        <ul class="list-flat">{saved.map((s) => (
+          <li class="saved-row">
+            {s.materials ? (
+              <a class="row-link" href={`/library/${s.materials.slug}`}>
+                <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d={ICON[s.materials.type] ?? ICON.article}></path></svg></span>
+                <span class="grow"><span class="t">{s.materials.title}</span><span class="s">{MATERIAL_TYPE[s.materials.type]}</span></span>
+              </a>
+            ) : <span class="row-link unavailable">هذه المادة غير متاحة حاليًا</span>}
+            <form method="post" action="/api/unsave-material">
+              <input type="hidden" name="material_id" value={s.material_id} />
+              <button class="unsave" type="submit" aria-label="أزلها من المحفوظات"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z" fill="var(--gold)"></path></svg></button>
+            </form>
+          </li>))}</ul>
+      )}
+      <div class="card-dashed">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" class="center-self"><path d="M6 3h12v18l-6-4-6 4z"></path></svg>
+        <p>{saved.length ? 'احفظ أي مادة بعلامة الحفظ أعلاها، لتعود إليها هنا.' : 'لم تحفظ مادة بعد. احفظ أي مادة بعلامة الحفظ أعلاها، لتعود إليها هنا.'}</p>
+        {!saved.length && <a class="link-quiet" href="/library">تصفّح المكتبة</a>}
+      </div>
     </div>
   )}
 </Base>

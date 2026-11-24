@@ -841,3 +841,22 @@ a.plain { color: inherit; text-decoration: none; }
 .big-count b { font-size: 2.2rem; color: var(--text); }
 .goal-moves.quiet .btn { min-height: 2.3rem; font-size: .85rem; padding: .2rem .8rem; background: none; border-color: var(--line); color: var(--dim); }
 .kind-pick { margin-top: .4rem; }
+.btn-wa { background: none; border-color: var(--teal); color: var(--text); }
+.btn-wa:hover { background: var(--teal-soft); color: var(--text); }
+.or-line { display: flex; align-items: center; gap: .8rem; color: var(--dim); font-size: .85rem; }
+.or-line::before, .or-line::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.more-contact summary { cursor: pointer; color: var(--gold-text); font-size: .92rem; list-style-position: inside; }
+.check-card { display: flex; gap: .8rem; align-items: flex-start; padding: .9rem 1rem; border-radius: 16px; background: var(--surface); cursor: pointer; }
+:root[data-theme='light'] .check-card { border: 1px solid var(--line); }
+.check-card input { width: 1.3rem; height: 1.3rem; accent-color: var(--gold); flex: none; margin-top: .2rem; }
+.check-card > span { display: grid; gap: .2rem; }
+.chips-radio { flex-wrap: wrap; }
+.saved-row { display: flex; align-items: center; }
+.saved-row .row-link { flex: 1; min-width: 0; }
+.saved-row form { padding-inline-end: .8rem; }
+.unsave { width: 2.6rem; height: 2.6rem; display: grid; place-items: center; border: 0; background: none; cursor: pointer; border-radius: 50%; }
+.unsave svg { width: 1.2rem; height: 1.2rem; }
+.unsave:hover { background: var(--surface-hi); }
+.card-dashed { display: grid; gap: .5rem; justify-items: center; }
+.text-page .legal h2 { font-size: 1.2rem; color: var(--text); margin-block: 1.3rem .3rem; }
+.text-page .legal { font-size: 1rem; line-height: 1.9; color: var(--body); }

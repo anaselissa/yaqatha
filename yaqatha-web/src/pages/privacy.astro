@@ -1,14 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
-import Breadcrumbs from '../components/Breadcrumbs.astro';
+import BackBtn from '../components/BackBtn.astro';
 ---
 <Base title="الخصوصية" description="كيف تتعامل يقظة مع بياناتك: لا تتبع ولا إعلانات، والحساب اختياري، وتحذف بياناتك متى شئت.">
-  <div class="container narrow">
-    <header class="page-head">
-      <Breadcrumbs items={[{ label: 'الرئيسية', href: '/' }, { label: 'الخصوصية' }]} />
-      <h1>الخصوصية</h1>
-    </header>
-    <div class="prose stack legal py-1-3 sp-1_1">
+  <div class="app-col screen text-page">
+    <div class="screen-head"><BackBtn href="/account" /><h1>الخصوصية</h1></div>
+    <div class="prose stack legal sp-1">
       <p>نجمع أقل قدر ممكن من البيانات، ولا نجمع ما لا تحتاجه وظيفة الموقع. تصفّح الموقع لا يتطلب حسابًا.</p>
       <h2>إن لم تسجّل الدخول</h2>
       <ul>

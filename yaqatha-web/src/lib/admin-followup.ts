@@ -21,6 +21,13 @@ export async function impactStats(token: string): Promise<Stats | null> {
 export interface Request {
   id: string; name: string; phone: string | null; other_contact: string | null; preferred_time: string | null;
   topic: string; gender: string; status: string; assigned_to: string | null; staff_note: string | null; created_at: string; updated_at: string;
+  share_progress?: boolean;
+}
+export interface MenteePath { title: string; done: number; total: number; started_at: string; last_activity: string }
+/** تقدّم صاحب الطلب في مساراته، إن اختار أن يشاركه (الهجرة 13). null إن لم يشارك أو تعذّر. */
+export async function menteeProgress(token: string, id: string): Promise<MenteePath[] | null> {
+  try { return await rpc<MenteePath[] | null>('mentee_progress', { request_id: id }, token); }
+  catch (e) { console.error('[mentee-progress]', (e as Error).message); return null; }
 }
 export async function listRequests(token: string, status?: string) {
   const params: Record<string, string> = { select: '*', order: 'created_at.desc', limit: '200' };
