@@ -44,7 +44,7 @@ const link = (over: Record<string, string | undefined>) => {
         <h1>المواد والمحتوى</h1>
         <p class="lead">لكل مادة مصدرها الأصلي. ونميّز بين المادة الأصلية وما أعدّه فريق يقظة.</p>
       </header>
-      <section class="section pbs-1">
+      <section class="section section-tight">
         <div class="filters" role="group" aria-label="النوع">
           <a href={link({ type: undefined, page: undefined })} aria-current={!f.type ? 'true' : undefined}>كل الأنواع</a>
           {Object.entries(MATERIAL_TYPE).map(([k, v]) => <a href={link({ type: k })} aria-current={f.type === k ? 'true' : undefined}>{v}</a>)}

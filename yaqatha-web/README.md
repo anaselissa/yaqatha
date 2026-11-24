@@ -85,6 +85,13 @@ sitemap وrobots، تحويل 301 عند تغيير الروابط، JSON-LD (We
 المجاني نشطًا. تجربتها محليًا: `npx wrangler dev -c dist/server/wrangler.json` ثم
 `curl -X POST 'localhost:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=yaqatha-web' -d '{"cron":"17 5 * * *"}'`.
 
+**التصميم — أين تعدّل وكيف تتأكد:**
+- كل الشكل في `src/styles/global.css`: المتغيرات (الألوان والخطوط) في `:root` أولًا، ثم المكوّنات (`.btn`, `.chip`, `.notice`,
+  `.field`, `.page-head`, `.adm-list`…)، ثم أنماط دلالية (`.section-tight`, `.section-flush`, `.block-title`)، وأخيرًا الأصناف
+  المساعدة (`mt-1`, `sp-0_8`, `fs-1_4`…). لا تنسيقات مضمَّنة في الصفحات (إلا القيم الديناميكية).
+- قبل أي تعديل بصري: `npm run visual:baseline` ثم بعده `npm run visual:compare` (35 صفحة على الجوال؛ صور الفرق في `tests/visual/diff`).
+  لإعادة ترتيب «بلا تغيّر في الشكل» يجب أن تكون النتيجة: لا فروق.
+
 **التالي:** انظر `../docs/PROGRESS.md`.
 البنية والعمليات في `docs/ADMIN.md`.
 

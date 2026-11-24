@@ -105,7 +105,7 @@ const KIND: Record<string, string> = { carried: 'سيُنقل تقدمها', new
       </div>
 
       {!withdrawn && (
-        <section class="section pbs-0" aria-labelledby="steps-h">
+        <section class="section section-flush" aria-labelledby="steps-h">
           <div class="section-title"><h2 id="steps-h">الخطوات</h2></div>
           {d.steps.map((s) => (
             <div class="step-row">
@@ -163,7 +163,7 @@ const KIND: Record<string, string> = { carried: 'سيُنقل تقدمها', new
       )}
 
       {active && (
-        <section class="section pbs-0">
+        <section class="section section-flush">
           <details class="fold"><summary>خيارات المسار</summary>
             <div class="stack sp-0_8 mt-1">
               <div class="row"><PostButton action="restart" fields={{ enrollment_id: e.id }} label="ابدأ من جديد" /><span class="faint">يُؤرشف تقدمك الحالي ويبدأ مسار جديد على آخر إصدار.</span></div>

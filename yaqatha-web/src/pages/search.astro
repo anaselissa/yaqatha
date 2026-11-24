@@ -27,7 +27,7 @@ const GROUPS: { kind: SearchHit['kind']; label: string; href: (s: string) => str
         <h1>بحث</h1>
         <div class="mt-1_2"><SearchForm q={q} autofocus={!q} /></div>
       </header>
-      <section class="section pbs-1" aria-live="polite">
+      <section class="section section-tight" aria-live="polite">
         {!q ? (
           <p class="dim">اكتب ما يشغلك بكلماتك: «الغضب»، «الصلاة»، «بر الوالدين»…</p>
         ) : data.hits.length === 0 ? (

@@ -12,7 +12,7 @@ const saved = await load(Astro.response, () => getSaved(Astro.locals.session!.to
   {!saved ? <ErrorState /> : (
     <div class="container">
       <header class="page-head"><h1>المحفوظات</h1><JourneyNav /></header>
-      <section class="section pbs-1">
+      <section class="section section-tight">
         {saved.length ? (
           <ul class="mats">{saved.map((s) => (
             <li class="py-0_4">

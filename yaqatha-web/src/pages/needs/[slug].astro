@@ -41,14 +41,14 @@ const hasContent = !!content && (content.paths.length > 0 || content.materials.l
       </header>
 
       {content.paths.length > 0 && (
-        <section class="section pbs-1" aria-labelledby="paths-h">
+        <section class="section section-tight" aria-labelledby="paths-h">
           <div class="section-title"><h2 id="paths-h">مسارات عملية لهذا الاحتياج</h2></div>
           <div class="grid grid-2">{content.paths.map((p) => <PathCard path={p} />)}</div>
         </section>
       )}
 
       {content.materials.length > 0 && (
-        <section class="section pbs-1" aria-labelledby="mats-h">
+        <section class="section section-tight" aria-labelledby="mats-h">
           <div class="section-title">
             <h2 id="mats-h">مواد تعينك</h2>
             {content.hasMoreMaterials && <a href={`/library?need=${need.slug}`}>عرض كل المواد</a>}
@@ -58,7 +58,7 @@ const hasContent = !!content && (content.paths.length > 0 || content.materials.l
       )}
 
       {!hasContent && (
-        <section class="section pbs-1">
+        <section class="section section-tight">
           <EmptyState title="لم ننشر مواد لهذا الاحتياج بعد" text="نعمل على إعداده بعناية، ولن نعرض إلا ما راجعناه. يمكنك البحث أو تصفّح احتياجات أخرى.">
             <a class="btn btn-primary" href="/search">ابحث</a>
             {door && <a class="btn btn-ghost" href={`/doors/${door.slug}`}>احتياجات أخرى في «{door.title}»</a>}
@@ -67,14 +67,14 @@ const hasContent = !!content && (content.paths.length > 0 || content.materials.l
       )}
 
       {content.topics.length > 0 && (
-        <section class="section pbs-0" aria-labelledby="topics-h">
+        <section class="section section-flush" aria-labelledby="topics-h">
           <h2 id="topics-h" class="section-title fs-1_4 c-dim">موضوعات ذات صلة</h2>
           <div class="filters">{content.topics.map((t) => <a href={`/topics/${t.slug}`}>{t.title}</a>)}</div>
         </section>
       )}
 
       {data.siblings && data.siblings.length > 0 && (
-        <section class="section pbs-0" aria-labelledby="more-h">
+        <section class="section section-flush" aria-labelledby="more-h">
           <h2 id="more-h" class="section-title fs-1_4 c-dim">احتياجات أخرى في هذا الباب</h2>
           <NeedList needs={data.siblings} />
         </section>

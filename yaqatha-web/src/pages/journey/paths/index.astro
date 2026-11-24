@@ -16,7 +16,7 @@ const REASON: Record<string, string> = { migrated: 'انتقلتَ منه إلى
   {!data ? <ErrorState /> : (
     <div class="container">
       <header class="page-head"><h1>مساراتي</h1><JourneyNav /></header>
-      <section class="section pbs-1">
+      <section class="section section-tight">
         {data.active.length ? (
           <><h2 class="sr-only">مساراتي الجارية</h2><div class="grid grid-2">{data.active.map((e) => {
             const p = data.prog.get(e.id);
@@ -28,7 +28,7 @@ const REASON: Record<string, string> = { migrated: 'انتقلتَ منه إلى
         )}
       </section>
       {data.archived.length > 0 && (
-        <section class="section pbs-0">
+        <section class="section section-flush">
           <details class="fold"><summary>مسارات مؤرشفة ({data.archived.length})</summary>
             <ul class="mats mt-1">{data.archived.map((e) => {
               const p = data.prog.get(e.id);

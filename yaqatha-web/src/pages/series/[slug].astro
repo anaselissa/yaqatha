@@ -23,7 +23,7 @@ const s = data?.series;
         {s.description && <p class="lead">{s.description}</p>}
         {data.items[0] && <p class="mt-1_2"><a class="btn btn-primary" href={`/library/${data.items[0].slug}`}>ابدأ من الحلقة الأولى</a></p>}
       </header>
-      <section class="section pbs-0" aria-label="الحلقات">
+      <section class="section section-flush" aria-label="الحلقات">
         <ol class="mats list-none">
           {data.items.map((m, i) => (
             <li>

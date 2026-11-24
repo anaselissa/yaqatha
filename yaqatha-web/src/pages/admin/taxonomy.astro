@@ -18,7 +18,7 @@ const label = (st: string) => (st === 'published' ? 'منشور' : st === 'draft
 
       {tax.doors.map((d) => (
         <section class="stack sp-0_6">
-          <h2 class="fs-1_35">{d.title}</h2>
+          <h2 class="block-title">{d.title}</h2>
           <ul class="adm-list">
             {tax.needs.filter((n) => n.door_id === d.id).map((n) => {
               const c = counts.needs[n.id] ?? 0;
@@ -45,7 +45,7 @@ const label = (st: string) => (st === 'published' ? 'منشور' : st === 'draft
       ))}
 
       <section class="stack sp-0_6">
-        <h2 class="fs-1_35">المجالات</h2>
+        <h2 class="block-title">المجالات</h2>
         <p class="faint m-0">للمجال صفحة مستقلة تجمع مواده ومساراته من كل الأبواب.</p>
         <ul class="adm-list">
           {tax.domains.map((d) => {

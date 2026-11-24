@@ -21,7 +21,7 @@ const [item, tax] = data ?? [null, null];
       <MaterialForm m={item.material} needIds={item.needIds} domainIds={item.domainIds} review={item.review} {...tax} />
 
       <section id="questions" class="stack sp-0_8 maxw-44 pt-1_5">
-        <h2 class="fs-1_35">اختبر فهمك: أسئلة بعد المادة</h2>
+        <h2 class="block-title">اختبر فهمك: أسئلة بعد المادة</h2>
         <p class="faint m-0">تظهر تحت المادة للزوار. اختيار من متعدد، مع شرح قصير بعد الإجابة. الإجابة الصحيحة الأولى تمنح المستخدم نقاطًا.</p>
         {item.questions.length > 0 && (
           <ol class="adm-list list-none">

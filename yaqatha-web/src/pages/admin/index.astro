@@ -16,7 +16,7 @@ const first = s.name?.split(' ')[0];
     <div class="stack sp-2">
       {impact && (
         <section class="stack sp-0_9">
-          <h2 class="fs-1_35">الأثر</h2>
+          <h2 class="block-title">الأثر</h2>
           {isManager && impact.requests_new > 0 && (
             <a class="notice d-block td-none" href="/admin/requests?status=new"><strong>{impact.requests_new} طلب متابعة جديد</strong> بانتظار من يتواصل معه ←</a>
           )}
@@ -46,7 +46,7 @@ const first = s.name?.split(' ')[0];
         </section>
       )}
       <section class="stack sp-0_9">
-        <h2 class="fs-1_35">المحتوى الآن</h2>
+        <h2 class="block-title">المحتوى الآن</h2>
         <div class="stats">
           <a class="stat" href="/admin/materials?status=published"><b>{stats.published}</b><span>مادة منشورة</span></a>
           <a class="stat" href="/admin/materials?status=draft"><b>{stats.draft}</b><span>مسودة</span></a>
@@ -59,7 +59,7 @@ const first = s.name?.split(' ')[0];
       </section>
 
       <section class="stack sp-0_9">
-        <h2 class="fs-1_35">ابدأ من هنا</h2>
+        <h2 class="block-title">ابدأ من هنا</h2>
         <div class="row">
           <a class="btn btn-primary" href="/admin/materials/new">أضف مادة</a>
           <a class="btn btn-ghost" href="/admin/materials/new?type=video">أضف مقطعًا من يوتيوب</a>

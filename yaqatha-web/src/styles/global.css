@@ -306,6 +306,11 @@ details.fold summary { cursor: pointer; font-weight: 600; }
 .onb-opt:has(input:checked) { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); }
 .onb-opt input { accent-color: var(--gold); width: 1.2rem; height: 1.2rem; flex: none; }
 
+/* أنماط دلالية متكررة (كانت تنسيقات مضمَّنة) */
+.section.section-tight { padding-block-start: 1rem; }
+.section.section-flush { padding-block-start: 0; }
+.block-title { font-size: 1.35rem; }
+
 /* ============================================================
    أصناف مساعدة: كانت تنسيقات مكتوبة داخل الصفحات (style="…") ونُقلت هنا بالقيم نفسها.
    !important لتبقى أقوى من قواعد المكوّنات كما كانت التنسيقات المضمّنة. عند إعادة التصميم: عدّل هنا أو استبدلها بأصناف دلالية.
@@ -353,7 +358,6 @@ details.fold summary { cursor: pointer; font-weight: 600; }
 .fs-1_2 { font-size: 1.2rem !important; }
 .fs-1_25 { font-size: 1.25rem !important; }
 .fs-1_3 { font-size: 1.3rem !important; }
-.fs-1_35 { font-size: 1.35rem !important; }
 .fs-1_4 { font-size: 1.4rem !important; }
 .fs-1_5 { font-size: 1.5rem !important; }
 .fs-1_6 { font-size: 1.6rem !important; }
@@ -409,8 +413,6 @@ details.fold summary { cursor: pointer; font-weight: 600; }
 .pb-1 { padding-bottom: 1rem !important; }
 .pb-2 { padding-bottom: 2rem !important; }
 .pb-3 { padding-bottom: 3rem !important; }
-.pbs-0 { padding-block-start: 0 !important; }
-.pbs-1 { padding-block-start: 1rem !important; }
 .ps-1_2 { padding-inline-start: 1.2rem !important; }
 .pt-1_5 { padding-top: 1.5rem !important; }
 .td-none { text-decoration: none !important; }

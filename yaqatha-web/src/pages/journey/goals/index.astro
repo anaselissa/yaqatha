@@ -18,7 +18,7 @@ const goals = await load(Astro.response, () => getGoals(t, TABS[cur][1]));
   {!goals ? <ErrorState /> : (
     <div class="container">
       <header class="page-head"><h1>أهدافي</h1><JourneyNav /></header>
-      <section class="section pbs-1">
+      <section class="section section-tight">
         <div class="section-title"><div class="filters m-0" role="group" aria-label="الحالة">
           {Object.entries(TABS).map(([k, [l]]) => <a href={`/journey/goals?status=${k}`} aria-current={cur === k ? 'true' : undefined}>{l}</a>)}
         </div><a class="btn btn-primary btn-sm" href="/journey/goals/new">هدف جديد</a></div>

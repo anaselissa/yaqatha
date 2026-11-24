@@ -107,7 +107,7 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
       </div>
 
       {FEATURES.accounts && (
-        <section class="section pbs-0" aria-label="إجراءات المادة">
+        <section class="section section-flush" aria-label="إجراءات المادة">
           <div class="row">
             <form method="post" action="/api/save-material" data-material-state={m.id}>
               <input type="hidden" name="material_id" value={m.id} />
@@ -127,13 +127,13 @@ const ld = m && (m.type === 'article' || m.type === 'guidance') ? {
       )}
 
       {rel.needs.length > 0 && (
-        <section class="section pbs-1">
+        <section class="section section-tight">
           <div class="section-title"><h2>احتياجات ترتبط بهذه المادة</h2></div>
           <NeedList needs={rel.needs} />
         </section>
       )}
       {rel.topics.length > 0 && (
-        <section class="section pbs-0">
+        <section class="section section-flush">
           <h2 class="section-title fs-1_4 c-dim">موضوعات</h2>
           <div class="filters">{rel.topics.map((t) => <a href={`/topics/${t.slug}`}>{t.title}</a>)}</div>
         </section>

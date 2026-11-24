@@ -28,7 +28,7 @@ const drafts = ed?.episodes.filter((e) => e.materials.status === 'draft').length
       </p>
 
       <section id="episodes" class="stack sp-0_8">
-        <h2 class="fs-1_35">الحلقات</h2>
+        <h2 class="block-title">الحلقات</h2>
         {drafts > 0 && (
           <div class="notice" role="status">
             {drafts} حلقة غير منشورة؛ لا يراها الزائر.
@@ -87,7 +87,7 @@ const drafts = ed?.episodes.filter((e) => e.materials.status === 'draft').length
 
       {ed.episodes.length > 0 && (
         <section class="stack sp-0_6">
-          <h2 class="fs-1_35">حوّلها إلى مسار</h2>
+          <h2 class="block-title">حوّلها إلى مسار</h2>
           <p class="faint m-0">ننشئ مسارًا (غير منشور) فيه خطوة مشاهدة لكل حلقة بترتيبها، ويرث احتياجاتها. بعدها تضيف أسئلة التفكير والتمارين وتنشره.</p>
           <form method="post" action="/api/admin/series-to-path">
             <input type="hidden" name="series_id" value={id} />

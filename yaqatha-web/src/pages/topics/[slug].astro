@@ -29,14 +29,14 @@ const c = data && 'content' in data ? data.content : null;
         {topic.description && <p class="lead">{topic.description}</p>}
       </header>
       {c.needs.length > 0 && (
-        <section class="section pbs-1"><div class="section-title"><h2>احتياجات ذات صلة</h2></div><NeedList needs={c.needs} /></section>
+        <section class="section section-tight"><div class="section-title"><h2>احتياجات ذات صلة</h2></div><NeedList needs={c.needs} /></section>
       )}
       {c.materials.length > 0 && (
-        <section class="section pbs-1"><div class="section-title"><h2>مواد</h2>{c.hasMoreMaterials && <a href={`/library?topic=${topic.slug}`}>عرض كل المواد</a>}</div>
+        <section class="section section-tight"><div class="section-title"><h2>مواد</h2>{c.hasMoreMaterials && <a href={`/library?topic=${topic.slug}`}>عرض كل المواد</a>}</div>
           <MaterialList items={c.materials} /></section>
       )}
       {!c.needs.length && !c.materials.length && (
-        <section class="section pbs-1">
+        <section class="section section-tight">
           <EmptyState title="لم ننشر مواد في هذا الموضوع بعد"><a class="btn btn-primary" href="/search">ابحث</a><a class="btn btn-ghost" href="/discover">اكتشف احتياجك</a></EmptyState>
         </section>
       )}
