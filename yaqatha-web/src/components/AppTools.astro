@@ -1,0 +1,30 @@
+---
+// ثبّت يقظة على هاتفك + تذكير يومي في التقويم. يعمل بلا JavaScript (روابط افتراضية للساعة 8 مساءً)،
+// ويحسّنه ui.ts: زر التثبيت على أندرويد، وتعليمات iPhone، وتحديث الروابط حسب الوقت والمنطقة الزمنية.
+interface Props { compact?: boolean }
+const { compact = false } = Astro.props;
+const times = ['05:30', '06:30', '07:30', '13:00', '17:00', '20:00', '21:00', '22:00'];
+const label = (t: string) => { const [h, m] = t.split(':').map(Number); const hh = h % 12 || 12; return `${hh}:${String(m).padStart(2, '0')} ${h < 12 ? 'صباحًا' : h < 17 ? 'ظهرًا' : 'مساءً'}`; };
+const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+const gcal = `https://calendar.google.com/calendar/render?${new URLSearchParams({ action: 'TEMPLATE', text: 'يقظة: خطوتك اليوم', recur: 'RRULE:FREQ=DAILY', dates: `${ymd}T200000/${ymd}T201000`, ctz: 'Asia/Riyadh' })}`;
+---
+<div class="app-tools" style={compact ? '' : 'margin-block:1rem'}>
+  <div class="notice" data-install hidden>
+    <strong>ثبّت يقظة على هاتفك</strong>
+    <span class="dim"> وافتحها بلمسة مثل أي تطبيق، بلا متجر ولا مساحة تُذكر.</span>
+    <div style="margin-top:.6rem"><button class="btn btn-primary btn-sm" type="button" data-install-btn hidden>ثبّت الآن</button></div>
+    <p data-install-ios hidden style="margin:.5rem 0 0">على iPhone: اضغط زر المشاركة <span aria-hidden="true">⎋</span> في Safari، ثم «إضافة إلى الشاشة الرئيسية».</p>
+  </div>
+  <div class="notice" data-reminder>
+    <strong>تذكير يومي بخطوتك</strong>
+    <span class="dim"> يصلك من تقويم هاتفك في الوقت الذي تختاره. تلغيه من التقويم متى شئت.</span>
+    <div class="row" style="margin-top:.7rem; align-items:center">
+      <label class="sr-only" for="rem-time">وقت التذكير</label>
+      <select id="rem-time" class="input" style="max-width:11rem; min-height:2.5rem">
+        {times.map((t) => <option value={t} selected={t === '20:00'}>{label(t)}</option>)}
+      </select>
+      <a class="btn btn-primary btn-sm" data-gcal href={gcal} target="_blank" rel="noopener">أضف إلى تقويم Google</a>
+      <a class="btn btn-ghost btn-sm" data-ics href="/reminder.ics?t=20:00">تقويم iPhone وغيره</a>
+    </div>
+  </div>
+</div>

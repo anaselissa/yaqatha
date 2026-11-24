@@ -20,6 +20,7 @@
     "test:admin-followup": "node --test --test-concurrency=1 tests/admin-followup.e2e.mjs",
     "test:quiz": "node --test --test-concurrency=1 tests/quiz.e2e.mjs",
     "test:onboarding": "node --test --test-concurrency=1 tests/onboarding.e2e.mjs",
+    "test:app": "node --test --test-concurrency=1 tests/app.e2e.mjs",
     "test:e2e": "tests/e2e.sh",
     "smoke:remote": "node scripts/smoke-remote.mjs"
   },

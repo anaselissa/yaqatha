@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import JourneyNav from '../../components/JourneyNav.astro';
+import AppTools from '../../components/AppTools.astro';
 import { ROLE, getStaffRole } from '../../lib/admin';
 const s = Astro.locals.session!;
 const role = await getStaffRole(s.token, s.userId).catch(() => null);
@@ -14,6 +15,10 @@ const role = await getStaffRole(s.token, s.userId).catch(() => null);
         <p class="dim">{s.name ? `${s.name} · ` : ''}<span dir="ltr">{s.email}</span></p>
         <p class="faint" style="font-size:.95rem; margin-block:.4rem 1rem">يأتي الاسم والبريد من حساب Google، ولا نخزّن غيرهما عنك سوى أهدافك وتقدمك ومحفوظاتك.</p>
         <form method="post" action="/auth/logout"><button class="btn btn-ghost" type="submit">تسجيل الخروج</button></form>
+      </section>
+      <section>
+        <h2 style="font-size:1.5rem; margin-bottom:.6rem">التطبيق والتذكير</h2>
+        <AppTools compact />
       </section>
       {role && (
         <section>

@@ -1,0 +1,21 @@
+{
+  "name": "يَقَظَة — من الوعي إلى العمل",
+  "short_name": "يقظة",
+  "description": "مسارات عملية ومواد موثوقة تساعدك على إصلاح نفسك وحياتك.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#081824",
+  "theme_color": "#081824",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "رحلتي", "url": "/journey", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "من أين أبدأ؟", "url": "/start", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

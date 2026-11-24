@@ -36,6 +36,10 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     {noindex && <meta name="robots" content="noindex, follow" />}
     <meta name="theme-color" content="#081824" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="يقظة" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta property="og:site_name" content={SITE.name} />
     <meta property="og:locale" content="ar_AR" />
     <meta property="og:type" content={type} />

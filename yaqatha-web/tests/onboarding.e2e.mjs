@@ -72,9 +72,12 @@ test('المحرر يضيف خيارًا ويُخفي سؤالًا من اللو
   const p = await page(); await p.goto(`${BASE}/start`);
   assert.equal(await p.getByLabel(`خيار جديد ${run}`).count(), 1);
   await ed.goto(`${BASE}/admin/onboarding`);
-  await submit(ed, ed.locator('section', { hasText: 'ما الذي تحتاجه أكثر الآن؟' }).first().getByRole('button', { name: 'أخفِ السؤال' }));
-  await p.goto(`${BASE}/start`);
-  assert.equal(await p.locator('fieldset.onb-q').count(), 2);
+  const q3 = ed.locator('section', { hasText: 'ما الذي تحتاجه أكثر الآن؟' }).first();
+  assert.equal(await q3.getByRole('button', { name: 'أخفِ السؤال' }).count(), 1);
+  await Promise.all([ed.waitForNavigation(), q3.locator('form[action$="onb-question-status"]').evaluate((f) => f.submit())]);
+  const p2 = await page(); // متصفح جديد: الصفحات العامة تُخدم بـ stale-while-revalidate
+  await p2.goto(`${BASE}/start`);
+  assert.equal(await p2.locator('fieldset.onb-q').count(), 2);
   sql(`update onboarding_questions set status='published'; delete from onboarding_options where label like 'خيار جديد %'`);
 });
 

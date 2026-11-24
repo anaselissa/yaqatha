@@ -4,6 +4,7 @@ import JourneyNav from '../../components/JourneyNav.astro';
 import ErrorState from '../../components/ErrorState.astro';
 import Progress from '../../components/Progress.astro';
 import Star from '../../components/Star.astro';
+import AppTools from '../../components/AppTools.astro';
 import { getEnrollments, getGoals, getLatestVersions, getMyProgress, getProgress, getRecentActivity, getSaved, getStepTitles } from '../../lib/user';
 import { GOAL_STATUS, MATERIAL_TYPE } from '../../lib/labels';
 import { load } from '../../lib/page';
@@ -95,6 +96,8 @@ const empty = !!data && !data.enrs.length && !data.goals.length && !data.saved.l
           <ul class="mats">{paused.map((g) => <li><a class="mat" href={`/journey/goals/${g.id}`}><h3>{g.title}</h3></a></li>)}</ul>
         </section>
       )}
+
+      {!empty && <section class="section" style="padding-block-start:0"><AppTools compact /></section>}
 
       <section class="section" style="padding-block-start:0">
         <div class="notice"><strong>تحب أن يتابع معك أحد من الفريق؟</strong> رفيق يذكّرك ويشجعك على ما بدأت. <a href="/support">اطلب متابعة</a></div>
