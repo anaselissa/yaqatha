@@ -540,5 +540,56 @@ select test.ok(exists (select 1 from public.onboarding_questions where prompt = 
 select test.as_anon();
 select test.throws($$select public.seed_grow_onboarding()$$, 'visitors cannot run the seeding function', 'permission denied');
 
+-- ---------- 22. الأهداف اليومية، ونوع البلاغ، ومشاركة التقدّم (الهجرة 13) ----------
+select test.as_user(:'ur');
+insert into public.goals (title, kind, days) values ('الفجر في المسجد', 'daily', 30) returning id as gd \gset
+insert into public.goals (title) values ('هدف لمرة واحدة') returning id as go \gset
+select test.ok((select kind from public.goals where id = :'go') = 'once', 'old-style goals default to once');
+select test.throws($$insert into public.goals (title, kind, days) values ('x', 'once', 5)$$, 'days only for daily goals', 'check');
+insert into public.goal_checkins (goal_id, day) values (:'gd', current_date);
+select test.ok((select done from public.goal_checkins where goal_id = :'gd' and day = current_date), 'checkin defaults to done');
+insert into public.goal_checkins (goal_id, day, done) values (:'gd', current_date, false)
+  on conflict (goal_id, day) do update set done = excluded.done;
+select test.ok(not (select done from public.goal_checkins where goal_id = :'gd' and day = current_date), 'same day can be changed (upsert)');
+select test.throws(format($$insert into public.goal_checkins (goal_id, day) values (%L, current_date - 5)$$, :'gd'), 'far past days rejected', 'out of range');
+select test.throws(format($$insert into public.goal_checkins (goal_id, day) values (%L, current_date)$$, :'go'), 'once goals take no checkins', 'only daily');
+select test.as_user(:'uc');
+select test.ok(not exists (select 1 from public.goal_checkins), 'nobody else sees my checkins');
+select test.throws(format($$insert into public.goal_checkins (goal_id, day) values (%L, current_date - 1)$$, :'gd'), 'cannot check in on someone else''s goal');
+select test.as_anon();
+select test.throws($$select * from public.goal_checkins$$, 'visitors cannot read checkins', 'permission denied');
+select test.as_user(:'ur');
+delete from public.goals where id = :'gd';
+select test.as_super();
+select test.ok(not exists (select 1 from public.goal_checkins where goal_id = :'gd'), 'checkins go with their goal');
+
+select test.as_user(:'ur');
+insert into public.material_reports (material_id, kind, note) values (:'qm', 'broken_link', null);
+select test.throws(format($$insert into public.material_reports (material_id, kind) values (%L, 'spam')$$, :'qm'), 'unknown report kind rejected', 'check');
+
+select test.as_user(:'uc');
+insert into public.mentorship_requests (name, phone, topic, gender) values ('سعد', '0790000009', 'prayer', 'male') returning id as rq2 \gset
+select public.start_path((select id from public.paths where status = 'published' limit 1));
+select test.as_user(:'mgr');
+update public.mentorship_requests set assigned_to = 'mentor@y.test' where id = :'rq2';
+select test.as_user(:'mt');
+select test.ok(public.mentee_progress(:'rq2') is null, 'no sharing by default');
+select test.as_user(:'uc');
+select test.ok(public.set_share_progress(true), 'user turns sharing on for their open request');
+select test.ok(test.affected(format($$update public.mentorship_requests set status = 'closed' where id = %L$$, :'rq2')) = 0, 'still cannot change anything else on the request');
+select test.as_user(:'mt');
+select test.ok(jsonb_array_length(public.mentee_progress(:'rq2')) >= 1, 'assigned mentor sees progress once shared');
+select test.ok(not (public.mentee_progress(:'rq2') -> 0 ? 'note') and (public.mentee_progress(:'rq2') -> 0 ? 'done'), 'progress only: no notes or goals');
+select test.as_user(:'edt');
+select test.throws(format($$select public.mentee_progress(%L)$$, :'rq2'), 'an editor (not assigned) cannot read it', 'not allowed');
+select test.as_user(:'ur');
+select test.throws(format($$select public.mentee_progress(%L)$$, :'rq2'), 'another user cannot read it', 'not allowed');
+select test.as_user(:'uc');
+select public.set_share_progress(false);
+select test.as_user(:'mt');
+select test.ok(public.mentee_progress(:'rq2') is null, 'turning it off hides it again');
+select test.as_anon();
+select test.throws(format($$select public.mentee_progress(%L)$$, :'rq2'), 'visitors cannot call it', 'permission denied');
+
 select 'ALL TESTS PASSED' as result;
 rollback;
