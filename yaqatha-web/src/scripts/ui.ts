@@ -92,6 +92,55 @@ function setupReminder() {
   update();
 }
 
+// توقيت المستخدم ليُحسب «اليوم» بتوقيته (تعليم الأهداف اليومية)، وتحية بحسب ساعته
+try {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (tz && !document.cookie.includes(`yq-tz=${encodeURIComponent(tz)}`)) document.cookie = `yq-tz=${encodeURIComponent(tz)}; Max-Age=31536000; path=/; SameSite=Lax`;
+} catch { /* بلا توقيت: يُستعمل توقيت الخادم */ }
+document.querySelectorAll<HTMLElement>('[data-greet]').forEach((el) => {
+  const h = new Date().getHours();
+  const word = h >= 4 && h < 12 ? 'صباح الخير' : h >= 12 && h < 17 ? 'طاب يومك' : 'مساء الخير';
+  el.textContent = el.dataset.greet ? `${word} يا ${el.dataset.greet}` : word;
+});
+// يوم المستخدم في نماذج التعليم (الخادم يضع يومه احتياطًا)
+document.querySelectorAll<HTMLInputElement>('input[name="day"][data-local-day]').forEach((i) => {
+  const d = new Date(); i.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+});
+
+// «سؤال سريع»: اختيار الإجابة يكفي (زر «تحقّق» لمن لا يعمل عنده JavaScript)
+document.querySelectorAll<HTMLButtonElement>('[data-quiz-submit]').forEach((b) => {
+  const f = b.form; if (!f) return;
+  b.hidden = true;
+  f.querySelectorAll<HTMLInputElement>('input[type=radio]').forEach((r) => r.addEventListener('change', () => f.requestSubmit()));
+});
+// تحميل المقطع بالنقر فقط (youtube-nocookie)
+document.querySelectorAll<HTMLElement>('.video-shell[data-yt]').forEach((box) => {
+  box.querySelector('button')?.addEventListener('click', () => {
+    const id = box.dataset.yt;
+    if (!id || !/^[\w-]{6,20}$/.test(id)) return;
+    const f = document.createElement('iframe');
+    f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+    f.title = 'مشغّل الفيديو';
+    f.allow = 'accelerometer; autoplay; encrypted-media; picture-in-picture';
+    f.allowFullscreen = true;
+    f.referrerPolicy = 'strict-origin-when-cross-origin';
+    box.replaceChildren(f);
+  }, { once: true });
+});
+
+// المظهر: داكن / فاتح / حسب الجهاز (يُحفظ على هذا الجهاز فقط)
+document.querySelectorAll<HTMLElement>('[data-theme-pick]').forEach((g) => {
+  const btns = g.querySelectorAll<HTMLButtonElement>('button[data-v]');
+  const apply = (v: string) => {
+    try { localStorage.setItem('yq-theme', v); } catch { /* تخزين معطّل */ }
+    const light = v === 'light' || (v === 'auto' && matchMedia('(prefers-color-scheme: light)').matches);
+    if (light) document.documentElement.dataset.theme = 'light'; else delete document.documentElement.dataset.theme;
+    btns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  };
+  let cur = 'dark'; try { cur = localStorage.getItem('yq-theme') || 'dark'; } catch { /* */ }
+  btns.forEach((b) => { b.setAttribute('aria-pressed', String(b.dataset.v === cur)); b.addEventListener('click', () => apply(b.dataset.v!)); });
+});
+
 showFlash();
 hydrateState();
 setupInstall();

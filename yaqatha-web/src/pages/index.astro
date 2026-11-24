@@ -1,92 +1,132 @@
 ---
 import Base from '../layouts/Base.astro';
-import Star from '../components/Star.astro';
-import PathCard from '../components/PathCard.astro';
-import MaterialList from '../components/MaterialList.astro';
 import ErrorState from '../components/ErrorState.astro';
-import { getDoors, getHomepage } from '../lib/data';
+import Horizon from '../components/Horizon.astro';
+import Chev from '../components/Chev.astro';
+import { getHomepage } from '../lib/data';
+import { getEnrollments, getMyProgress, getProgress, getStepTitles } from '../lib/user';
+import { getDailyGoals, localDate } from '../lib/today';
+import { durationLabel } from '../lib/labels';
 import { load } from '../lib/page';
 import { SITE } from '../config';
 
+const s = Astro.locals.session;
+const today = localDate(Astro.cookies);
+
+// الزائر: دعوة واحدة للبدء. المسجَّل: «يومك» فقط (خطوة اليوم من كل مسار، وعاداته اليومية)
 const data = await load(Astro.response, async () => {
-  const [doors, home] = await Promise.all([getDoors(), getHomepage()]);
-  return { doors, home };
+  if (!s) return { home: await getHomepage(), me: null };
+  const t = s.token;
+  const [enrs, me, habits] = await Promise.all([getEnrollments(t), getMyProgress(t), getDailyGoals(t, today)]);
+  const prog = await getProgress(t, enrs.map((e) => e.id));
+  const titles = await getStepTitles(t, [...prog.values()].map((p) => p.resume_step_id ?? ''));
+  const paths = enrs
+    .filter((e) => e.path_versions?.status !== 'withdrawn')
+    .map((e) => { const p = prog.get(e.id); return { e, p, next: p?.resume_step_id ? titles.get(p.resume_step_id) : undefined }; })
+    .filter((x) => x.p && x.p.total_steps > 0 && x.p.completed_steps < x.p.total_steps && x.next)
+    // ما بدأ فيه أولًا (الأكثر تقدّمًا نسبيًا)، ثم الأحدث
+    .sort((a, b) => b.p!.completed_steps / b.p!.total_steps - a.p!.completed_steps / a.p!.total_steps);
+  return { home: paths.length ? null : await getHomepage(), me, paths, habits: habits ?? [] };
 });
+
 const site = Astro.site!.toString().replace(/\/$/, '');
 const ld = [
   { '@context': 'https://schema.org', '@type': 'WebSite', name: SITE.name, alternateName: SITE.nameSearch, url: site, inLanguage: 'ar',
     potentialAction: { '@type': 'SearchAction', target: `${site}/search?q={search_term_string}`, 'query-input': 'required name=search_term_string' } },
   { '@context': 'https://schema.org', '@type': 'Organization', name: SITE.name, url: site, description: SITE.description },
 ];
+const first = s?.name?.trim().split(/\s+/)[0] ?? '';
+const starters = data?.home ? [...data.home.startHere, ...data.home.featuredPaths].filter((p, i, a) => a.findIndex((x) => x.path_id === p.path_id) === i).slice(0, 6) : [];
+const paths = data && 'paths' in data ? data.paths ?? [] : [];
+const habits = data && 'habits' in data ? data.habits ?? [] : [];
+const main = paths[0];
+const more = paths.slice(1, 3);
+const rest = paths.length - 1 - more.length;
+const habitsDue = habits.filter((h) => h.today === null && (!h.days || h.doneCount < h.days));
+const habitsDone = habits.filter((h) => h.today === true);
 ---
-<Base canonical="/" jsonLd={ld}>
-  {!data ? <ErrorState /> : (
-    <>
-      <section class="hero">
-        <div class="container">
-          <h1>من الغفلة… إلى اليقظة</h1>
-          <p class="lead">مسارات عملية بخطوات يومية قصيرة وواضحة، ومصادر موثوقة.</p>
-          <div class="actions">
-            <a class="btn btn-primary" href="/start">لا أعرف من أين أبدأ</a>
-            <a class="btn btn-ghost" href="/discover">اكتشف احتياجك</a>
-          </div>
-          <p class="mt-1_2"><a href="/journey/goals/new" class="dim">أو أنشئ هدفك بنفسك مباشرة</a></p>
-        </div>
-      </section>
-      <hr class="horizon" />
-
-      <section class="section" aria-labelledby="doors-h">
-        <div class="container">
-          <div class="section-title"><h2 id="doors-h">أربعة أبواب</h2></div>
-          <div class="doors">
-            {data.doors.map((d, i) => (
-              <a class="door" href={`/doors/${d.slug}`}>
-                <span class="num"><Star />{['الأول', 'الثاني', 'الثالث', 'الرابع'][i] ?? ''}</span>
-                <h3>{d.title}</h3>
-                {d.description && <p>{d.description}</p>}
-                <span class="go">ادخل هذا الباب</span>
-              </a>
+<Base canonical="/" jsonLd={ld} streak={data?.me?.streak_days ?? null}>
+  {!data ? <ErrorState /> : !s ? (
+    <div class="app-col screen home-visitor">
+      <svg class="hero-sun" viewBox="0 0 350 210" aria-hidden="true">
+        <circle cx="175" cy="150" r="58" fill="var(--gold)"></circle>
+        <g stroke="var(--gold)" stroke-width="3" stroke-linecap="round" opacity=".55"><path d="M175 62v-22M117 88l-15-15M233 88l15-15M90 132H66M260 132h24"></path></g>
+        <path d="M0 150 C70 132 120 170 175 156 S280 128 350 146 V210 H0z" fill="var(--hill-1)"></path>
+        <path d="M0 176 C90 160 150 196 230 180 S320 168 350 176 V210 H0z" fill="var(--bg-2)"></path>
+        <path d="M175 210 C176 196 168 186 176 172" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-dasharray="3 7" stroke-linecap="round"></path>
+      </svg>
+      <h1 class="hero-title">من الغفلة… إلى اليقظة</h1>
+      <p class="hero-lead">مسارات عملية بخطوات يومية قصيرة وواضحة، ومصادر موثوقة.</p>
+      <a class="btn btn-primary btn-block" href="/start">ابدأ رحلتك</a>
+      <p class="lead-dim center">دقيقة واحدة، ونقترح عليك من أين تبدأ</p>
+      {starters.length > 0 && (
+        <section aria-labelledby="st-h" class="starters">
+          <h2 id="st-h" class="sr-only">مسارات للبدء</h2>
+          <ul class="hscroll">
+            {starters.map((p) => (
+              <li><a href={`/paths/${p.slug}`}><span class="d">{durationLabel(p.duration_days)}</span><span class="t">{p.title}</span></a></li>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {data.home.startHere.length > 0 && (
-        <section class="section section-flush" aria-labelledby="start-h">
-          <div class="container">
-            <div class="section-title"><h2 id="start-h">ابدأ من هنا</h2><a href="/paths">كل المسارات</a></div>
-            <div class="grid grid-2">{data.home.startHere.map((p) => <PathCard path={p} />)}</div>
-          </div>
+          </ul>
         </section>
       )}
-      {data.home.featuredPaths.length > 0 && (
-        <section class="section section-flush" aria-labelledby="fp-h">
-          <div class="container">
-            <div class="section-title"><h2 id="fp-h">مسارات مختارة</h2><a href="/paths">كل المسارات</a></div>
-            <div class="grid grid-2">{data.home.featuredPaths.map((p) => <PathCard path={p} />)}</div>
-          </div>
-        </section>
-      )}
-      {data.home.featuredMaterials.length > 0 && (
-        <section class="section section-flush" aria-labelledby="fm-h">
-          <div class="container narrow maxw-70">
-            <div class="section-title"><h2 id="fm-h">مواد مختارة</h2><a href="/library">كل المواد</a></div>
-            <MaterialList items={data.home.featuredMaterials} />
-          </div>
-        </section>
+    </div>
+  ) : (
+    <div class="app-col screen">
+      {paths.length > 1 || habits.length > 0 ? (
+        <div class="title-row"><h1>يومك</h1>{first && <span class="lead-dim" data-greet={first}>أهلًا يا {first}</span>}</div>
+      ) : (
+        <h1 data-greet={first}>{first ? `أهلًا يا ${first}` : 'أهلًا بك'}</h1>
       )}
 
-      <section class="section section-flush" aria-labelledby="values-h">
-        <div class="container">
-          <div class="divider mb-2"><Star /></div>
-          <h2 id="values-h" class="sr-only">ما الذي ستجده هنا</h2>
-          <div class="values">
-            <div><h3>مسارات عملية</h3><p>خطوات مرتّبة تنقلك من المعرفة إلى التطبيق، لا مجرد محاضرات تُشاهد.</p></div>
-            <div><h3>مواد بمصادرها</h3><p>لكل مادة مصدرها الأصلي، ونميّز بين المادة الأصلية وما أعدّه فريق يقظة.</p></div>
-            <div><h3>بلا حساب</h3><p>تصفّح كل شيء مباشرة، والحساب اختياري لحفظ تقدمك. ولا اختبارات تقيس إيمانك أو تقارنك بغيرك.</p></div>
-          </div>
-        </div>
-      </section>
-    </>
+      {main ? (
+        <section class="card card-lg" aria-labelledby="today-h">
+          <p class="over">{paths.length > 1 ? `الخطوة ${main.next!.position} من ${main.p!.total_steps}` : 'خطوتك اليوم'}</p>
+          <h2 id="today-h">{main.e.path_versions?.title}</h2>
+          <p class="sub">اليوم: {main.next!.title}</p>
+          {paths.length === 1 && (
+            <div>
+              <Horizon done={main.p!.completed_steps} total={main.p!.total_steps} label={`أنجزت ${main.p!.completed_steps} من ${main.p!.total_steps} خطوات`} />
+              <div class="arc-labels"><span>الخطوة {main.next!.position} من {main.p!.total_steps}</span><span>بقي {main.p!.total_steps - main.p!.completed_steps === 1 ? 'خطوة واحدة' : main.p!.total_steps - main.p!.completed_steps === 2 ? 'خطوتان' : `${main.p!.total_steps - main.p!.completed_steps} خطوات`}</span></div>
+            </div>
+          )}
+          <a class="btn btn-primary btn-block" href={`/journey/paths/${main.e.id}/steps/${main.next!.id}`}>{main.p!.completed_steps === 0 ? 'ابدأ الخطوة' : 'كمّل الخطوة'}</a>
+        </section>
+      ) : (
+        <section class="card card-lg center" aria-labelledby="empty-h">
+          <h2 id="empty-h">{habits.length ? 'لا خطوات تنتظرك اليوم' : 'طريقك لم يبدأ بعد'}</h2>
+          <p class="sub">{habits.length ? 'ابدأ مسارًا جديدًا متى شئت.' : 'دقيقة واحدة، ونقترح عليك أول خطوة.'}</p>
+          <a class="btn btn-primary btn-block" href="/start">من أين أبدأ؟</a>
+          <a class="link-quiet" href="/discover">أو تصفّح المسارات</a>
+        </section>
+      )}
+
+      {(more.length > 0 || habits.length > 0) && (
+        <ul class="list">
+          {more.map(({ e, p, next }) => (
+            <li><a class="row-link card-link" href={`/journey/paths/${e.id}/steps/${next!.id}`}>
+              <svg class="mini-arc" viewBox="0 0 40 24" aria-hidden="true"><path d="M38 22 Q20 -4 2 22" fill="none" stroke="var(--track)" stroke-width="2.5"></path><path d="M38 22 Q20 -4 2 22" fill="none" stroke="var(--teal)" stroke-width="2.5" pathLength="100" stroke-dasharray={`${Math.round((p!.completed_steps / p!.total_steps) * 100)} 100`}></path></svg>
+              <span class="grow"><span class="t">{e.path_versions?.title}</span><span class="s">الخطوة {next!.position}: {next!.title}</span></span>
+              <Chev />
+            </a></li>
+          ))}
+          {rest > 0 && <li><a class="link-quiet" href="/journey">و{rest === 1 ? 'مسار آخر' : rest === 2 ? 'مساران آخران' : `${rest} مسارات أخرى`}</a></li>}
+          {habitsDue.map((h) => (
+            <li class="habit">
+              <span class="num">{h.doneCount}</span>
+              <a class="grow" href={`/journey/goals/${h.id}`}><span class="t">{h.title}</span><span class="s">فعلتها اليوم؟</span></a>
+              <form method="post" action="/api/goal-checkin">
+                <input type="hidden" name="goal_id" value={h.id} /><input type="hidden" name="day" value={today} data-local-day />
+                <input type="hidden" name="next" value="/" />
+                <button class="btn btn-teal" type="submit" name="done" value="1">نعم</button>
+                <button class="btn btn-ghost" type="submit" name="done" value="0">ليس اليوم</button>
+              </form>
+            </li>
+          ))}
+          {habitsDone.map((h) => (
+            <li class="habit-done"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg><span><s>{h.title}</s>، اليوم {h.doneCount}</span></li>
+          ))}
+        </ul>
+      )}
+    </div>
   )}
 </Base>

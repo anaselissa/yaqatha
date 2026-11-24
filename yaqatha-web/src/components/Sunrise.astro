@@ -1,0 +1,18 @@
+---
+// شريط «من أين أبدأ»: أفق بعلامات، والشمس تشرق قليلًا مع كل سؤال. يبدأ من اليمين.
+interface Props { at: number; of: number }
+const { at, of } = Astro.props;
+const W = 320, x0 = 300, x1 = 20;
+const xs = Array.from({ length: of }, (_, i) => Math.round(x0 - ((x0 - x1) * i) / Math.max(1, of - 1)));
+const sx = xs[Math.min(at, of - 1)] ?? x0;
+const sy = 30 - Math.round((14 * at) / Math.max(1, of - 1));
+---
+<svg class="sunrise" viewBox={`0 0 ${W} 50`} role="img" aria-label={`السؤال ${at + 1} من ${of}`} data-sunrise data-of={of}>
+  <line x1={x1} y1="42" x2={x0} y2="42" stroke="var(--track)" stroke-width="3" stroke-linecap="round"></line>
+  <line x1={sx} y1="42" x2={x0} y2="42" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" data-fill></line>
+  {xs.map((x) => <circle cx={x} cy="42" r="3" fill="var(--line-strong)"></circle>)}
+  <g data-sun transform={`translate(${sx} ${sy})`}>
+    <circle r="8" fill="var(--gold)"></circle>
+    <path d="M0 -14v-4M-11 -8l-3 -3M11 -8l3 -3" stroke="var(--gold)" stroke-width="2" stroke-linecap="round"></path>
+  </g>
+</svg>

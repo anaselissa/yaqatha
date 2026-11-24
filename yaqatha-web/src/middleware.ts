@@ -1,6 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { UnauthorizedError } from './lib/api';
-import { clearSession, getSession } from './lib/auth';
+import { COOKIE, clearSession, getSession } from './lib/auth';
 import { claimStaffInvite, getStaffRole } from './lib/admin';
 
 // صفحة الدخول وحدها تحتاج أن يعيد نموذجها التوجيه إلى Supabase ثم Google؛ Chrome يطبّق form-action على كل تحويلة
@@ -25,7 +25,11 @@ const PRIVATE = ['/journey', '/api/', '/login', '/auth/', '/admin', '/support'];
 export const onRequest = defineMiddleware(async (context, next) => {
   const p = context.url.pathname;
   const isPrivate = PRIVATE.some((x) => p === x.replace(/\/$/, '') || p.startsWith(x));
-  context.locals.session = isPrivate ? await getSession(context.cookies, context.url.protocol === 'https:') : null;
+  // الصفحات العامة تقرأ الجلسة أيضًا إن وُجدت ملفات الدخول، كي يظهر في الرأس أن المستخدم داخل.
+  // بلا ملفات دخول لا نتصل بشيء، وتبقى الصفحة قابلة للتخزين المؤقت كما كانت.
+  const isFile = p.startsWith('/_astro/') || /\.[a-z0-9]+$/i.test(p);
+  const hasAuthCookie = !isFile && !!(context.cookies.get(COOKIE.at)?.value || context.cookies.get(COOKIE.rt)?.value);
+  context.locals.session = isPrivate || hasAuthCookie ? await getSession(context.cookies, context.url.protocol === 'https:') : null;
   // /journey محمي افتراضيًا (deny by default). الاستثناء: إنشاء الهدف يعمل للزائر بمسودة محلية (F4)
   if (p.startsWith('/journey') && !p.startsWith('/journey/goals/new') && !context.locals.session) {
     return context.redirect(`/login?next=${encodeURIComponent(p + context.url.search)}&reason=journey`);
@@ -74,7 +78,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   const isAsset = context.url.pathname.startsWith('/_astro/');
-  if (isPrivate) {
+  if (isPrivate || context.locals.session) {
+    // صفحة فيها بيانات المستخدم (ولو حرف اسمه في الرأس) لا تُخزَّن في أي ذاكرة مشتركة
     h.set('Cache-Control', 'private, no-store');
   } else if (!isAsset && context.request.method === 'GET' && !h.has('Cache-Control')) {
     // صفحات عامة: تسري تعديلات النشر والإخفاء خلال دقيقة، مع تقديم نسخة قديمة قصيرًا عند بطء الأصل

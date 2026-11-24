@@ -1,0 +1,47 @@
+---
+// محتوى المادة نفسه: مقطع (يُحمَّل بالنقر)، أو رابط المصدر، أو النص، ثم «سؤال سريع» إن وُجد.
+import type { Material, Question } from '../lib/data';
+import { renderMarkdown, youtubeId } from '../lib/markdown';
+interface Props { m: Material; questions: Question[]; next?: string; qa?: string | null; heading?: boolean }
+const { m, questions, next, qa = null, heading = false } = Astro.props;
+const yt = m.type === 'video' ? youtubeId(m.url) : null;
+const html = renderMarkdown(m.body);
+const [qaId, qaIdx] = (qa ?? '').split('.');
+const answered = (id: string) => (qaId === id && /^\d$/.test(qaIdx ?? '') ? Number(qaIdx) : null);
+---
+<div class="step-mat">
+  {heading && <h2>{m.title}</h2>}
+  {yt && (
+    <div class="video-shell" data-yt={yt}>
+      <button type="button" aria-label={`تشغيل: ${m.title}`}>
+        <span class="play" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg></span>
+      </button>
+    </div>
+  )}
+  {!yt && m.url && <p><a class="btn btn-ghost" href={m.url} target="_blank" rel="noopener nofollow">افتح المصدر ↗</a></p>}
+  {html && <div class="prose" set:html={html} />}
+  {(m.author || m.source_title) && <p class="faint fs-0_85">{m.author ?? m.source_title}</p>}
+  {questions.map((q) => {
+    const a = answered(q.id);
+    return (
+      <form id={`q-${q.id}`} method="post" action="/api/quiz" class="quiz-card">
+        <input type="hidden" name="slug" value={m.slug} />
+        <input type="hidden" name="question_id" value={q.id} />
+        {next && <input type="hidden" name="next" value={next} />}
+        <p class="over">سؤال سريع</p>
+        <fieldset>
+          <legend>{q.prompt}</legend>
+          {q.options.map((o, i) => (
+            <label class={`opt${a === null ? '' : i === q.correct_index ? ' is-right' : i === a ? ' is-wrong' : ''}`}>
+              <input type="radio" name="choice" value={i} required checked={a === i} disabled={a !== null} />{o}
+              {a !== null && i === a && i !== q.correct_index && <span class="tag">اخترتها</span>}
+            </label>
+          ))}
+        </fieldset>
+        {a === null ? <button class="btn btn-ghost btn-sm justify-self-start" type="submit" data-quiz-submit>تحقّق</button> : (
+          <p class="why" role="status"><strong>{a === q.correct_index ? 'أحسنت. ' : 'ليس تمامًا. '}</strong>{q.explanation ?? ''}</p>
+        )}
+      </form>
+    );
+  })}
+</div>

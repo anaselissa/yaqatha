@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import Star from '../components/Star.astro';
+import BackBtn from '../components/BackBtn.astro';
 import { safeNext } from '../lib/auth';
 
 const next = safeNext(Astro.url.searchParams.get('next'));
@@ -8,7 +8,7 @@ if (Astro.locals.session) return Astro.redirect(next);
 const reason = Astro.url.searchParams.get('reason') ?? '';
 const error = Astro.url.searchParams.get('error');
 const WHY: Record<string, string> = {
-  'start-path': 'لنبدأ المسار ونحفظ تقدمك فيه',
+  'start-path': 'لنبدأ المسار ونحفظ أين وصلت',
   'save-material': 'لنحفظ هذه المادة لك',
   goal: 'لنحفظ هدفك',
   'goal-create': 'لنحفظ هدفك',
@@ -24,26 +24,37 @@ const ERRORS: Record<string, string> = {
 // المتصفحات المدمجة في تطبيقات التواصل: Google ترفض OAuth داخلها
 const ua = Astro.request.headers.get('user-agent') ?? '';
 const inApp = /FBAN|FBAV|Instagram|Line\/|MicroMessenger|Snapchat|TikTok|Twitter|; wv\)|WhatsApp|Telegram/i.test(ua);
+const backTo = next === '/journey' ? '/' : next.startsWith('/admin') ? '/' : next;
 ---
-<Base title="تسجيل الدخول" noindex>
-  <div class="container narrow section">
-    <p class="gold d-flex gap-0_6 items-center ff-display fs-1_3"><Star />رحلتي في يقظة</p>
-    <h1 class="my-0_6-1 fs-hero">سجّل دخولك</h1>
-    <div class="stack sp-1_2">
-      {WHY[reason] && <p class="lead dim fs-1_15">{WHY[reason]}.</p>}
-      {error && <div class="notice" role="alert">{ERRORS[error] ?? ERRORS.failed}</div>}
+<Base title="تسجيل الدخول" noindex chrome="focus">
+  <div class="app-col focus-wrap">
+    <div class="focus-top"><div class="line"><BackBtn href={backTo} /></div></div>
+    <div class="focus-body center">
+      <svg class="hero-sun small" viewBox="0 0 350 160" aria-hidden="true">
+        <circle cx="175" cy="104" r="40" fill="var(--gold)"></circle>
+        <g stroke="var(--gold)" stroke-width="3" stroke-linecap="round"><path d="M175 44v-18M132 64l-12-12M218 64l12-12"></path></g>
+        <path d="M60 118 H290" stroke="var(--line-strong)" stroke-width="2" stroke-linecap="round"></path>
+      </svg>
+      <h1>احفظ رحلتك</h1>
+      <p class="lead-dim">{WHY[reason] ? `${WHY[reason]}.` : 'حتى يبقى تقدّمك معك على أي جهاز.'}</p>
+      {error && <p class="notice" role="alert">{ERRORS[error] ?? ERRORS.failed}</p>}
       {inApp && (
         <div class="notice" role="alert">
           <strong>افتح الرابط في متصفحك.</strong> قد ترفض Google تسجيل الدخول من داخل هذا التطبيق. افتح الصفحة في Chrome أو Safari ثم أكمل.
           <p class="mt-0_6"><button type="button" class="btn btn-ghost" data-copy>انسخ الرابط</button></p>
         </div>
       )}
+    </div>
+    <div class="dock">
       <form method="post" action="/auth/login">
         <input type="hidden" name="next" value={next} />
-        <button class="btn btn-primary w-100pc maxw-22" type="submit">المتابعة عبر Google</button>
+        <button class="btn btn-google btn-block" type="submit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.2a6.6 6.6 0 0 1 0-4.3V7.1H2.1a11 11 0 0 0 0 9.9z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>
+          المتابعة عبر Google
+        </button>
       </form>
-      <p class="faint fs-0_95 maxw-34">نستخدم الحساب لحفظ أهدافك وتقدمك فقط. لا نطلب كلمة مرور، ولا نشارك بياناتك، ولا يرى أحد أهدافك. يمكنك حذف حسابك وكل بياناتك متى شئت. <a href="/privacy">الخصوصية</a></p>
-      <p><a href={next === '/journey' ? '/' : next}>متابعة التصفح دون حساب</a></p>
+      <p class="privacy-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>لا ننشر شيئًا باسمك، ولا يرى تقدّمك أحد. <a href="/privacy">الخصوصية</a></p>
+      <a class="link-quiet" href={backTo}>متابعة التصفح دون حساب</a>
     </div>
   </div>
 </Base>

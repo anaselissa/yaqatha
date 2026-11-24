@@ -1,13 +1,13 @@
 ---
+// مسار في «رحلتي»: الطريق من الأسفل إلى الشمس، وزر واحد للخطوة التالية. وعند اكتماله: «ماذا بعد؟»
 import Base from '../../../../layouts/Base.astro';
-import JourneyNav from '../../../../components/JourneyNav.astro';
 import ErrorState from '../../../../components/ErrorState.astro';
-import Progress from '../../../../components/Progress.astro';
-import StepControls from '../../../../components/StepControls.astro';
+import BackBtn from '../../../../components/BackBtn.astro';
+import Road from '../../../../components/Road.astro';
 import PostButton from '../../../../components/PostButton.astro';
 import { getEnrollment, getEnrollmentSteps, getGoals, getLatestVersions, getPathEnding, getProgress, planMigration } from '../../../../lib/user';
 import { rest } from '../../../../lib/api';
-import { STEP_TYPE, durationLabel } from '../../../../lib/labels';
+import { durationLabel } from '../../../../lib/labels';
 import { load } from '../../../../lib/page';
 
 const id = Astro.params.id!;
@@ -39,138 +39,140 @@ const withdrawn = e?.path_versions?.status === 'withdrawn';
 const active = e?.status === 'active';
 const linkedTitles = new Set(d?.linked.map((l) => l.goals?.title));
 const KIND: Record<string, string> = { carried: 'سيُنقل تقدمها', new: 'خطوة جديدة', removed: 'لن تظهر في الإصدار الجديد (تبقى في سجل إصدارك)' };
+const steps = d ? d.steps.map((s) => ({ id: s.id, position: s.position, title: s.title, state: d.state(s.id) })) : [];
+const resume = d?.prog?.resume_step_id ?? steps.find((s) => s.state !== 'completed')?.id ?? null;
+const total = d?.prog?.total_steps ?? steps.length, doneN = d?.prog?.completed_steps ?? 0;
+const pathTitle = e?.path_versions?.title ?? 'مسار';
+// «استمر والعدّاد يكمل»: هدف يومي باسم أول هدف مقترح أو باسم المسار، مربوط بهذا المسار
+const habitTitle = d?.ending?.goals[0]?.title ?? pathTitle.replace(/^\[تجريبي\]\s*/, '');
+const nextPath = d?.ending?.paths[0];
 ---
-<Base title={e?.path_versions?.title ?? 'مسار'} noindex>
-  {!d || !e ? <ErrorState /> : (
-    <div class="container">
-      <header class="page-head">
-        <h1>{e.path_versions?.title}</h1>
-        <div class="meta mt-0_8">
-          <span class="chip">الإصدار {e.path_versions?.version_no}</span>
-          <span class="chip chip-gold">{durationLabel(e.path_versions?.duration_days)}</span>
-          {!active && <span class="chip">مؤرشف</span>}
-        </div>
-        <JourneyNav />
-      </header>
-
-      <div class="stack sp-1_2 py-1">
-        {isNew && active && (
-          <div class="notice">
-            <strong>هل تريد ربط هذا المسار بهدف؟</strong> اختياري تمامًا.
-            <div class="row mt-0_8">
-              {d.goals.length > 0 && (
-                <form method="post" action="/api/goal-link" class="row">
-                  <input type="hidden" name="enrollment_id" value={e.id} /><input type="hidden" name="next" value={here} />
-                  <label class="sr-only" for="goal_id">هدف</label>
-                  <select id="goal_id" name="goal_id" class="input w-auto">{d.goals.map((g) => <option value={g.id}>{g.title}</option>)}</select>
-                  <button class="btn btn-ghost btn-sm" type="submit">اربطه</button>
-                </form>
-              )}
-              <a class="btn btn-ghost btn-sm" href={`/journey/goals/new?enrollment=${e.id}&title=${encodeURIComponent(e.path_versions?.title ?? '')}`}>أنشئ هدفًا جديدًا منه</a>
-              <a class="btn btn-ghost btn-sm" href={here}>ليس الآن</a>
-            </div>
-          </div>
-        )}
-
-        {withdrawn && (
-          <div class="notice" role="alert"><strong>سُحب هذا الإصدار مؤقتًا للمراجعة.</strong> تقدمك محفوظ ولم يضِع منه شيء، وسيتاح المحتوى حين تنتهي المراجعة{d.hasUpdate ? ' أو يمكنك الانتقال إلى الإصدار المحدَّث أدناه' : ''}.</div>
-        )}
-
-        {d.hasUpdate && !wantMigrate && (
-          <div class="notice">
-            <strong>يتوفر إصدار محدَّث من هذا المسار (الإصدار {d.newer!.version_no}).</strong> لن يتغير شيء في مسارك ما لم تنتقل أنت.
-            <div class="row mt-0_8"><a class="btn btn-ghost btn-sm" href={`${here}?migrate=1`}>اطّلع على الجديد</a></div>
-          </div>
-        )}
-
-        {d.plan && (
-          <section class="journey-card" aria-labelledby="mig-h">
-            <h2 class="fs-1_6" id="mig-h">الانتقال إلى الإصدار {d.newer!.version_no}</h2>
-            {d.newer!.description && <p class="dim">{d.newer!.description}</p>}
-            <ul class="diff list-none p-0 m-0">
-              {d.plan.map((p) => <li><span class="chip me-0_5">{KIND[p.kind]}</span>{p.title}</li>)}
-            </ul>
-            <p class="faint fs-0_95">يُؤرشف إصدارك الحالي بتقدمه ويبقى للاطلاع، ولا يُحذف شيء.</p>
-            <div class="row">
-              <PostButton action="migrate" fields={{ enrollment_id: e.id }} label="انتقل إلى الإصدار الجديد" kind="primary" small={false} />
-              <a class="btn btn-ghost" href={here}>أبقَ على إصداري</a>
-            </div>
-          </section>
-        )}
-
-        {d.prog && !withdrawn && <Progress done={d.prog.completed_steps} total={d.prog.total_steps} />}
-        {d.linked.length > 0 && (
-          <p class="dim">مرتبط بالأهداف: {d.linked.map((l, i) => <>{i > 0 && '، '}{l.goals ? <a href={`/journey/goals/${l.goals.id}`}>{l.goals.title}</a> : null}</>)}</p>
-        )}
+<Base title={pathTitle} noindex>
+  {!d || !e ? <ErrorState /> : d.done && active ? (
+    <div class="app-col screen">
+      <div class="done-hero">
+        <svg class="hero-sun small" viewBox="0 0 350 160" aria-hidden="true">
+          <circle cx="175" cy="96" r="44" fill="var(--gold)"></circle>
+          <g stroke="var(--gold)" stroke-width="3" stroke-linecap="round"><path d="M175 30v-18M128 52l-13-13M222 52l13-13M108 92H86M242 92h22"></path></g>
+          <path d="M0 110 C80 96 130 124 175 114 S280 92 350 108 V160 H0z" fill="var(--hill-1)"></path>
+        </svg>
+        <h1>أكملت المسار</h1>
+        <p>{pathTitle}. تقبّل الله منك.</p>
+        <p class="meta center"><span class="pill pill-teal">{total} من {total} خطوات</span></p>
       </div>
 
-      {!withdrawn && (
-        <section class="section section-flush" aria-labelledby="steps-h">
-          <div class="section-title"><h2 id="steps-h">الخطوات</h2></div>
-          {d.steps.map((s) => (
-            <div class="step-row">
-              <div class="meta"><span class="chip chip-gold">{STEP_TYPE[s.type]}</span></div>
-              <h3><a href={`/journey/paths/${e.id}/steps/${s.id}`}>{s.position}. {s.title}</a></h3>
-              <StepControls enrollmentId={e.id} stepId={s.id} state={d.state(s.id)} next={here} readonly={!active} />
-            </div>
+      <section class="screen-sec" aria-labelledby="next-h">
+        <h2 id="next-h" class="sec-title">ماذا بعد؟</h2>
+        <ul class="list">
+          <li>
+            <form method="post" action="/api/goal-create">
+              <input type="hidden" name="id" value={crypto.randomUUID()} />
+              <input type="hidden" name="title" value={habitTitle} />
+              <input type="hidden" name="kind" value="daily" /><input type="hidden" name="days" value="30" />
+              <input type="hidden" name="enrollment_id" value={e.id} />
+              {linkedTitles.has(habitTitle)
+                ? <p class="choice is-picked"><span class="grow">{habitTitle}<span class="s">صار عادة يومية لك</span></span></p>
+                : <button class="choice" type="submit"><span class="grow">استمر: {habitTitle}، والعدّاد يكمل<span class="s">نسألك كل يوم سؤالًا واحدًا: فعلتها اليوم؟</span></span></button>}
+            </form>
+          </li>
+          {d.ending!.goals.slice(1).map((g) => (
+            <li>
+              {linkedTitles.has(g.title) ? <p class="choice is-picked"><span class="grow">{g.title}<span class="s">صار هدفك</span></span></p> : (
+                <form method="post" action="/api/goal-create">
+                  <input type="hidden" name="id" value={crypto.randomUUID()} />
+                  <input type="hidden" name="title" value={g.title} />
+                  <input type="hidden" name="description" value={g.description ?? ''} />
+                  <input type="hidden" name="enrollment_id" value={e.id} />
+                  <button class="choice" type="submit"><span class="grow">هدف جديد: {g.title}{g.description && <span class="s">{g.description}</span>}</span></button>
+                </form>
+              )}
+            </li>
           ))}
-          {d.done && (
-            <section id="ending" class="journey-card mt-1_5" aria-labelledby="end-h">
-              <h2 class="fs-1_6" id="end-h">أتممت خطوات المسار</h2>
-              <p class="dim">أنهيت {d.prog!.total_steps} خطوات. هذا تسجيل شخصي منك ولا يحكم على أثره في حياتك؛ الأثر الحقيقي فيما تستمر عليه بعده.</p>
+        </ul>
+        <p><a class="link-quiet" href={`/journey/goals/new?enrollment=${e.id}`}>أو اكتب هدفك بنفسك</a></p>
+      </section>
 
-              {active && (
-                <div class="stack sp-0_7">
-                  <h3 class="fs-1_25">حوّله إلى عادة</h3>
-                  {d.ending!.goals.map((g) => (
-                    <div class="notice">
-                      <strong>{g.title}</strong>
-                      {g.description && <p class="m-0_3-0-0">{g.description}</p>}
-                      <div class="mt-0_7">
-                        {linkedTitles.has(g.title) ? <span class="chip chip-gold">صار هدفك ✓</span> : (
-                          <form method="post" action="/api/goal-create">
-                            <input type="hidden" name="id" value={crypto.randomUUID()} />
-                            <input type="hidden" name="title" value={g.title} />
-                            <input type="hidden" name="description" value={g.description ?? ''} />
-                            <input type="hidden" name="enrollment_id" value={e.id} />
-                            <button class="btn btn-primary btn-sm" type="submit">اجعله هدفي</button>
-                          </form>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  <p><a class="btn btn-ghost btn-sm" href={`/journey/goals/new?enrollment=${e.id}`}>اكتب هدفك أنت</a></p>
-                </div>
-              )}
+      <div class="stack">
+        {nextPath
+          ? <a class="btn btn-primary btn-block" href={`/paths/${nextPath.slug}`}>المسار التالي: {nextPath.title}</a>
+          : <a class="btn btn-primary btn-block" href="/discover">اختر مسارك التالي</a>}
+        <p class="center"><a class="link-quiet" href="/support">تحب أن يتابع معك أحد من الفريق؟</a></p>
+      </div>
+      <details class="fold"><summary>خيارات المسار</summary>
+        <div class="stack sp-0_8 mt-1">
+          <div class="row"><PostButton action="restart" fields={{ enrollment_id: e.id }} label="ابدأه من جديد" /><span class="faint">يُحفظ ما أنجزته في الأرشيف.</span></div>
+          <div class="row"><PostButton action="archive-enrollment" fields={{ enrollment_id: e.id }} label="أخفِه من رحلتي" /></div>
+        </div>
+      </details>
+    </div>
+  ) : (
+    <div class="app-col screen">
+      <div class="screen-head">
+        <BackBtn href="/journey" label="رجوع إلى رحلتي" />
+        <div class="grow-col">
+          <p class="lead-dim fs-0_85">رحلتي</p>
+          <h1>{pathTitle}</h1>
+        </div>
+      </div>
+      <p class="pill pill-teal justify-self-start">{doneN} من {total} مكتملة{!active ? '، مؤرشف' : ''}</p>
 
-              {d.ending!.paths.length > 0 && (
-                <div class="stack sp-0_7 mt-1_2">
-                  <h3 class="fs-1_25">خطوتك التالية</h3>
-                  {d.ending!.paths.map((p) => (
-                    <a class="path-card" href={`/paths/${p.slug}`}>
-                      <h4 class="m-0 fs-1_15">{p.title}</h4>
-                      {p.description && <p class="dim m-0_3-0-0">{p.description}</p>}
-                      <div class="meta"><span class="chip chip-gold">{durationLabel(p.duration_days)}</span></div>
-                    </a>
-                  ))}
-                </div>
-              )}
-              {d.ending!.paths.length === 0 && <p class="mt-1">تصفّح <a href="/paths">المسارات</a> لتختار خطوتك التالية.</p>}
-              <p class="dim mt-1">تحب أن يتابع معك أحد من فريق يقظة على ما بدأت؟ <a href="/support">اطلب متابعة</a></p>
-            </section>
-          )}
+      {isNew && active && (
+        <div class="card">
+          <strong>تريد ربط هذا المسار بهدف؟</strong><span class="dim">اختياري تمامًا.</span>
+          <div class="row">
+            {d.goals.length > 0 && (
+              <form method="post" action="/api/goal-link" class="row">
+                <input type="hidden" name="enrollment_id" value={e.id} /><input type="hidden" name="next" value={here} />
+                <label class="sr-only" for="goal_id">هدف</label>
+                <select id="goal_id" name="goal_id" class="input w-auto">{d.goals.map((g) => <option value={g.id}>{g.title}</option>)}</select>
+                <button class="btn btn-ghost btn-sm" type="submit">اربطه</button>
+              </form>
+            )}
+            <a class="btn btn-ghost btn-sm" href={`/journey/goals/new?enrollment=${e.id}&title=${encodeURIComponent(pathTitle)}`}>أنشئ هدفًا منه</a>
+            <a class="link-quiet" href={here}>ليس الآن</a>
+          </div>
+        </div>
+      )}
+
+      {withdrawn && <p class="notice" role="alert"><strong>سُحب هذا الإصدار مؤقتًا للمراجعة.</strong> تقدمك محفوظ، وسيتاح المحتوى حين تنتهي المراجعة{d.hasUpdate ? '، أو انتقل إلى الإصدار المحدَّث أدناه' : ''}.</p>}
+
+      {d.hasUpdate && !wantMigrate && (
+        <div class="card">
+          <strong>يتوفر إصدار محدَّث من هذا المسار.</strong><span class="dim">لن يتغير شيء في مسارك ما لم تنتقل أنت.</span>
+          <a class="btn btn-ghost btn-sm justify-self-start" href={`${here}?migrate=1`}>اطّلع على الجديد</a>
+        </div>
+      )}
+      {d.plan && (
+        <section class="card" aria-labelledby="mig-h">
+          <h2 id="mig-h">الانتقال إلى الإصدار {d.newer!.version_no}</h2>
+          {d.newer!.description && <p class="dim">{d.newer!.description}</p>}
+          <ul class="diff list-none p-0 m-0">{d.plan.map((p) => <li><span class="chip me-0_5">{KIND[p.kind]}</span>{p.title}</li>)}</ul>
+          <p class="faint fs-0_95">يُؤرشف إصدارك الحالي بتقدمه ويبقى للاطلاع، ولا يُحذف شيء.</p>
+          <div class="row">
+            <PostButton action="migrate" fields={{ enrollment_id: e.id }} label="انتقل إلى الإصدار الجديد" kind="primary" small={false} />
+            <a class="btn btn-ghost" href={here}>أبقِ على إصداري</a>
+          </div>
         </section>
       )}
 
+      {!withdrawn && steps.length > 0 && <Road steps={steps} current={d.done ? null : resume} hrefBase={`${here}/steps`} />}
+
+      {!withdrawn && active && resume && !d.done && (
+        <a class="btn btn-primary btn-block" href={`${here}/steps/${resume}`}>{doneN === 0 ? 'ابدأ الخطوة الأولى' : 'كمّل خطوة اليوم'}</a>
+      )}
+
+      {d.linked.length > 0 && (
+        <p class="dim fs-0_9">مرتبط بأهدافك: {d.linked.map((l, i) => <>{i > 0 && '، '}{l.goals ? <a href={`/journey/goals/${l.goals.id}`}>{l.goals.title}</a> : null}</>)}</p>
+      )}
+
       {active && (
-        <section class="section section-flush">
-          <details class="fold"><summary>خيارات المسار</summary>
-            <div class="stack sp-0_8 mt-1">
-              <div class="row"><PostButton action="restart" fields={{ enrollment_id: e.id }} label="ابدأ من جديد" /><span class="faint">يُؤرشف تقدمك الحالي ويبدأ مسار جديد على آخر إصدار.</span></div>
-              <div class="row"><PostButton action="archive-enrollment" fields={{ enrollment_id: e.id }} label="أخفِ من رحلتي" /><span class="faint">يُحفظ في الأرشيف ولا يُحذف.</span></div>
-            </div>
-          </details>
-        </section>
+        <details class="fold"><summary>خيارات المسار</summary>
+          <div class="stack sp-0_8 mt-1">
+            <p class="faint fs-0_9">{durationLabel(e.path_versions?.duration_days)}، الإصدار {e.path_versions?.version_no}</p>
+            <div class="row"><PostButton action="restart" fields={{ enrollment_id: e.id }} label="ابدأ من جديد" /><span class="faint">يُؤرشف تقدمك الحالي ويبدأ مسار جديد على آخر إصدار.</span></div>
+            <div class="row"><PostButton action="archive-enrollment" fields={{ enrollment_id: e.id }} label="أخفِ من رحلتي" /><span class="faint">يُحفظ في الأرشيف ولا يُحذف.</span></div>
+          </div>
+        </details>
       )}
     </div>
   )}

@@ -1,0 +1,74 @@
+---
+// حسابي: كل ما هو أقل أهمية من «يومك» يعيش هنا: الأهداف، والمحفوظات، والتذكير، والإعدادات، والمتابعة.
+import Base from '../layouts/Base.astro';
+import Chev from '../components/Chev.astro';
+import { getMyProgress } from '../lib/user';
+import { getStaffRole } from '../lib/admin';
+import { rest } from '../lib/api';
+
+const s = Astro.locals.session;
+let me = null as Awaited<ReturnType<typeof getMyProgress>>, goals = 0, saved = 0, role: string | null = null;
+if (s) {
+  const count = (table: string, extra: Record<string, string> = {}) =>
+    rest(table, { select: 'id', ...extra, limit: 1 }, { token: s.token, count: true }).then((r) => r.total ?? r.rows.length).catch(() => 0);
+  [me, goals, saved, role] = await Promise.all([
+    getMyProgress(s.token),
+    count('goals', { status: 'in.(not_started,in_progress,paused)' }),
+    rest('saved_materials', { select: 'material_id', limit: 1 }, { token: s.token, count: true }).then((r) => r.total ?? r.rows.length).catch(() => 0),
+    getStaffRole(s.token, s.userId).catch(() => null),
+  ]);
+}
+const initial = s ? (s.name || s.email || '؟').trim().charAt(0) : '';
+const rows = [
+  { href: '/journey/goals', label: 'أهدافي', end: goals ? String(goals) : '' },
+  { href: '/journey/saved', label: 'المحفوظات', end: saved ? String(saved) : '' },
+  { href: '/journey/settings#reminder', label: 'التذكير اليومي', end: '' },
+  { href: '/journey/settings', label: 'الإعدادات', end: '' },
+];
+---
+<Base title="حسابي" noindex>
+  <div class="app-col screen">
+    {s ? (
+      <>
+        <div class="me-head">
+          <span class="avatar avatar-lg" aria-hidden="true">{initial}</span>
+          <div class="grow-col"><h1>{s.name || 'حسابي'}</h1><span class="lead-dim fs-0_85">متصل بحساب Google</span></div>
+        </div>
+        {me && (
+          <div class="stat3" aria-label="تقدّمي">
+            <div><b class="gold">{me.points}</b><span>نقطة</span></div>
+            <div><b class="coral">{me.streak_days}</b><span>{me.streak_days === 1 ? 'يوم متتالٍ' : 'أيام متتالية'}</span></div>
+            <div><b class="teal">{me.paths_done}</b><span>مسار مكتمل</span></div>
+          </div>
+        )}
+        <ul class="list-flat">
+          {rows.map((r) => <li><a class="row-link" href={r.href}><span class="grow"><span class="t">{r.label}</span></span>{r.end && <span class="end">{r.end}</span>}<Chev /></a></li>)}
+          <li><a class="row-link" href="/journey/paths"><span class="grow"><span class="t">كل مساراتي والأرشيف</span></span><Chev /></a></li>
+          {role && <li><a class="row-link" href="/admin"><span class="grow"><span class="t">لوحة الإدارة</span></span><Chev /></a></li>}
+        </ul>
+        <a class="card-quiet card-cta" href="/support"><strong>تحب أن يرافقك أحد من الفريق؟</strong><span class="gold fs-0_9">اطلب متابعة</span></a>
+        <div class="row justify-center gap-1_2 mt-1">
+          <a class="link-quiet" href="/about">عن يقظة</a>
+          <form method="post" action="/auth/logout"><button class="link-quiet" type="submit">خروج</button></form>
+        </div>
+      </>
+    ) : (
+      <>
+        <h1>حسابي</h1>
+        <section class="card card-lg center">
+          <h2>احفظ رحلتك</h2>
+          <p class="sub">سجّل الدخول ليبقى تقدّمك وأهدافك معك على أي جهاز. التصفح متاح دون حساب.</p>
+          <form method="post" action="/auth/login" class="w-100pc">
+            <input type="hidden" name="next" value="/account" />
+            <button class="btn btn-primary btn-block" type="submit">المتابعة عبر Google</button>
+          </form>
+        </section>
+        <ul class="list-flat">
+          <li><a class="row-link" href="/journey/goals/new"><span class="grow"><span class="t">أنشئ هدفًا</span><span class="s">يُحفظ على جهازك حتى تسجّل الدخول</span></span><Chev /></a></li>
+          <li><a class="row-link" href="/support"><span class="grow"><span class="t">متابعة من الفريق</span></span><Chev /></a></li>
+          <li><a class="row-link" href="/about"><span class="grow"><span class="t">عن يقظة</span></span><Chev /></a></li>
+        </ul>
+      </>
+    )}
+  </div>
+</Base>

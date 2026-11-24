@@ -1,0 +1,16 @@
+---
+// «الطريق والشمس»: قوس أفق، والجزء المقطوع فيروزي، والشمس حيث وصلت. يبدأ من اليمين.
+import { pointAt, r1 } from '../lib/arc';
+interface Props { done: number; total: number; label?: string; height?: number }
+const { done, total, label, height = 70 } = Astro.props;
+const frac = total > 0 ? Math.min(1, done / total) : 0;
+const A = { x: 304, y: 62 }, C = { x: 155, y: -14 }, B = { x: 6, y: 62 };
+const sun = pointAt(A, C, B, frac);
+const d = `M${A.x} ${A.y} Q${C.x} ${C.y} ${B.x} ${B.y}`;
+---
+<svg class="horizon-arc" viewBox="0 0 310 70" height={height} role="img" aria-label={label ?? `أنجزت ${done} من ${total}`}>
+  <line x1="0" y1="62" x2="310" y2="62" stroke="var(--track)" stroke-width="1"></line>
+  <path d={d} fill="none" stroke="var(--track)" stroke-width="3" stroke-linecap="round"></path>
+  {frac > 0 && <path d={d} fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" pathLength="100" stroke-dasharray={`${r1(frac * 100)} 100`}></path>}
+  <circle cx={r1(sun.x)} cy={r1(sun.y)} r="11" fill="var(--gold)"></circle>
+</svg>

@@ -1,61 +1,100 @@
 ---
+// من أين أبدأ: سؤال في كل شاشة، والشمس تشرق مع التقدّم. بلا JavaScript تظهر الأسئلة كلها في صفحة واحدة.
 import Base from '../../layouts/Base.astro';
-import Star from '../../components/Star.astro';
+import BackBtn from '../../components/BackBtn.astro';
+import Sunrise from '../../components/Sunrise.astro';
 import { BRANCHES, getOnboarding, type Branch } from '../../lib/data';
 const b = Astro.url.searchParams.get('b');
 const branch: Branch | null = b === 'fix' || b === 'grow' ? b : null;
 const qs = branch ? await getOnboarding(branch) : [];
-const slides = [
-  ['يقظة رفيقك في التغيير', 'ليست مكتبة محاضرات فقط: نساعدك أن تنتقل من «أعرف» إلى «أعمل»، بخطوات صغيرة تناسب يومك.'],
-  ['مسارات قصيرة وعملية', 'كل مسار أيام معدودة: مقطع، ثم سؤال تفكّر فيه، ثم خطوة تطبقها. وكل مادة بمصدرها.'],
-  ['بلا حكم وبلا اختبارات للإيمان', 'لا نسألك عن ذنوبك ولا نحفظ إجاباتك هنا. فقط نفهم من أين تبدأ.'],
-];
+const of = 1 + Math.max(qs.length, 3);
+const ICON: Record<Branch, string> = { fix: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4', grow: 'M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM12 2v2M4.9 4.9l1.4 1.4M2 12h2M20 12h2M17.7 6.3l1.4-1.4' };
 ---
-<Base title="ابدأ من هنا" description="سؤال واحد ثم ثلاثة أسئلة قصيرة، ونقترح عليك من أين تبدأ في يقظة.">
-  <div class="container narrow">
-    <header class="page-head">
-      <p class="gold d-flex gap-0_5 items-center m-0"><Star />دقيقة واحدة</p>
-      <h1 class="mt-0_5">من أين أبدأ؟</h1>
-    </header>
-
+<Base title="من أين أبدأ؟" description="سؤال واحد ثم أسئلة قصيرة، ونقترح عليك من أين تبدأ في يقظة." chrome="focus">
+  <div class="app-col focus-wrap">
     {!branch ? (
       <>
-        <section class="onb-q onb-branch" aria-labelledby="why-h">
-          <h2 id="why-h" class="onb-legend">ما الذي جاء بك اليوم؟</h2>
+        <header class="focus-top">
+          <div class="line"><BackBtn href="/" /><span class="count">1 من {of}</span></div>
+          <Sunrise at={0} of={of} />
+        </header>
+        <div class="focus-body">
+          <h1 class="q-title">ما الذي جاء بك اليوم؟</h1>
           {(Object.keys(BRANCHES) as Branch[]).map((k) => (
-            <a class="onb-opt onb-choice" href={`/start?b=${k}#questions`}><Star />{BRANCHES[k]}</a>
-          ))}
-        </section>
-        <h2 class="block-title mt-2">تعرّف على يقظة</h2>
-        <div class="onb-slides mt-0_8" aria-label="تعريف قصير بيقظة">
-          {slides.map(([h, p], i) => (
-            <section class="onb-slide" id={`s${i + 1}`}>
-              <span class="chip chip-gold">{i + 1} من {slides.length}</span>
-              <h2>{h}</h2>
-              <p class="dim">{p}</p>
-              {i < slides.length - 1 && <a class="btn btn-ghost btn-sm" href={`#s${i + 2}`}>التالي ←</a>}
-            </section>
+            <a class="choice choice-lg" href={`/start?b=${k}`}>
+              <span class="grow">{BRANCHES[k]}</span>
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={ICON[k]}></path></svg></span>
+            </a>
           ))}
         </div>
-        <div class="py-2" />
+        <p class="privacy-note dock-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>إجاباتك لا تُحفظ، نستعملها لنقترح عليك فقط</p>
       </>
     ) : qs.length === 0 ? (
-      <p class="py-2"><a class="btn btn-primary" href="/discover">اكتشف احتياجك</a></p>
+      <div class="state-screen"><h1>نجهّز الأسئلة</h1><a class="btn btn-primary" href="/discover">تصفّح المسارات</a></div>
     ) : (
-      <form id="questions" method="get" action="/start/result" class="stack sp-1_5 py-1-3">
-        <p class="row m-0"><span class="chip chip-gold">{BRANCHES[branch]}</span><a class="faint" href="/start">غيّر اختيارك</a></p>
-        {qs.map((q, n) => (
-          <fieldset class="onb-q">
-            <legend><span class="gold">{n + 1}.</span> {q.prompt}</legend>
-            {q.hint && <p class="faint m-0_2-0-0_5 fs-0_95">{q.hint}</p>}
-            {q.onboarding_options.map((o) => (
-              <label class="onb-opt"><input type="radio" name={`q${n}`} value={o.id} required={n === 0} />{o.label}</label>
-            ))}
-          </fieldset>
-        ))}
-        <p class="faint m-0 fs-0_92">لا نحفظ إجاباتك؛ نستعملها فقط لنقترح عليك الآن.</p>
-        <div><button class="btn btn-primary" type="submit">اقترح عليّ بداية</button></div>
+      <form method="get" action="/start/result" class="onb" data-onb>
+        <header class="focus-top">
+          <div class="line">
+            <a class="back-btn" href="/start" aria-label="رجوع" data-onb-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+            <span class="count" data-onb-count>2 من {1 + qs.length}</span>
+          </div>
+          <Sunrise at={1} of={1 + qs.length} />
+          <p class="chips-picked"><span class="pill pill-teal">{BRANCHES[branch]}</span></p>
+        </header>
+        <div class="focus-body">
+          {qs.map((q, n) => (
+            <fieldset class="onb-step" data-step={n}>
+              <legend class="q-title">{q.prompt}</legend>
+              {q.hint && <p class="lead-dim">{q.hint}</p>}
+              <div class="list">
+                {q.onboarding_options.map((o) => (
+                  <label class="choice"><input type="radio" name={`q${n}`} value={o.id} required={n === 0} /><span class="grow">{o.label}</span></label>
+                ))}
+              </div>
+              {n > 0 && <button class="link-quiet onb-skip" type="button" data-onb-skip hidden>تخطَّ هذا السؤال</button>}
+            </fieldset>
+          ))}
+        </div>
+        <div class="dock" data-onb-submit>
+          <button class="btn btn-primary btn-block" type="submit">اقترح عليّ بداية</button>
+          <p class="privacy-note">إجاباتك لا تُحفظ، نستعملها لنقترح عليك فقط</p>
+        </div>
       </form>
     )}
   </div>
 </Base>
+<script>
+  // سؤال في كل شاشة: الاختيار ينقلك للتالي، وآخر سؤال يرسل النموذج. الشمس تتقدم مع كل سؤال.
+  const f = document.querySelector<HTMLFormElement>('[data-onb]');
+  if (f) {
+    const steps = [...f.querySelectorAll<HTMLFieldSetElement>('.onb-step')];
+    const count = f.querySelector<HTMLElement>('[data-onb-count]');
+    const back = f.querySelector<HTMLAnchorElement>('[data-onb-back]');
+    const svg = f.querySelector<SVGSVGElement>('[data-sunrise]');
+    const of = steps.length + 1;
+    let i = 0;
+    const sunAt = (k: number) => {
+      if (!svg) return;
+      const x = Math.round(300 - (280 * k) / Math.max(1, of - 1)), y = 30 - Math.round((14 * k) / Math.max(1, of - 1));
+      svg.querySelector('[data-sun]')?.setAttribute('transform', `translate(${x} ${y})`);
+      svg.querySelector('[data-fill]')?.setAttribute('x1', String(x));
+      svg.setAttribute('aria-label', `السؤال ${k + 1} من ${of}`);
+    };
+    const show = (k: number) => {
+      i = k;
+      steps.forEach((s, j) => (s.hidden = j !== k));
+      if (count) count.textContent = `${k + 2} من ${of}`;
+      sunAt(k + 1);
+      steps[k].querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+      window.scrollTo(0, 0);
+    };
+    f.classList.add('is-stepped');
+    f.querySelector<HTMLElement>('[data-onb-submit]')!.hidden = true;
+    f.querySelectorAll<HTMLButtonElement>('[data-onb-skip]').forEach((b) => { b.hidden = false; b.addEventListener('click', () => (i < steps.length - 1 ? show(i + 1) : f.requestSubmit())); });
+    steps.forEach((s, j) => s.querySelectorAll<HTMLInputElement>('input[type=radio]').forEach((r) => r.addEventListener('change', () => {
+      setTimeout(() => (j < steps.length - 1 ? show(j + 1) : f.requestSubmit()), 220);
+    })));
+    back?.addEventListener('click', (e) => { if (i > 0) { e.preventDefault(); show(i - 1); } });
+    show(0);
+  }
+</script>

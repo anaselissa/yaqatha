@@ -1,125 +1,114 @@
 ---
+// رحلتي: مساراتي الآن، وعاداتي اليومية، وما أنجزت. المسار الذي لم يُفتح 7 أيام يظهر في «متوقفة» ويعود بضغطة.
 import Base from '../../layouts/Base.astro';
-import JourneyNav from '../../components/JourneyNav.astro';
 import ErrorState from '../../components/ErrorState.astro';
-import Progress from '../../components/Progress.astro';
-import Star from '../../components/Star.astro';
-import AppTools from '../../components/AppTools.astro';
-import { getEnrollments, getGoals, getLatestVersions, getMyProgress, getProgress, getRecentActivity, getSaved, getStepTitles } from '../../lib/user';
-import { GOAL_STATUS, MATERIAL_TYPE } from '../../lib/labels';
+import Chev from '../../components/Chev.astro';
+import { getEnrollments, getProgress } from '../../lib/user';
+import { getDailyGoals, localDate } from '../../lib/today';
+import { rest } from '../../lib/api';
 import { load } from '../../lib/page';
 
 const t = Astro.locals.session!.token;
+const today = localDate(Astro.cookies);
 const data = await load(Astro.response, async () => {
-  const [enrs, goals, saved, activity, me] = await Promise.all([getEnrollments(t), getGoals(t, ['not_started', 'in_progress', 'paused']), getSaved(t, 5), getRecentActivity(t), getMyProgress(t)]);
-  const [prog, latest] = await Promise.all([getProgress(t, enrs.map((e) => e.id)), getLatestVersions(enrs.map((e) => e.path_id))]);
-  const steps = await getStepTitles(t, [...prog.values()].map((p) => p.resume_step_id ?? ''));
-  return { enrs, goals, saved, activity, prog, latest, steps, me };
+  const [enrs, habits] = await Promise.all([getEnrollments(t), getDailyGoals(t, today)]);
+  const ids = enrs.map((e) => e.id);
+  const [prog, acts] = await Promise.all([
+    getProgress(t, ids),
+    ids.length ? rest<{ enrollment_id: string; updated_at: string }>('enrollment_steps', { select: 'enrollment_id,updated_at', enrollment_id: `in.(${ids.join(',')})`, order: 'updated_at.desc', limit: 1000 }, { token: t }).then((r) => r.rows) : Promise.resolve([]),
+  ]);
+  const last = new Map<string, string>();
+  for (const a of acts) if (!last.has(a.enrollment_id)) last.set(a.enrollment_id, a.updated_at);
+  return { enrs, prog, last, habits: habits ?? [] };
 });
-const active = data?.goals.filter((g) => g.status !== 'paused') ?? [];
-const paused = data?.goals.filter((g) => g.status === 'paused') ?? [];
-const empty = !!data && !data.enrs.length && !data.goals.length && !data.saved.length;
+const WEEK = 7 * 86400000;
+const items = data ? data.enrs.map((e) => {
+  const p = data.prog.get(e.id);
+  const lastAt = Date.parse(data.last.get(e.id) ?? e.started_at);
+  const done = !!p && p.total_steps > 0 && p.completed_steps === p.total_steps;
+  return { e, p, done, paused: !done && Date.now() - lastAt > WEEK };
+}) : [];
+const now = items.filter((x) => !x.done && !x.paused);
+const paused = items.filter((x) => x.paused);
+const finished = items.filter((x) => x.done);
+const habits = data?.habits ?? [];
+const empty = !!data && !items.length && !habits.length;
+const pct = (p?: { completed_steps: number; total_steps: number }) => (p && p.total_steps ? Math.round((p.completed_steps / p.total_steps) * 100) : 0);
 ---
-<Base title="رحلتي في يقظة" noindex>
-  {!data ? <ErrorState /> : (
-    <div class="container">
-      <header class="page-head"><h1>رحلتي في يقظة</h1><JourneyNav /></header>
+<Base title="رحلتي" noindex>
+  {!data ? <ErrorState /> : empty ? (
+    <div class="app-col screen">
+      <h1>رحلتي</h1>
+      <div class="state-screen">
+        <svg class="art" viewBox="0 0 300 190" aria-hidden="true">
+          <circle cx="150" cy="58" r="26" fill="var(--gold)"></circle>
+          <path d="M20 64 C80 56 120 74 150 62 S230 54 280 62" fill="none" stroke="var(--line-strong)" stroke-width="2"></path>
+          <path d="M150 176 C140 150 168 132 146 112 S150 86 150 84" fill="none" stroke="var(--line-strong)" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"></path>
+          <circle cx="150" cy="176" r="6" fill="var(--teal)"></circle>
+        </svg>
+        <h2>طريقك لم يبدأ بعد</h2>
+        <p class="lead-dim">دقيقة واحدة، ونقترح عليك أول خطوة.</p>
+        <a class="btn btn-primary btn-block" href="/start">من أين أبدأ؟</a>
+        <a class="link-quiet" href="/discover">أو تصفّح المسارات</a>
+      </div>
+    </div>
+  ) : (
+    <div class="app-col screen">
+      <h1>رحلتي</h1>
 
-      {data.me && (data.me.points > 0 || data.me.answered > 0) && (
-        <section class="section py-0-1" aria-label="تقدمي">
-          <div class="points">
-            <div class="stat"><b>{data.me.points}</b><span>نقطة</span></div>
-            <div class="stat"><b>{data.me.streak_days}</b><span>{data.me.streak_days === 1 ? 'يوم متتالٍ' : 'أيام متتالية'}</span></div>
-            <div class="stat"><b>{data.me.steps_done}</b><span>خطوة أكملتها</span></div>
-          </div>
-          <p class="faint m-0_6-0-0 fs-0_92">
-            {data.me.active_today ? 'أنجزت شيئًا اليوم. ' : data.me.streak_days > 0 ? 'أكمل خطوة اليوم لتستمر سلسلتك. ' : ''}نافس نفسك فقط؛ النقاط تسجّل التزامك وتعلّمك، والأجر عند الله.
-          </p>
+      {now.length > 0 && (
+        <section class="screen-sec" aria-labelledby="now-h">
+          <div class="title-row"><h2 id="now-h" class="sec-title">مساراتي الآن</h2>{now.length > 3 && <span class="lead-dim fs-0_85">كثرتها قد تشتّتك</span>}</div>
+          <ul class="list">
+            {now.map(({ e, p }) => (
+              <li><a class="row-link card-link" href={`/journey/paths/${e.id}`}>
+                <span class="grow"><span class="t">{e.path_versions?.title}</span><span class="s">{p ? `${p.completed_steps} من ${p.total_steps}` : ''}{e.path_versions?.status === 'withdrawn' ? '، قيد المراجعة' : ''}</span></span>
+                <svg class="mini-arc" viewBox="0 0 40 24" aria-hidden="true"><path d="M38 22 Q20 -4 2 22" fill="none" stroke="var(--track)" stroke-width="2.5"></path><path d="M38 22 Q20 -4 2 22" fill="none" stroke="var(--teal)" stroke-width="2.5" pathLength="100" stroke-dasharray={`${pct(p)} 100`}></path></svg>
+              </a></li>
+            ))}
+          </ul>
         </section>
       )}
 
-      {empty && (
-        <section class="section section-tight">
-          <div class="empty">
-            <h2>ابدأ رحلتك من أي طرف</h2>
-            <p>اختر الأقرب إليك، ولا شيء ملزِم.</p>
-            <div class="actions">
-              <a class="btn btn-primary" href="/discover">اكتشف احتياجك</a>
-              <a class="btn btn-ghost" href="/paths">اختر مسارًا جاهزًا</a>
-              <a class="btn btn-ghost" href="/journey/goals/new">أنشئ هدفًا بنفسك</a>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {data.enrs.length > 0 && (
-        <section class="section section-tight" aria-labelledby="paths-h">
-          <div class="section-title"><h2 id="paths-h">مساراتي الجارية</h2><a href="/journey/paths">كل مساراتي</a></div>
-          <div class="grid grid-2">
-            {data.enrs.map((e) => {
-              const p = data.prog.get(e.id), next = p?.resume_step_id ? data.steps.get(p.resume_step_id) : null;
-              const newer = data.latest.get(e.path_id);
-              const hasUpdate = newer && e.path_versions && newer.version_no > e.path_versions.version_no;
-              return (
-                <article class="journey-card">
-                  <h3><a href={`/journey/paths/${e.id}`}>{e.path_versions?.title ?? 'مسار'}</a></h3>
-                  {p && <Progress done={p.completed_steps} total={p.total_steps} />}
-                  {e.path_versions?.status === 'withdrawn' ? <p class="dim">سُحب هذا الإصدار مؤقتًا للمراجعة، وتقدمك محفوظ.</p>
-                    : next ? <p class="dim">الخطوة التالية: <strong>{next.title}</strong></p>
-                    : p && p.total_steps > 0 && p.completed_steps === p.total_steps ? <p class="dim">أنهيت خطوات هذا المسار.</p> : null}
-                  <div class="row">
-                    {next && <a class="btn btn-primary btn-sm" href={`/journey/paths/${e.id}/steps/${next.id}`}>تابع</a>}
-                    <a class="btn btn-ghost btn-sm" href={`/journey/paths/${e.id}`}>التفاصيل</a>
-                    {hasUpdate && <span class="chip chip-gold">إصدار محدَّث متاح</span>}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {(active.length > 0 || data.enrs.length > 0 || !empty) && (
-        <section class="section section-tight" aria-labelledby="goals-h">
-          <div class="section-title"><h2 id="goals-h">أهدافي النشطة</h2><a href="/journey/goals/new">هدف جديد</a></div>
-          {active.length ? (
-            <ul class="mats">{active.map((g) => (
-              <li><a class="mat" href={`/journey/goals/${g.id}`}><div class="meta"><span class="state">{GOAL_STATUS[g.status]}</span></div><h3>{g.title}</h3></a></li>
-            ))}</ul>
-          ) : <p class="dim">لا أهداف نشطة الآن. <a href="/journey/goals/new">أنشئ هدفًا</a>.</p>}
+      {habits.length > 0 && (
+        <section class="screen-sec" aria-labelledby="hab-h">
+          <h2 id="hab-h" class="sec-title">عاداتي اليومية</h2>
+          <ul class="list">
+            {habits.map((h) => (
+              <li><a class="habit" href={`/journey/goals/${h.id}`}>
+                <span class="num">{h.doneCount}</span>
+                <span class="grow"><span class="t">{h.title}</span><span class="s">{h.today === true ? 'فعلتها اليوم' : h.days ? `${h.doneCount} من ${h.days} يومًا` : ''}</span></span>
+                <Chev />
+              </a></li>
+            ))}
+          </ul>
         </section>
       )}
 
       {paused.length > 0 && (
-        <section class="section section-flush" aria-labelledby="paused-h">
-          <h2 id="paused-h" class="section-title fs-1_4 c-dim">أهداف متوقفة مؤقتًا</h2>
-          <ul class="mats">{paused.map((g) => <li><a class="mat" href={`/journey/goals/${g.id}`}><h3>{g.title}</h3></a></li>)}</ul>
+        <section class="screen-sec" aria-labelledby="pz-h">
+          <h2 id="pz-h" class="sec-title">متوقفة</h2>
+          <p class="lead-dim fs-0_85">لم تفتحها منذ أسبوع. تعود إليها متى شئت من حيث توقفت.</p>
+          <ul class="list">
+            {paused.map(({ e, p }) => (
+              <li><a class="row-link card-link" href={`/journey/paths/${e.id}`}><span class="grow"><span class="t">{e.path_versions?.title}</span><span class="s">{p ? `${p.completed_steps} من ${p.total_steps}` : ''}</span></span><span class="end">عُد إليه</span></a></li>
+            ))}
+          </ul>
         </section>
       )}
 
-      {!empty && <section class="section section-flush"><AppTools compact /></section>}
-
-      <section class="section section-flush">
-        <div class="notice"><strong>تحب أن يتابع معك أحد من الفريق؟</strong> رفيق يذكّرك ويشجعك على ما بدأت. <a href="/support">اطلب متابعة</a></div>
-      </section>
-
-      {data.saved.length > 0 && (
-        <section class="section section-flush" aria-labelledby="saved-h">
-          <div class="section-title"><h2 class="fs-1_4" id="saved-h">آخر ما حفظت</h2><a href="/journey/saved">كل المحفوظات</a></div>
-          <ul class="mats">{data.saved.map((s) => s.materials
-            ? <li><a class="mat" href={`/library/${s.materials.slug}`}><div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[s.materials.type]}</span></div><h3>{s.materials.title}</h3></a></li>
-            : <li class="mat unavailable">مادة غير متاحة حاليًا</li>)}</ul>
+      {finished.length > 0 && (
+        <section class="screen-sec" aria-labelledby="fin-h">
+          <h2 id="fin-h" class="sec-title">أنجزت</h2>
+          <ul class="done-grid">
+            {finished.map(({ e }) => (
+              <li><a href={`/journey/paths/${e.id}`}><svg viewBox="0 0 34 22" aria-hidden="true"><circle cx="17" cy="13" r="7" fill="var(--gold)"></circle><path d="M2 20h30" stroke="var(--teal)" stroke-width="2" stroke-linecap="round"></path></svg>{e.path_versions?.title}</a></li>
+            ))}
+          </ul>
         </section>
       )}
 
-      {data.activity.length > 0 && (
-        <section class="section section-flush" aria-labelledby="act-h">
-          <h2 id="act-h" class="section-title fs-1_4 c-dim">آخر ما أنجزت</h2>
-          <ul class="dim list-none p-0 m-0">{data.activity.map((a) => (
-            <li class="d-flex gap-0_6 items-baseline py-0_3"><Star /><span>{a.steps?.title ?? 'خطوة'} — {a.enrollments?.path_versions?.title ?? ''}</span></li>
-          ))}</ul>
-        </section>
-      )}
+      <p class="center"><a class="link-quiet" href="/journey/paths">كل مساراتي والأرشيف</a></p>
     </div>
   )}
 </Base>

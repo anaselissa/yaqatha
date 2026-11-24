@@ -68,16 +68,28 @@ export const HANDLERS: Record<string, Handler> = {
     return { to: back(form, '/journey/saved'), flash: 'أُزيلت من المحفوظات' };
   },
   'report-material': async ({ token, form }) => {
-    await mutate('POST', 'material_reports', token, { body: { material_id: uuid(form, 'material_id'), note: str(form, 'note', 1000) || null } });
+    const kind = str(form, 'kind', 20);
+    const KINDS = ['broken_link', 'content_error', 'unclear_source', 'other'];
+    await mutate('POST', 'material_reports', token, { body: { material_id: uuid(form, 'material_id'), note: str(form, 'note', 1000) || null, ...(KINDS.includes(kind) ? { kind } : {}) } });
     return { to: back(form, '/'), flash: 'شكرًا لك، وصل بلاغك إلى فريق يقظة' };
   },
   'goal-create': async ({ token, form }) => {
     const id = uuid(form, 'id');
     const dom = await domainId(str(form, 'domain', 80));
-    await mutate('POST', 'goals', token, { body: { id, ...goalFields(form), domain_id: dom }, ignoreDuplicates: true });
+    // هدف يومي (الهجرة 13): يُرسل النوع فقط إن اختاره المستخدم، فيبقى الهدف العادي يعمل قبل الهجرة
+    const daily = str(form, 'kind', 10) === 'daily';
+    const days = Math.min(365, Math.max(1, Number(str(form, 'days', 4)) || 30));
+    await mutate('POST', 'goals', token, { body: { id, ...goalFields(form), domain_id: dom, ...(daily ? { kind: 'daily', days, status: 'in_progress' } : {}) }, ignoreDuplicates: true });
     const enr = str(form, 'enrollment_id', 40);
     if (UUID.test(enr)) await mutate('POST', 'goal_enrollments', token, { body: { goal_id: id, enrollment_id: enr }, ignoreDuplicates: true });
     return { to: `/journey/goals/${id}`, flash: 'تم حفظ هدفك' };
+  },
+  'goal-checkin': async ({ token, form }) => {
+    const g = uuid(form, 'goal_id'), day = str(form, 'day', 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new BadInput('day');
+    const done = str(form, 'done', 1) !== '0';
+    await mutate('POST', 'goal_checkins', token, { params: { on_conflict: 'goal_id,day' }, body: { goal_id: g, day, done }, merge: true });
+    return { to: back(form, `/journey/goals/${g}`), flash: done ? 'بارك الله فيك' : undefined };
   },
   'goal-update': async ({ token, form }) => {
     const id = uuid(form, 'id');
@@ -124,8 +136,14 @@ export const HANDLERS: Record<string, Handler> = {
     const phone = str(form, 'phone', 30) || null, other = str(form, 'other_contact', 200) || null;
     if (!name || (!phone && !other)) throw new BadInput('contact');
     const topic = str(form, 'topic', 30), gender = str(form, 'gender', 10);
-    await mutate('POST', 'mentorship_requests', token, { body: { name, phone, other_contact: other, preferred_time: str(form, 'preferred_time', 100) || null, topic, gender } });
+    const share = str(form, 'share_progress', 3) === 'on';
+    await mutate('POST', 'mentorship_requests', token, { body: { name, phone, other_contact: other, preferred_time: str(form, 'preferred_time', 100) || null, topic, gender, ...(share ? { share_progress: true } : {}) } });
     return { to: '/support', flash: 'وصل طلبك إلى فريق يقظة. سنتواصل معك قريبًا بإذن الله' };
+  },
+  'share-progress': async ({ token, form }) => {
+    const on = str(form, 'on', 1) === '1';
+    await rpc('set_share_progress', { on_off: on }, token);
+    return { to: back(form, '/support'), flash: on ? 'صار مشرفك يرى تقدّمك في مساراتك' : 'أوقفت مشاركة تقدّمك' };
   },
   'support-withdraw': async ({ token, form }) => {
     await mutate('DELETE', 'mentorship_requests', token, { params: { id: `eq.${uuid(form, 'id')}` } });
@@ -151,6 +169,7 @@ const MESSAGES: [RegExp, string][] = [
   [/mentorship_one_open/, 'لديك طلب متابعة مفتوح فعلًا'],
   [/mentorship_requests_phone_check|mentorship_requests_check/, 'تأكد من رقم الهاتف (أرقام فقط مع رمز الدولة) أو اكتب وسيلة تواصل أخرى'],
   [/mentorship_requests_(topic|gender)_check/, 'اختر الموضوع والجنس من القائمة'],
+  [/checkin day out of range/, 'لا يمكن تعليم يوم بعيد. علّم يومك فقط'],
   [/row-level security|violates|permission denied/, 'تعذر تنفيذ العملية. قد لا تكون المادة متاحة'],
 ];
 

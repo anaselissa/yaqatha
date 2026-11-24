@@ -8,7 +8,7 @@ const role = Astro.locals.staffRole;
 const tabs = role === 'mentor' ? [['/admin/requests', 'طلبات المتابعة']] : [['/admin', 'الرئيسية'], ['/admin/materials', 'المواد'], ['/admin/paths', 'المسارات'], ['/admin/series', 'السلاسل'], ['/admin/reports', 'البلاغات'], ['/admin/taxonomy', 'الاحتياجات والمجالات'], ['/admin/onboarding', 'ابدأ من هنا'], ...(role === 'manager' ? [['/admin/requests', 'طلبات المتابعة'], ['/admin/team', 'الفريق'], ['/admin/settings', 'الإعدادات']] : [])];
 const cur = (h: string) => (h === '/admin' ? p === '/admin' : p === h || p.startsWith(h + '/'));
 ---
-<Base title={`${title} — الإدارة`} noindex>
+<Base title={`${title} — الإدارة`} noindex chrome="admin">
   <div class="container admin">
     <header class="page-head">
       <p class="row gap-0_5 m-0">

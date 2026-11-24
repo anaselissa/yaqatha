@@ -1,0 +1,29 @@
+---
+const p = Astro.url.pathname;
+const on = (m: string[]) => m.some((x) => (x === '/' ? p === '/' : p === x || p.startsWith(x + '/')));
+const tabs = [
+  { href: '/', label: 'الرئيسية', m: ['/'], icon: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
+  { href: '/journey', label: 'رحلتي', m: ['/journey/paths', '/journey'], icon: 'M5 21c0-6 14-6 14-12a4 4 0 0 0-8 0' },
+  { href: '/discover', label: 'اكتشف', m: ['/discover', '/search', '/paths', '/library', '/series', '/doors', '/domains', '/needs', '/topics', '/start'], icon: '' },
+  { href: '/account', label: 'حسابي', m: ['/account', '/journey/goals', '/journey/saved', '/journey/settings', '/support', '/login'], icon: '' },
+];
+// «حسابي» أدقّ من «رحلتي» لصفحات الأهداف والمحفوظات والإعدادات
+const current = tabs.find((t) => t.href === '/account' && on(t.m))?.href ?? tabs.find((t) => on(t.m))?.href;
+---
+<nav class="tabbar" aria-label="التنقل الرئيسي">
+  <ul>
+    {tabs.map((t) => (
+      <li>
+        <a href={t.href} aria-current={current === t.href ? 'page' : undefined}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            {t.href === '/discover' ? <><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></>
+              : t.href === '/account' ? <><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></>
+              : t.href === '/journey' ? <><path d={t.icon}></path><circle cx="5" cy="21" r="1"></circle></>
+              : <path d={t.icon}></path>}
+          </svg>
+          {t.label}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>

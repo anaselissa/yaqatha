@@ -1,55 +1,74 @@
 ---
+// «طريقك جاهز»: مسار واحد مقترح وخطواته الأولى، وزر واحد للبدء.
 import Base from '../../layouts/Base.astro';
 import ErrorState from '../../components/ErrorState.astro';
-import PathCard from '../../components/PathCard.astro';
-import MaterialList from '../../components/MaterialList.astro';
-import { recommend } from '../../lib/data';
+import BackBtn from '../../components/BackBtn.astro';
+import { getPath, recommend } from '../../lib/data';
+import { durationLabel } from '../../lib/labels';
 import { load } from '../../lib/page';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const chosen = [...Astro.url.searchParams.values()].filter((v) => UUID.test(v)).slice(0, 20);
 if (!chosen.length) return Astro.redirect('/start');
-const r = await load(Astro.response, () => recommend(chosen));
+const skip = Math.max(0, Math.min(5, Number(Astro.url.searchParams.get('alt') ?? 0) || 0));
+const r = await load(Astro.response, async () => {
+  const rec = await recommend(chosen);
+  const pick = rec.content?.paths[skip] ?? rec.content?.paths[0] ?? null;
+  const full = pick ? await getPath(pick.slug) : null;
+  return { ...rec, pick, steps: full && 'steps' in full ? full.steps : [] };
+});
+const others = r?.content?.paths.length ?? 0;
+const altHref = (() => { const u = new URL(Astro.url); u.searchParams.set('alt', String((skip + 1) % Math.max(1, others))); return u.pathname + u.search; })();
 ---
-<Base title="بدايتك المقترحة" noindex>
+<Base title="طريقك جاهز" noindex chrome="focus">
   {!r ? <ErrorState /> : (
-    <div class="container narrow">
-      <header class="page-head">
-        <p class="gold m-0">بدايتك المقترحة</p>
-        {r.top ? <h1 class="mt-0_5">{r.top.title}</h1> : <h1 class="mt-0_5">ابدأ من أحد الأبواب</h1>}
-        {r.top?.description && <p class="lead">{r.top.description}</p>}
+    <div class="app-col focus-wrap">
+      <header class="focus-top">
+        <div class="line"><BackBtn href="/start" /></div>
       </header>
-      <div class="stack sp-2 py-1-3">
-        {r.top && r.content && r.content.paths.length > 0 && (
-          <section class="stack sp-0_8">
-            <h2 class="fs-1_4">ابدأ بهذا المسار</h2>
-            {r.content.paths.slice(0, 2).map((p) => <PathCard path={p} />)}
-          </section>
-        )}
-        {r.top && r.content && r.content.materials.length > 0 && (
-          <section class="stack sp-0_8">
-            <h2 class="fs-1_4">{r.content.paths.length ? 'ومواد تساعدك' : 'ابدأ بهذه المواد'}</h2>
-            <MaterialList items={r.content.materials} />
-          </section>
-        )}
-        {r.top && (
-          <p><a class="btn btn-primary" href={`/needs/${r.top.slug}`}>كل ما يخص «{r.top.title}»</a></p>
-        )}
-        {(!r.top || (r.content && !r.content.paths.length && !r.content.materials.length)) && (
-          <div class="notice">نجهّز المحتوى لهذا الجانب بعناية. حتى ذلك الحين تصفّح الأبواب، أو اطلب أن يتابع معك أحد من الفريق.
-            <div class="row mt-0_8"><a class="btn btn-primary btn-sm" href="/discover">اكتشف احتياجك</a><a class="btn btn-ghost btn-sm" href="/support">متابعة من الفريق</a></div>
+      {r.pick ? (
+        <>
+          <div class="focus-body">
+            <h1 class="q-title">طريقك جاهز</h1>
+            <p class="lead-dim">اخترناه لك من إجاباتك{r.top ? `: ${r.top.title}` : ''}</p>
+            <section class="card card-lg" aria-labelledby="pick-h">
+              <h2 id="pick-h">{r.pick.title}</h2>
+              <p class="meta"><span class="pill pill-teal">{durationLabel(r.pick.duration_days)}</span>{r.steps.length > 0 && <span class="chip">{r.steps.length} خطوات</span>}</p>
+              {r.pick.description && <p class="sub">{r.pick.description}</p>}
+              {r.steps.length > 0 && (
+                <ol class="first-steps">
+                  {r.steps.slice(0, 3).map((s) => <li><span class="n">{s.position}</span>{s.title}</li>)}
+                  {r.steps.length > 3 && <li class="more">و{r.steps.length - 3 === 1 ? 'خطوة أخرى' : r.steps.length - 3 === 2 ? 'خطوتان أخريان' : `${r.steps.length - 3} خطوات أخرى`}</li>}
+                </ol>
+              )}
+            </section>
           </div>
-        )}
-        {r.others.length > 0 && (
-          <section class="stack sp-0_6">
-            <h2 class="fs-1_2">قد يهمك أيضًا</h2>
-            <ul class="mats">{r.others.map((n) => <li><a class="mat" href={`/needs/${n.slug}`}><h3>{n.title}</h3></a></li>)}</ul>
-          </section>
-        )}
-        <div class="row">
-          <a class="btn btn-ghost btn-sm" href="/journey/goals/new">أو اكتب هدفك بنفسك</a>
-          <a class="btn btn-ghost btn-sm" href="/start">أعد الأسئلة</a>
+          <div class="dock">
+            <form method="post" action="/api/start-path" data-path-state={r.pick.path_id}>
+              <input type="hidden" name="path_id" value={r.pick.path_id} />
+              <input type="hidden" name="next" value={`/paths/${r.pick.slug}`} />
+              <button class="btn btn-primary btn-block" type="submit">ابدأ الآن</button>
+            </form>
+            {others > 1 ? <a class="link-quiet" href={altHref}>اقترح عليّ غيره</a> : <a class="link-quiet" href={`/paths/${r.pick.slug}`}>اطّلع على المسار أولًا</a>}
+          </div>
+        </>
+      ) : (
+        <div class="focus-body">
+          <h1 class="q-title">{r.top ? r.top.title : 'نجهّز لك البداية'}</h1>
+          {r.top && r.content && r.content.materials.length > 0 ? (
+            <>
+              <p class="lead-dim">لم نجهّز مسارًا لهذا بعد، وهذه مواد تساعدك الآن:</p>
+              <ul class="list">{r.content.materials.map((m) => <li><a class="row-link card-link" href={`/library/${m.slug}`}><span class="grow"><span class="t">{m.title}</span></span></a></li>)}</ul>
+            </>
+          ) : <p class="lead-dim">نجهّز المحتوى لهذا الجانب بعناية. حتى ذلك الحين تصفّح المسارات، أو اطلب أن يتابع معك أحد من الفريق.</p>}
+          <a class="btn btn-primary btn-block" href="/discover">تصفّح المسارات</a>
+          <a class="link-quiet center" href="/support">متابعة من الفريق</a>
+          {r.others.length > 0 && (
+            <section class="screen-sec"><h2 class="sec-title">قد يهمك أيضًا</h2>
+              <ul class="list">{r.others.map((n) => <li><a class="row-link card-link" href={`/needs/${n.slug}`}><span class="grow"><span class="t">{n.title}</span></span></a></li>)}</ul>
+            </section>
+          )}
         </div>
-      </div>
+      )}
     </div>
   )}
 </Base>

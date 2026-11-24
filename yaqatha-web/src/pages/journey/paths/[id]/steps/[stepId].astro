@@ -1,57 +1,123 @@
 ---
+// داخل الخطوة: صفحة تركيز. فتحها = «بدأت» تلقائيًا، وزر «أنهيت، التالي» = «اكتملت» ثم شاشة التشجيع.
 import Base from '../../../../../layouts/Base.astro';
-import Breadcrumbs from '../../../../../components/Breadcrumbs.astro';
 import ErrorState from '../../../../../components/ErrorState.astro';
-import StepControls from '../../../../../components/StepControls.astro';
-import { getEnrollment, getEnrollmentSteps } from '../../../../../lib/user';
+import BackBtn from '../../../../../components/BackBtn.astro';
+import MaterialContent from '../../../../../components/MaterialContent.astro';
+import { getEnrollment, getEnrollmentSteps, getMyProgress } from '../../../../../lib/user';
+import { getMaterialsFull } from '../../../../../lib/data';
 import { rpc } from '../../../../../lib/api';
-import { MATERIAL_TYPE, STEP_TYPE } from '../../../../../lib/labels';
 import { load } from '../../../../../lib/page';
 
 const { id, stepId } = Astro.params;
 if (!/^[0-9a-f-]{36}$/i.test(id!) || !/^[0-9a-f-]{36}$/i.test(stepId!)) return Astro.rewrite('/404');
 const t = Astro.locals.session!.token;
+const showDone = Astro.url.searchParams.get('done') === '1';
+const qa = Astro.url.searchParams.get('qa');
+
 const data = await load(Astro.response, async () => {
   const e = await getEnrollment(t, id!);
   if (!e) return null;
   const r = await getEnrollmentSteps(t, e);
   const step = r.steps.find((s) => s.id === stepId);
-  // فتح الخطوة يحدّث «آخر خطوة» لتعود إليها (لا يغيّر حالتها)
-  if (step && e.status === 'active') await rpc('mark_step_opened', { p_enrollment_id: e.id, p_step_id: step.id }, t).catch(() => null);
-  return { e, step, steps: r.steps, state: r.state };
+  if (!step) return { e, step: undefined, steps: r.steps, state: r.state, mats: [], me: null };
+  let state = r.state(step.id);
+  if (e.status === 'active' && !showDone) {
+    // فتح الخطوة يحدّث «آخر خطوة»، ويعلّمها «بدأت» إن لم تبدأ بعد
+    await rpc('mark_step_opened', { p_enrollment_id: e.id, p_step_id: step.id }, t).catch(() => null);
+    if (state === 'not_started') {
+      const ok = await rpc('set_step_state', { p_enrollment_id: e.id, p_step_id: step.id, p_state: 'in_progress' }, t).then(() => true).catch(() => false);
+      if (ok) state = 'in_progress';
+    }
+  }
+  const ids = step.step_materials.map((sm) => sm.materials?.id).filter((x): x is string => !!x);
+  const [mats, me] = await Promise.all([showDone ? Promise.resolve([]) : getMaterialsFull(ids), showDone ? getMyProgress(t) : Promise.resolve(null)]);
+  return { e, step, steps: r.steps, state: (sid: string) => (sid === step.id ? state : r.state(sid)), mats, me };
 });
 if (data === null && Astro.response.status !== 503) return Astro.rewrite('/404');
 if (data && !data.step) return Astro.rewrite('/404');
 const e = data?.e, step = data?.step;
-const idx = data && step ? data.steps.findIndex((s) => s.id === step.id) : -1;
-const prev = data?.steps[idx - 1], next = data?.steps[idx + 1];
-const here = `/journey/paths/${id}/steps/${stepId}`;
+const steps = data?.steps ?? [];
+const idx = step ? steps.findIndex((s) => s.id === step.id) : -1;
+const next = steps[idx + 1];
+const pathHref = `/journey/paths/${id}`;
+const here = `${pathHref}/steps/${stepId}`;
+const active = e?.status === 'active';
+const doneCount = data ? steps.filter((s) => data.state(s.id) === 'completed').length : 0;
+const remaining = steps.length - doneCount;
+// أول خطوة غير مكتملة بعد هذه (أو قبلها) هي «التالية» بعد الإكمال
+const nextOpen = data ? (steps.slice(idx + 1).find((s) => data.state(s.id) !== 'completed') ?? steps.find((s) => data.state(s.id) !== 'completed')) : undefined;
+const allDone = !!data && steps.length > 0 && remaining === 0;
+if (showDone && allDone) return Astro.redirect(`${pathHref}?finished=1`, 303);
+const state = data && step ? data.state(step.id) : 'not_started';
+const remainingLabel = remaining === 1 ? 'بقيت خطوة واحدة' : remaining === 2 ? 'بقيت خطوتان' : `بقيت ${remaining} خطوات`;
+const streak = data?.me?.streak_days ?? 0;
 ---
-<Base title={step?.title} noindex>
-  {!data || !e || !step ? <ErrorState /> : (
-    <div class="container narrow">
-      <header class="page-head">
-        <Breadcrumbs items={[{ label: 'رحلتي', href: '/journey' }, { label: e.path_versions?.title ?? 'مسار', href: `/journey/paths/${e.id}` }, { label: `الخطوة ${step.position}` }]} />
-        <div class="meta mb-0_8"><span class="chip chip-gold">{STEP_TYPE[step.type]}</span><span class="chip">الخطوة {step.position} من {data.steps.length}</span></div>
-        <h1>{step.title}</h1>
-      </header>
-      <div class="stack sp-1_5 py-1-2">
-        {step.instructions && <p class="prose fs-1_3">{step.instructions}</p>}
-        {step.step_materials.length > 0 && (
-          <div>
-            <h2 class="fs-1_4 mb-0_8">المواد المرتبطة</h2>
-            <ul class="mats">{step.step_materials.map((sm) => sm.materials
-              ? <li><a class="mat" href={`/library/${sm.materials.slug}`}><div class="meta"><span class="chip chip-gold">{MATERIAL_TYPE[sm.materials.type]}</span></div><h3>{sm.materials.title}</h3>{sm.materials.description && <p>{sm.materials.description}</p>}</a></li>
-              : <li class="mat unavailable">هذه المادة غير متاحة حاليًا</li>)}</ul>
-          </div>
-        )}
-        <StepControls enrollmentId={e.id} stepId={step.id} state={data.state(step.id)} next={here} readonly={e.status !== 'active'} />
+<Base title={step?.title} noindex chrome="focus">
+  {!data || !e || !step ? <ErrorState /> : showDone ? (
+    <div class="app-col focus-wrap">
+      <div class="focus-body done-hero">
+        <svg viewBox="0 0 310 110" class="done-arc" aria-hidden="true">
+          <path d="M20 100 Q155 -30 290 100" fill="none" stroke="var(--line-strong)" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"></path>
+          <path d="M290 100 Q262 62 232 44" fill="none" stroke="var(--teal)" stroke-width="4" stroke-linecap="round"></path>
+          <circle cx="232" cy="44" r="18" fill="var(--gold)"></circle>
+          <path d="M224 44l6 6 11-12" fill="none" stroke="var(--on-gold)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+          <line x1="0" y1="100" x2="310" y2="100" stroke="var(--track)"></line>
+        </svg>
+        <h1>{doneCount === 1 ? 'أحسنت، أول خطوة' : 'أحسنت'}</h1>
+        <p>أحبّ الأعمال إلى الله أدومها وإن قلّ. {remainingLabel}.</p>
+        {streak > 0 && <p class="pill pill-teal">{streak === 1 ? 'يومك الأول في السلسلة' : `${streak} ${streak <= 10 ? 'أيام' : 'يومًا'} متتالية`}</p>}
       </div>
-      <nav class="pager pb-2" aria-label="التنقل بين الخطوات">
-        {prev ? <a href={`/journey/paths/${e.id}/steps/${prev.id}`} rel="prev">الخطوة السابقة</a> : <span class="off">الخطوة السابقة</span>}
-        <a href={`/journey/paths/${e.id}`}>كل الخطوات</a>
-        {next ? <a href={`/journey/paths/${e.id}/steps/${next.id}`} rel="next">الخطوة التالية</a> : <span class="off">الخطوة التالية</span>}
-      </nav>
+      <div class="dock">
+        {nextOpen && <div class="card-quiet"><span class="faint fs-0_85">التالية</span><strong>{nextOpen.title}</strong></div>}
+        {nextOpen
+          ? <a class="btn btn-primary btn-block" href={`${pathHref}/steps/${nextOpen.id}`}>الخطوة التالية</a>
+          : <a class="btn btn-primary btn-block" href={pathHref}>إلى مساري</a>}
+        <a class="link-quiet" href="/">أكملها لاحقًا</a>
+      </div>
+    </div>
+  ) : (
+    <div class="app-col focus-wrap">
+      <header class="focus-top">
+        <div class="line">
+          <BackBtn href={pathHref} close label="إغلاق والعودة إلى المسار" />
+          <span class="count">الخطوة {step.position} من {steps.length}</span>
+        </div>
+        <div class="segs" role="img" aria-label={`أكملت ${doneCount} من ${steps.length} خطوات`}>
+          {steps.map((s) => <i class={s.id === step.id ? 'now' : data.state(s.id) === 'completed' ? 'done' : ''}></i>)}
+        </div>
+      </header>
+
+      <div class="focus-body">
+        {e.path_versions?.status === 'withdrawn' && <p class="notice" role="alert">سُحب هذا الإصدار مؤقتًا للمراجعة، وتقدمك محفوظ.</p>}
+        {state === 'in_progress' && <p class="started">بدأت هذه الخطوة</p>}
+        {state === 'completed' && <p class="started">أكملت هذه الخطوة</p>}
+        <h1 class="step-title">{step.title}</h1>
+        {step.instructions && <p class="step-text">{step.instructions}</p>}
+        {data.mats.map((m) => <MaterialContent m={m} questions={m.questions} next={here} qa={qa} heading={data.mats.length > 1 || !!step.instructions} />)}
+        {step.step_materials.some((sm) => !sm.materials) && <p class="unavailable">بعض مواد هذه الخطوة غير متاحة حاليًا.</p>}
+      </div>
+
+      <div class="dock">
+        {!active ? (
+          <a class="btn btn-ghost btn-block" href={pathHref}>العودة إلى المسار</a>
+        ) : state === 'completed' ? (
+          <>
+            {next ? <a class="btn btn-primary btn-block" href={`${pathHref}/steps/${next.id}`}>التالي</a> : <a class="btn btn-primary btn-block" href={pathHref}>إلى مساري</a>}
+            <form method="post" action="/api/set-step" class="center">
+              <input type="hidden" name="enrollment_id" value={e.id} /><input type="hidden" name="step_id" value={step.id} />
+              <input type="hidden" name="state" value="in_progress" /><input type="hidden" name="next" value={here} />
+              <button class="link-quiet" type="submit">لم أكملها بعد</button>
+            </form>
+          </>
+        ) : (
+          <form method="post" action="/api/set-step">
+            <input type="hidden" name="enrollment_id" value={e.id} /><input type="hidden" name="step_id" value={step.id} />
+            <input type="hidden" name="state" value="completed" /><input type="hidden" name="next" value={`${here}?done=1`} />
+            <button class="btn btn-primary btn-block" type="submit">أنهيت، التالي</button>
+          </form>
+        )}
+      </div>
     </div>
   )}
 </Base>

@@ -230,7 +230,7 @@ export async function resolveRedirect(type: keyof typeof REDIRECT_TABLE, slug: s
 // ---------- ابدأ من هنا (الأسئلة التعريفية) ----------
 export interface OnbOption { id: string; label: string; need_id: string | null; weight: number; position: number }
 export type Branch = 'fix' | 'grow';
-export const BRANCHES: Record<Branch, string> = { fix: 'في شيء أريد أن أُصلحه', grow: 'أريد أن أزداد من الخير وأتقرّب أكثر' };
+export const BRANCHES: Record<Branch, string> = { fix: 'أريد أن أُصلح شيئًا في نفسي', grow: 'أريد أن أتقرّب إلى الله أكثر' };
 export interface OnbQuestion { id: string; prompt: string; hint: string | null; branch: Branch; onboarding_options: OnbOption[] }
 /** أسئلة «من أين أبدأ» (لفرع واحد أو للكل). قبل الهجرة 12 لا يوجد عمود branch: تُعامَل كلها كفرع «أصلح» */
 export async function getOnboarding(branch?: Branch): Promise<OnbQuestion[]> {
@@ -307,4 +307,15 @@ export async function getSitemapData() {
   ]);
   const series = await rest<{ slug: string; updated_at: string }>('series', { select: 'slug,updated_at', limit: 1000 }).then((r) => r.rows).catch(() => []);
   return { doors, needs, domains, topics, paths, materials, series };
+}
+
+/** مواد الخطوة كاملة (النص والرابط) مع أسئلتها، بترتيب المعرّفات المعطاة. المنشور فقط (RLS). */
+export async function getMaterialsFull(ids: string[]): Promise<(Material & { questions: Question[] })[]> {
+  if (!ids.length) return [];
+  const { rows } = await rest<Material>('materials', { select: `${MATERIAL_CARD},body,url,source_title,source_url`, id: inList(ids) });
+  let qs: (Question & { material_id: string })[] = [];
+  try {
+    qs = (await rest<Question & { material_id: string }>('material_questions', { select: 'id,material_id,prompt,options,correct_index,explanation', material_id: inList(ids), order: 'position,created_at' })).rows;
+  } catch (e) { console.error('[questions]', (e as Error).message); }
+  return rows.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)).map((m) => ({ ...m, questions: qs.filter((q) => q.material_id === m.id) }));
 }
