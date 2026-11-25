@@ -14,7 +14,6 @@ const id = Astro.params.id!;
 if (!/^[0-9a-f-]{36}$/i.test(id)) return Astro.rewrite('/404');
 const t = Astro.locals.session!.token;
 const wantMigrate = Astro.url.searchParams.get('migrate') === '1';
-const isNew = Astro.url.searchParams.get('new') === '1';
 
 const data = await load(Astro.response, async () => {
   const e = await getEnrollment(t, id);
@@ -116,24 +115,6 @@ const nextPath = d?.ending?.paths[0];
       </div>
       <p class="pill pill-teal justify-self-start">{doneN} من {total} مكتملة{!active ? '، مؤرشف' : ''}</p>
 
-      {isNew && active && (
-        <div class="card">
-          <strong>تريد ربط هذا المسار بهدف؟</strong><span class="dim">اختياري تمامًا.</span>
-          <div class="row">
-            {d.goals.length > 0 && (
-              <form method="post" action="/api/goal-link" class="row">
-                <input type="hidden" name="enrollment_id" value={e.id} /><input type="hidden" name="next" value={here} />
-                <label class="sr-only" for="goal_id">هدف</label>
-                <select id="goal_id" name="goal_id" class="input w-auto">{d.goals.map((g) => <option value={g.id}>{g.title}</option>)}</select>
-                <button class="btn btn-ghost btn-sm" type="submit">اربطه</button>
-              </form>
-            )}
-            <a class="btn btn-ghost btn-sm" href={`/journey/goals/new?enrollment=${e.id}&title=${encodeURIComponent(pathTitle)}`}>أنشئ هدفًا منه</a>
-            <a class="link-quiet" href={here}>ليس الآن</a>
-          </div>
-        </div>
-      )}
-
       {withdrawn && <p class="notice" role="alert"><strong>سُحب هذا الإصدار مؤقتًا للمراجعة.</strong> تقدمك محفوظ، وسيتاح المحتوى حين تنتهي المراجعة{d.hasUpdate ? '، أو انتقل إلى الإصدار المحدَّث أدناه' : ''}.</p>}
 
       {d.hasUpdate && !wantMigrate && (
@@ -155,11 +136,11 @@ const nextPath = d?.ending?.paths[0];
         </section>
       )}
 
-      {!withdrawn && steps.length > 0 && <Road steps={steps} current={d.done ? null : resume} hrefBase={`${here}/steps`} />}
-
       {!withdrawn && active && resume && !d.done && (
         <a class="btn btn-primary btn-block" href={`${here}/steps/${resume}`}>{doneN === 0 ? 'ابدأ الخطوة الأولى' : 'كمّل خطوة اليوم'}</a>
       )}
+
+      {!withdrawn && steps.length > 0 && <Road steps={steps} current={d.done ? null : resume} hrefBase={`${here}/steps`} />}
 
       {d.linked.length > 0 && (
         <p class="dim fs-0_9">مرتبط بأهدافك: {d.linked.map((l, i) => <>{i > 0 && '، '}{l.goals ? <a href={`/journey/goals/${l.goals.id}`}>{l.goals.title}</a> : null}</>)}</p>

@@ -100,6 +100,13 @@ const habitsDone = habits.filter((h) => h.today === true);
         </section>
       )}
 
+      {main && (
+        <a class="row-link card-quiet plain new-path" href="/start">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
+          <span class="grow"><span class="t">ابدأ مسارًا جديدًا</span><span class="s">نقترح عليك بداية، أو اختر من «اكتشف»</span></span>
+        </a>
+      )}
+
       {(more.length > 0 || habits.length > 0) && (
         <ul class="list">
           {more.map(({ e, p, next }) => (

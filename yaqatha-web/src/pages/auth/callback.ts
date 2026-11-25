@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { COOKIE, exchangeCode, safeNext, sessionFromToken, setFlash, storeTokens } from '../../lib/auth';
 import { runAction } from '../../lib/actions';
+import { claimStaffInvite } from '../../lib/admin';
 
 export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
   const secure = url.protocol === 'https:';
@@ -17,6 +18,8 @@ export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
   let tokens;
   try { tokens = await exchangeCode(code, verifier); } catch { return fail('failed'); }
   storeTokens(cookies, tokens, secure);
+  // من دُعي إلى الفريق وهو مسجَّل من قبل: تُطبَّق دعوته عند دخوله، لا عند زيارة اللوحة فقط
+  await claimStaffInvite(tokens.access_token).catch(() => null);
 
   // نية معلقة (بدء مسار/حفظ مادة) تُنفَّذ مرة واحدة ثم تُحذف
   const raw = cookies.get(COOKIE.intent)?.value;

@@ -2,11 +2,11 @@
 import Base from '../../layouts/Base.astro';
 import BackBtn from '../../components/BackBtn.astro';
 import AppTools from '../../components/AppTools.astro';
-import { ROLE, getStaffRole } from '../../lib/admin';
+import { ROLE, claimStaffInvite, getStaffRole } from '../../lib/admin';
 import { rest } from '../../lib/api';
 const s = Astro.locals.session!;
 const [role, req] = await Promise.all([
-  getStaffRole(s.token, s.userId).catch(() => null),
+  getStaffRole(s.token, s.userId).then((r) => r ?? claimStaffInvite(s.token)).catch(() => null),
   // مشاركة التقدّم مع المشرف (الهجرة 13): تظهر فقط لمن عنده طلب متابعة مفتوح
   rest<{ id: string; share_progress: boolean }>('mentorship_requests', { select: 'id,share_progress', status: 'neq.closed', limit: 1 }, { token: s.token }).then((r) => r.rows[0] ?? null).catch(() => null),
 ]);

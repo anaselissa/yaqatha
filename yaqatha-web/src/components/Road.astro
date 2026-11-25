@@ -1,14 +1,14 @@
 ---
-// «رحلتي»: الطريق يبدأ من الأسفل وينتهي عند الشمس في الأعلى. القائمة بترتيب الخطوات (1 أولًا) لقارئ الشاشة،
-// وتُرسم من الأسفل إلى الأعلى. كل عقدة رابط إلى خطوتها.
+// «رحلتي»: الطريق يبدأ من الأعلى وينتهي عند الشمس في الأسفل، فيرى المستخدم بدايته وخطوته الحالية أولًا.
+// القائمة بترتيب الخطوات (1 أولًا) لقارئ الشاشة. كل عقدة رابط إلى خطوتها.
 interface S { id: string; position: number; title: string; state: string }
 interface Props { steps: S[]; current: string | null; hrefBase: string }
 const { steps, current, hrefBase } = Astro.props;
 const H = 82, W = 350, n = steps.length;
 const total = (n + 1) * H;
-// العقدة i (من الأسفل) عند ارتفاع ثابت، وتتمايل يمينًا ويسارًا. نبدأ من اليمين (اتجاه القراءة)
-const pts = steps.map((_, i) => ({ x: Math.round(W * (0.5 + 0.26 * Math.sin(i * 1.05 + 0.9))), y: Math.round(total - (i + 0.5) * H) }));
-const end = { x: Math.round(W * 0.5 + W * 0.26 * Math.sin(n * 1.05 + 0.9)), y: Math.round(H * 0.45) };
+// العقدة i (من الأعلى) عند ارتفاع ثابت، وتتمايل يمينًا ويسارًا. نبدأ من اليمين (اتجاه القراءة)
+const pts = steps.map((_, i) => ({ x: Math.round(W * (0.5 + 0.26 * Math.sin(i * 1.05 + 0.9))), y: Math.round((i + 0.5) * H) }));
+const end = { x: Math.round(W * 0.5 + W * 0.26 * Math.sin(n * 1.05 + 0.9)), y: Math.round(total - H * 0.45) };
 const all = [...pts, end];
 function smooth(p: { x: number; y: number }[]) {
   if (!p.length) return '';

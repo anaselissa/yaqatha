@@ -2,7 +2,7 @@
  * عمليات المستخدم. لا منطق أعمال هنا: كلها تُمرَّر إلى RPC وRLS في القاعدة بصلاحيات المستخدم نفسه.
  * وظيفة هذا الملف: التحقق من المدخلات، وتحديد وجهة العودة، وترجمة الأخطاء إلى رسائل مفهومة.
  */
-import { DataError, UnauthorizedError, mutate, one, rpc } from './api';
+import { DataError, UnauthorizedError, mutate, one, rest, rpc } from './api';
 import { safeNext } from './auth';
 
 export interface Result { to: string; flash?: string; error?: boolean }
@@ -36,7 +36,17 @@ function goalFields(f: FormData) {
 
 export const HANDLERS: Record<string, Handler> = {
   'start-path': async ({ token, form }) => {
-    const rows = await rpc<{ enrollment_id: string; already_active: boolean }[]>('start_path', { p_path_id: uuid(form, 'path_id') }, token);
+    // الحد المريح 3 مسارات جارية، وليس قفلًا: عند الرابع نعرض تنبيهًا، ومن أصرّ (force) يضيف
+    const pid = uuid(form, 'path_id');
+    if (str(form, 'force', 1) !== '1') {
+      const { rows: act } = await rest<{ id: string; path_id: string }>('enrollments', { select: 'id,path_id', status: 'eq.active', limit: 50 }, { token });
+      if (!act.some((e) => e.path_id === pid) && act.length >= 3) {
+        const { rows: prog } = await rest<{ enrollment_id: string; total_steps: number; completed_steps: number }>('enrollment_progress', { select: 'enrollment_id,total_steps,completed_steps', enrollment_id: `in.(${act.map((e) => e.id).join(',')})` }, { token });
+        const running = prog.filter((p) => p.total_steps > 0 && p.completed_steps < p.total_steps).length;
+        if (running >= 3) return { to: `${back(form, '/discover').split(/[?#]/)[0]}?warn=${running}#warn` };
+      }
+    }
+    const rows = await rpc<{ enrollment_id: string; already_active: boolean }[]>('start_path', { p_path_id: pid }, token);
     const r = rows[0];
     return { to: `/journey/paths/${r.enrollment_id}${r.already_active ? '' : '?new=1'}`,
       flash: r.already_active ? 'أنت تتابع هذا المسار فعلًا' : 'بدأتَ المسار. يُحفظ تقدمك تلقائيًا' };
@@ -98,7 +108,13 @@ export const HANDLERS: Record<string, Handler> = {
     const g = uuid(form, 'goal_id'), day = str(form, 'day', 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new BadInput('day');
     const done = str(form, 'done', 1) !== '0';
-    await mutate('POST', 'goal_checkins', token, { params: { on_conflict: 'goal_id,day' }, body: { goal_id: g, day, done }, merge: true });
+    // إدخال، فإن كان اليوم معلَّمًا من قبل نحدّث «done» فقط (لا upsert: يحتاج صلاحية تعديل كل الأعمدة)
+    try {
+      await mutate('POST', 'goal_checkins', token, { body: { goal_id: g, day, done } });
+    } catch (e) {
+      if (!(e instanceof DataError) || !(e.status === 409 || e.code === '23505')) throw e;
+      await mutate('PATCH', 'goal_checkins', token, { params: { goal_id: `eq.${g}`, day: `eq.${day}` }, body: { done } });
+    }
     return { to: back(form, `/journey/goals/${g}`), flash: done ? 'بارك الله فيك' : undefined };
   },
   'goal-update': async ({ token, form }) => {

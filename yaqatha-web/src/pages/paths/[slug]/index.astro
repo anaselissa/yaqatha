@@ -18,6 +18,7 @@ if (data && !data.path) {
   return Astro.rewrite('/404');
 }
 const path = data?.path;
+const warn = Number(Astro.url.searchParams.get('warn') ?? 0);
 const steps = data && 'steps' in data ? data.steps : [];
 const ld = path && data && 'steps' in data ? {
   '@context': 'https://schema.org', '@type': 'HowTo', name: path.title, description: path.description ?? path.purpose ?? undefined, inLanguage: 'ar',
@@ -63,7 +64,19 @@ const ICON: Record<string, string> = {
       <p class="privacy-note"><svg viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" aria-hidden="true"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>كل مادة بمصدرها، والمدة للتوضيح: سِر بما يناسبك.</p>
       <p class="faint fs-0_8 center">الإصدار {path.version_no}{path.published_at ? `، نُشر في ${formatDate(path.published_at)}` : ''}</p>
 
-      {FEATURES.accounts && steps.length > 0 && (
+      {FEATURES.accounts && steps.length > 0 && warn >= 3 && (
+        <section id="warn" class="sheet-cta warn-sheet" aria-labelledby="warn-h">
+          <h2 id="warn-h">عندك {warn === 3 ? '3 مسارات' : `${warn} مسارات`} الآن</h2>
+          <p class="sub">كثرتها قد تشتّتك. أكمل ما بدأت أولًا، فالقليل الدائم خير من الكثير المنقطع.</p>
+          <a class="btn btn-primary btn-block" href="/journey">أكمل مساراتي أولًا</a>
+          <form method="post" action="/api/start-path">
+            <input type="hidden" name="path_id" value={path.path_id} /><input type="hidden" name="force" value="1" />
+            <input type="hidden" name="next" value={`/paths/${path.slug}`} />
+            <button class="btn btn-ghost btn-block" type="submit">أضفه على أي حال</button>
+          </form>
+        </section>
+      )}
+      {FEATURES.accounts && steps.length > 0 && warn < 3 && (
         <div class="dock dock-app">
           <form method="post" action="/api/start-path" data-path-state={path.path_id}>
             <input type="hidden" name="path_id" value={path.path_id} />

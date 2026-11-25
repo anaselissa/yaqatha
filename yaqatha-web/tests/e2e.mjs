@@ -44,7 +44,7 @@ test('F6+F5: زائر يبدأ مسارًا ← دخول ← يُنفَّذ ال
   await page.getByRole('button', { name: 'المتابعة عبر Google' }).click();
   await page.waitForURL(/\/journey\/paths\/[0-9a-f-]{36}\?new=1/);
   ENR1 = page.url().match(/paths\/([0-9a-f-]{36})/)[1];
-  assert.match(await text(page), /تريد ربط هذا المسار بهدف/);
+  assert.doesNotMatch(await text(page), /تريد ربط هذا المسار بهدف/, 'الهدف يُقترح بعد نهاية المسار لا في بدايته');
   await page.waitForSelector('.toast');
   assert.match(await page.locator('.toast').innerText(), /بدأتَ المسار/);
   assert.equal(sql(`select count(*) from enrollments where user_id='${uid('alice@y.test')}'`), '1');
@@ -341,6 +341,29 @@ test('بلا JavaScript: بدء المسار وحفظ المادة يعملان 
   await c.close();
 });
 
+test('الهدف اليومي: «فعلتها اليوم» ثم تغييرها إلى «ليس اليوم»', async () => {
+  const c = await ctx('alice@y.test'); const page = await c.newPage();
+  await signIn(page, '/journey/goals/new');
+  await page.fill('#title', 'ركعتا الضحى');
+  await page.getByRole('button', { name: 'احفظ الهدف' }).click();
+  await page.waitForURL(/\/journey\/goals\/[0-9a-f-]{36}$/);
+  const gid = page.url().split('/').pop();
+  assert.equal(sql(`select kind from goals where id='${gid}'`), 'daily');
+  await page.getByRole('button', { name: 'فعلتها اليوم' }).click();
+  await page.waitForLoadState();
+  assert.match(await page.locator('.toast').first().innerText(), /بارك الله فيك/);
+  assert.equal(sql(`select count(*) from goal_checkins where goal_id='${gid}' and done`), '1');
+  // نفس اليوم مرة ثانية (من نموذج قديم): يحدّث ولا يفشل
+  const day = sql(`select day from goal_checkins where goal_id='${gid}'`);
+  const r = await page.evaluate(async ([g, d]) => { const f = new FormData(); f.set('goal_id', g); f.set('day', d); f.set('done', '0'); return (await fetch('/api/goal-checkin', { method: 'POST', body: f, redirect: 'manual' })).status; }, [gid, day]);
+  assert.ok(r === 303 || r === 0, 'إعادة توجيه بلا خطأ');
+  assert.equal(sql(`select done from goal_checkins where goal_id='${gid}'`), 'f');
+  await page.goto(`${BASE}/journey/goals`);
+  assert.match(await text(page), /ليس اليوم، وغدًا يوم جديد/);
+  await c.close();
+});
+
+
 test('F12: حذف الحساب: تأكيد صحيح، يمحو كل شيء، ويبدأ الدخول التالي نظيفًا', async () => {
   const c = await ctx('ivan@y.test'); const page = await c.newPage();
   await signIn(page, '/journey/settings');
@@ -377,5 +400,27 @@ test('إمكانية الوصول (axe) لصفحات رحلتي', async () => {
     for (const v of r.violations) bad.push(`${p} ${v.id}: ${v.nodes[0].target}`);
   }
   assert.deepEqual(bad, []);
+  await c.close();
+});
+
+test('المسار الرابع: تنبيه لطيف، ومن أصرّ يضيفه', async () => {
+  const c = await ctx('fourth@y.test'); const page = await c.newPage();
+  await signIn(page, '/journey');
+  const uid = sql(`select id from auth.users where email='fourth@y.test'`);
+  // ثلاثة مسارات جارية (نسجّلها مباشرة)، ثم يحاول الرابع من الواجهة
+  // يلزم 4 مسارات منشورة: نضيف المحتوى التجريبي (آخر اختبار في الملف، فلا يؤثر على غيره)
+  execFileSync('su', ['postgres', '-c', `psql -q -d yaqatha_dev -f ${process.cwd()}/../yaqatha-db/supabase/demo/demo-content.sql`], { stdio: 'ignore' });
+  const ps = sql(`select string_agg(p.id::text, ',') from (select id from paths where status='published' order by slug limit 4) p`).split(',');
+  assert.equal(ps.length, 4, 'يلزم 4 مسارات منشورة في بيانات التطوير');
+  for (const pid of ps.slice(0, 3)) sql(`insert into enrollments (user_id, path_id, version_id) select '${uid}', p.id, v.id from paths p join path_versions v on v.path_id=p.id and v.status='published' where p.id='${pid}'`);
+  const slug = sql(`select slug from paths where id='${ps[3]}'`);
+  await page.goto(`${BASE}/paths/${slug}`);
+  await page.getByRole('button', { name: 'ابدأ هذا المسار' }).click();
+  await page.waitForURL(/warn=3/);
+  assert.match(await text(page), /عندك 3 مسارات الآن/);
+  assert.equal(sql(`select count(*) from enrollments where user_id='${uid}'`), '3', 'لم يُضف بعد');
+  await page.getByRole('button', { name: 'أضفه على أي حال' }).click();
+  await page.waitForURL(/\/journey\/paths\//);
+  assert.equal(sql(`select count(*) from enrollments where user_id='${uid}'`), '4');
   await c.close();
 });

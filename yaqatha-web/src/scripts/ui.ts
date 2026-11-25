@@ -116,7 +116,7 @@ document.querySelectorAll<HTMLInputElement>('input[name="day"][data-local-day]')
 document.querySelectorAll<HTMLButtonElement>('[data-quiz-submit]').forEach((b) => {
   const f = b.form; if (!f) return;
   b.hidden = true;
-  f.querySelectorAll<HTMLInputElement>('input[type=radio]').forEach((r) => r.addEventListener('change', () => f.requestSubmit()));
+  f.querySelectorAll<HTMLInputElement>('input[type=radio]').forEach((r) => r.addEventListener('change', () => (f.requestSubmit ? f.requestSubmit() : f.submit())));
 });
 // تحميل المقطع بالنقر فقط (youtube-nocookie)
 document.querySelectorAll<HTMLElement>('.video-shell[data-yt]').forEach((box) => {
@@ -145,6 +145,18 @@ document.querySelectorAll<HTMLElement>('[data-theme-pick]').forEach((g) => {
   let cur = 'dark'; try { cur = localStorage.getItem('yq-theme') || 'dark'; } catch { /* */ }
   btns.forEach((b) => { b.setAttribute('aria-pressed', String(b.dataset.v === cur)); b.addEventListener('click', () => apply(b.dataset.v!)); });
 });
+
+// iOS (التطبيق على الشاشة الرئيسية): بعد العودة من صفحة Google قد تبقى الصفحة مكبّرة أو مصغّرة حتى التحديث.
+// نعيد ضبط مقياس العرض مرة واحدة دون منع المستخدم من التكبير بعدها.
+function resetZoom() {
+  const vv = window.visualViewport, m = document.querySelector<HTMLMetaElement>('meta[name=viewport]');
+  if (!vv || !m || Math.abs(vv.scale - 1) < 0.02) return;
+  const orig = m.content;
+  m.content = 'width=device-width, initial-scale=1, maximum-scale=1';
+  setTimeout(() => { m.content = orig; }, 300);
+}
+resetZoom();
+window.addEventListener('pageshow', resetZoom);
 
 showFlash();
 hydrateState();

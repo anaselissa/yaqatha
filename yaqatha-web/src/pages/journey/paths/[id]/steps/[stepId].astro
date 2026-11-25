@@ -4,6 +4,8 @@ import Base from '../../../../../layouts/Base.astro';
 import ErrorState from '../../../../../components/ErrorState.astro';
 import BackBtn from '../../../../../components/BackBtn.astro';
 import MaterialContent from '../../../../../components/MaterialContent.astro';
+import ArcMove from '../../../../../components/ArcMove.astro';
+import { cheer } from '../../../../../lib/cheers';
 import { getEnrollment, getEnrollmentSteps, getMyProgress } from '../../../../../lib/user';
 import { getMaterialsFull } from '../../../../../lib/data';
 import { rpc } from '../../../../../lib/api';
@@ -52,20 +54,17 @@ if (showDone && allDone) return Astro.redirect(`${pathHref}?finished=1`, 303);
 const state = data && step ? data.state(step.id) : 'not_started';
 const remainingLabel = remaining === 1 ? 'بقيت خطوة واحدة' : remaining === 2 ? 'بقيت خطوتان' : `بقيت ${remaining} خطوات`;
 const streak = data?.me?.streak_days ?? 0;
+const c = cheer(doneCount - 1);
+const prev = idx > 0 ? steps[idx - 1] : undefined;
 ---
 <Base title={step?.title} noindex chrome="focus">
   {!data || !e || !step ? <ErrorState /> : showDone ? (
     <div class="app-col focus-wrap">
       <div class="focus-body done-hero">
-        <svg viewBox="0 0 310 110" class="done-arc" aria-hidden="true">
-          <path d="M20 100 Q155 -30 290 100" fill="none" stroke="var(--line-strong)" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"></path>
-          <path d="M290 100 Q262 62 232 44" fill="none" stroke="var(--teal)" stroke-width="4" stroke-linecap="round"></path>
-          <circle cx="232" cy="44" r="18" fill="var(--gold)"></circle>
-          <path d="M224 44l6 6 11-12" fill="none" stroke="var(--on-gold)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
-          <line x1="0" y1="100" x2="310" y2="100" stroke="var(--track)"></line>
-        </svg>
+        <ArcMove from={Math.max(0, doneCount - 1)} to={doneCount} total={steps.length} />
         <h1>{doneCount === 1 ? 'أحسنت، أول خطوة' : 'أحسنت'}</h1>
-        <p>أحبّ الأعمال إلى الله أدومها وإن قلّ. {remainingLabel}.</p>
+        <p class="cheer">{c.t}{c.s && <span class="faint fs-0_85"> {c.s}</span>}</p>
+        <p class="lead-dim">{remainingLabel}</p>
         {streak > 0 && <p class="pill pill-teal">{streak === 1 ? 'يومك الأول في السلسلة' : `${streak} ${streak <= 10 ? 'أيام' : 'يومًا'} متتالية`}</p>}
       </div>
       <div class="dock">
@@ -82,6 +81,7 @@ const streak = data?.me?.streak_days ?? 0;
         <div class="line">
           <BackBtn href={pathHref} close label="إغلاق والعودة إلى المسار" />
           <span class="count">الخطوة {step.position} من {steps.length}</span>
+          {prev ? <a class="link-quiet prev-step" href={`${pathHref}/steps/${prev.id}`}>السابقة</a> : <span class="prev-step" aria-hidden="true"></span>}
         </div>
         <div class="segs" role="img" aria-label={`أكملت ${doneCount} من ${steps.length} خطوات`}>
           {steps.map((s) => <i class={s.id === step.id ? 'now' : data.state(s.id) === 'completed' ? 'done' : ''}></i>)}

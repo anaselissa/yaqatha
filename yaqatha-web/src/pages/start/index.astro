@@ -90,9 +90,9 @@ const ICON: Record<Branch, string> = { fix: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4', 
     };
     f.classList.add('is-stepped');
     f.querySelector<HTMLElement>('[data-onb-submit]')!.hidden = true;
-    f.querySelectorAll<HTMLButtonElement>('[data-onb-skip]').forEach((b) => { b.hidden = false; b.addEventListener('click', () => (i < steps.length - 1 ? show(i + 1) : f.requestSubmit())); });
+    f.querySelectorAll<HTMLButtonElement>('[data-onb-skip]').forEach((b) => { b.hidden = false; b.addEventListener('click', () => (i < steps.length - 1 ? show(i + 1) : (f.requestSubmit ? f.requestSubmit() : f.submit()))); });
     steps.forEach((s, j) => s.querySelectorAll<HTMLInputElement>('input[type=radio]').forEach((r) => r.addEventListener('change', () => {
-      setTimeout(() => (j < steps.length - 1 ? show(j + 1) : f.requestSubmit()), 220);
+      setTimeout(() => (j < steps.length - 1 ? show(j + 1) : (f.requestSubmit ? f.requestSubmit() : f.submit())), 220);
     })));
     back?.addEventListener('click', (e) => { if (i > 0) { e.preventDefault(); show(i - 1); } });
     show(0);

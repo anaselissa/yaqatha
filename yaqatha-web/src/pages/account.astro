@@ -3,7 +3,7 @@
 import Base from '../layouts/Base.astro';
 import Chev from '../components/Chev.astro';
 import { getMyProgress } from '../lib/user';
-import { getStaffRole } from '../lib/admin';
+import { claimStaffInvite, getStaffRole } from '../lib/admin';
 import { rest } from '../lib/api';
 
 const s = Astro.locals.session;
@@ -15,7 +15,7 @@ if (s) {
     getMyProgress(s.token),
     count('goals', { status: 'in.(not_started,in_progress,paused)' }),
     rest('saved_materials', { select: 'material_id', limit: 1 }, { token: s.token, count: true }).then((r) => r.total ?? r.rows.length).catch(() => 0),
-    getStaffRole(s.token, s.userId).catch(() => null),
+    getStaffRole(s.token, s.userId).then((r) => r ?? claimStaffInvite(s.token)).catch(() => null),
   ]);
 }
 const initial = s ? (s.name || s.email || '؟').trim().charAt(0) : '';
