@@ -57,7 +57,7 @@ test('الزائر يجيب خطأً: يرى الصحيحة والشرح، ول�
   await Promise.all([v.waitForURL(/qa=/), f.getByText('الأول', { exact: true }).click()]);
   const t = await v.locator(`#q-${qid}`).innerText();
   assert.match(t, /ليس تمامًا/); assert.match(t, /لأن الثاني هو الصواب/);
-  assert.equal((await v.locator(`#q-${qid} label.is-right`).innerText()).trim(), 'الثاني');
+  assert.match((await v.locator(`#q-${qid} label.is-right`).innerText()).trim(), /^الثاني/);
   assert.equal(sql(`select count(*) from quiz_attempts where question_id='${qid}'`), '0');
 });
 
@@ -86,4 +86,19 @@ test('حذف السؤال من اللوحة يُخفيه من صفحة الما�
   await submit(ed, ed.locator('#questions li.adm-row', { hasText: Q }).getByRole('button', { name: 'حذف' }));
   const v = await as(null); await v.goto(`${BASE}/library/${slug}`);
   assert.equal(await v.locator(`#q-${qid}`).count(), 0);
+});
+
+test('سؤالان في الصفحة نفسها: يبقى الأول مصحَّحًا بعد الإجابة عن الثاني', async () => {
+  const mk = (n, pos) => sql(`insert into material_questions (material_id, prompt, options, correct_index, explanation, position)
+    values ('${matId}', 'سؤال ${n} ${run}', jsonb_build_array('صح${n}','خطأ${n}'), 0, 'شرح ${n}', ${pos}) returning id`).split('\n')[0];
+  const q1 = mk('أول', 90), q2 = mk('ثان', 91);
+  const v = await as(null);
+  await v.goto(`${BASE}/library/${slug}`);
+  await Promise.all([v.waitForURL(/qa=/), v.locator(`#q-${q1}`).getByText('صحأول', { exact: true }).click()]);
+  await Promise.all([v.waitForURL(new RegExp(`qa=.*${q2}`)), v.locator(`#q-${q2}`).getByText('خطأثان', { exact: true }).click()]);
+  assert.match(await v.locator(`#q-${q1}`).innerText(), /أحسنت/, 'الأول ما زال مصحَّحًا');
+  assert.match(await v.locator(`#q-${q2}`).innerText(), /ليس تمامًا/);
+  assert.equal(await v.locator(`#q-${q2} label.is-right`).count(), 1, 'الصحيحة ظاهرة');
+  sql(`delete from material_questions where id in ('${q1}','${q2}')`);
+  await v.context().close();
 });

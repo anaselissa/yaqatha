@@ -6,8 +6,9 @@ interface Props { m: Material; questions: Question[]; next?: string; qa?: string
 const { m, questions, next, qa = null, heading = false } = Astro.props;
 const yt = m.type === 'video' ? youtubeId(m.url) : null;
 const html = renderMarkdown(m.body);
-const [qaId, qaIdx] = (qa ?? '').split('.');
-const answered = (id: string) => (qaId === id && /^\d$/.test(qaIdx ?? '') ? Number(qaIdx) : null);
+// ?qa= يحمل كل إجابات الصفحة: «سؤال.اختيار» مفصولة بفواصل، فيبقى كل سؤال مصحَّحًا بعد الإجابة عن غيره
+const answers = new Map((qa ?? '').split(',').map((p) => p.split('.')).filter(([id, i]) => id && /^\d$/.test(i ?? '')).map(([id, i]) => [id, Number(i)]));
+const answered = (id: string) => answers.get(id) ?? null;
 ---
 <div class="step-mat">
   {heading && <h2>{m.title}</h2>}
@@ -28,6 +29,7 @@ const answered = (id: string) => (qaId === id && /^\d$/.test(qaIdx ?? '') ? Numb
         <input type="hidden" name="slug" value={m.slug} />
         <input type="hidden" name="question_id" value={q.id} />
         {next && <input type="hidden" name="next" value={next} />}
+        {qa && <input type="hidden" name="qa_prev" value={qa} />}
         <p class="over">سؤال سريع</p>
         <fieldset>
           <legend>{q.prompt}</legend>
@@ -35,6 +37,7 @@ const answered = (id: string) => (qaId === id && /^\d$/.test(qaIdx ?? '') ? Numb
             <label class={`opt${a === null ? '' : i === q.correct_index ? ' is-right' : i === a ? ' is-wrong' : ''}`}>
               <input type="radio" name="choice" value={i} required checked={a === i} disabled={a !== null} />{o}
               {a !== null && i === a && i !== q.correct_index && <span class="tag">اخترتها</span>}
+              {a !== null && i === q.correct_index && <span class="tag tag-right">✓ الصحيحة</span>}
             </label>
           ))}
         </fieldset>

@@ -68,7 +68,7 @@ const prev = idx > 0 ? steps[idx - 1] : undefined;
         {streak > 0 && <p class="pill pill-teal">{streak === 1 ? 'يومك الأول في السلسلة' : `${streak} ${streak <= 10 ? 'أيام' : 'يومًا'} متتالية`}</p>}
       </div>
       <div class="dock">
-        {nextOpen && <div class="card-quiet"><span class="faint fs-0_85">التالية</span><strong>{nextOpen.title}</strong></div>}
+        {nextOpen && <a class="card-quiet next-card" href={`${pathHref}/steps/${nextOpen.id}`} tabindex="-1" aria-hidden="true"><span class="faint fs-0_85">التالية</span><strong>{nextOpen.title}</strong></a>}
         {nextOpen
           ? <a class="btn btn-primary btn-block" href={`${pathHref}/steps/${nextOpen.id}`}>الخطوة التالية</a>
           : <a class="btn btn-primary btn-block" href={pathHref}>إلى مساري</a>}

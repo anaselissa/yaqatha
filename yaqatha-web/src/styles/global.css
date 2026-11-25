@@ -867,3 +867,8 @@ a.plain { color: inherit; text-decoration: none; }
 .new-path { order: 10; }
 .pick-paths summary { cursor: pointer; color: var(--gold-text); font-size: .92rem; width: max-content; }
 .pick-paths[open] summary { color: var(--dim); }
+.opt.is-right { background: var(--teal-soft); border-color: var(--teal); }
+.opt.is-wrong { background: var(--coral-soft); }
+.opt .tag-right { color: var(--teal-text); font-weight: 600; }
+.next-card { text-decoration: none; color: var(--text); display: grid; gap: .15rem; }
+.next-card:hover { color: var(--text); border-color: var(--gold); }

@@ -3,7 +3,9 @@
  * وظيفة هذا الملف: التحقق من المدخلات، وتحديد وجهة العودة، وترجمة الأخطاء إلى رسائل مفهومة.
  */
 import { DataError, UnauthorizedError, mutate, one, rest, rpc } from './api';
+import { notifyTeam } from './notify';
 import { safeNext } from './auth';
+import { TOPICS } from './support';
 
 export interface Result { to: string; flash?: string; error?: boolean }
 type Handler = (a: { token: string; form: FormData }) => Promise<Result>;
@@ -163,16 +165,25 @@ export const HANDLERS: Record<string, Handler> = {
     if (!name || (!phone && !other)) throw new BadInput('contact');
     const topic = str(form, 'topic', 30), gender = str(form, 'gender', 10);
     const share = str(form, 'share_progress', 3) === 'on';
+    const shareGoals = str(form, 'share_goals', 3) === 'on';
     const body = { name, phone, other_contact: other, preferred_time: str(form, 'preferred_time', 100) || null, topic, gender };
     // موافقة المشاركة من الهجرة 13؛ قبلها يُرسل الطلب بدونها
-    await mutate('POST', 'mentorship_requests', token, { body: { ...body, ...(share ? { share_progress: true } : {}) } })
-      .catch((e) => { if (share && e instanceof DataError && /share_progress|column/i.test(e.message)) return mutate('POST', 'mentorship_requests', token, { body }); throw e; });
+    // الموافقتان من الهجرتين 13 و14؛ قبلهما يُرسل الطلب بدونهما
+    const extra = { ...(share ? { share_progress: true } : {}), ...(shareGoals ? { share_goals: true } : {}) };
+    await mutate('POST', 'mentorship_requests', token, { body: { ...body, ...extra } })
+      .catch((e) => { if ((share || shareGoals) && e instanceof DataError && /share_|column/i.test(e.message)) return mutate('POST', 'mentorship_requests', token, { body }); throw e; });
+    await notifyTeam(`طلب متابعة جديد في «${TOPICS[topic] ?? topic}».\nافتح اللوحة: ${import.meta.env.SITE ?? ''}/admin/requests?status=new`);
     return { to: '/support', flash: 'وصل طلبك إلى فريق يقظة. سنتواصل معك قريبًا بإذن الله' };
   },
   'share-progress': async ({ token, form }) => {
     const on = str(form, 'on', 1) === '1';
     await rpc('set_share_progress', { on_off: on }, token);
     return { to: back(form, '/support'), flash: on ? 'صار مشرفك يرى تقدّمك في مساراتك' : 'أوقفت مشاركة تقدّمك' };
+  },
+  'share-goals': async ({ token, form }) => {
+    const on = str(form, 'on', 1) === '1';
+    await rpc('set_share_goals', { on_off: on }, token);
+    return { to: back(form, '/support'), flash: on ? 'صار مشرفك يرى التزامك بعاداتك اليومية' : 'أوقفت مشاركة عاداتك' };
   },
   'support-withdraw': async ({ token, form }) => {
     await mutate('DELETE', 'mentorship_requests', token, { params: { id: `eq.${uuid(form, 'id')}` } });
@@ -199,6 +210,7 @@ const MESSAGES: [RegExp, string][] = [
   [/mentorship_requests_phone_check|mentorship_requests_check/, 'تأكد من رقم الهاتف (أرقام فقط مع رمز الدولة) أو اكتب وسيلة تواصل أخرى'],
   [/mentorship_requests_(topic|gender)_check/, 'اختر الموضوع والجنس من القائمة'],
   [/checkin day out of range/, 'لا يمكن تعليم يوم بعيد. علّم يومك فقط'],
+  [/rate limited/, 'أرسلت كثيرًا خلال وقت قصير. جرّب بعد قليل'],
   [/row-level security|violates|permission denied/, 'تعذر تنفيذ العملية. قد لا تكون المادة متاحة'],
 ];
 

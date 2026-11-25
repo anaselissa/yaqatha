@@ -29,6 +29,13 @@ const lock = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
             <button class="btn btn-ghost btn-sm" type="submit">{mine.share_progress ? 'أوقف' : 'شارك'}</button>
           </form>
         )}
+        {mine.share_goals !== undefined && (
+          <form method="post" action="/api/share-goals" class="row">
+            <input type="hidden" name="on" value={mine.share_goals ? '0' : '1'} /><input type="hidden" name="next" value="/support" />
+            <span class="grow-col">مشرفك يرى التزامك بعاداتك اليومية<span class="faint fs-0_85">{mine.share_goals ? 'مفعّل: اسم العادة وكم يومًا علّمتها فقط' : 'متوقف'}</span></span>
+            <button class="btn btn-ghost btn-sm" type="submit">{mine.share_goals ? 'أوقف' : 'شارك'}</button>
+          </form>
+        )}
         <form method="post" action="/api/support-withdraw"><input type="hidden" name="id" value={mine.id} /><button class="link-quiet" type="submit">اسحب طلبي واحذف بياناتي</button></form>
       </section>
     ) : !st.mentorship_open ? (
@@ -69,6 +76,10 @@ const lock = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
           <label class="check-card">
             <input type="checkbox" name="share_progress" />
             <span><strong>شارك مشرفك تقدّمك في مساراتك</strong><span class="faint fs-0_85">يرى المسارات وأين وصلت فقط، لا ما تكتبه لنفسك. تلغيه متى شئت.</span></span>
+          </label>
+          <label class="check-card">
+            <input type="checkbox" name="share_goals" />
+            <span><strong>وشاركه التزامك بعاداتك اليومية</strong><span class="faint fs-0_85">يرى اسم العادة وكم يومًا علّمتها، لا التفاصيل. تلغيه متى شئت.</span></span>
           </label>
           <p class="privacy-note"><Fragment set:html={lock} />رقمك لا يراه إلا من يتابعك. نتواصل معك خلال {days} أيام بإذن الله.</p>
           <button class="btn btn-primary btn-block" type="submit">أرسل الطلب</button>

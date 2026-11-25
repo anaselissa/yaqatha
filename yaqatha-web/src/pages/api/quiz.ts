@@ -17,5 +17,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     try { await mutate('POST', 'quiz_attempts', locals.session.token, { body: { question_id: q, chosen_index: a }, ignoreDuplicates: true }); }
     catch (e) { console.error('[quiz]', (e as Error).message); } // الحفظ إضافة: النتيجة تظهر على أي حال
   }
-  return redirect(`${base}?qa=${q}.${a}#q-${q}`, 303);
+  // نُبقي إجابات الأسئلة الأخرى في الصفحة نفسها (حتى 20)، ونضع إجابة هذا السؤال مكان القديمة
+  const prev = String(f.get('qa_prev') ?? '').split(',').filter((p) => /^[0-9a-f-]{36}\.\d$/i.test(p) && !p.startsWith(`${q}.`)).slice(0, 19);
+  return redirect(`${base}?qa=${[...prev, `${q}.${a}`].join(',')}#q-${q}`, 303);
 };

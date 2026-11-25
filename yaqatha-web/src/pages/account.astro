@@ -18,6 +18,9 @@ if (s) {
     getStaffRole(s.token, s.userId).then((r) => r ?? claimStaffInvite(s.token)).catch(() => null),
   ]);
 }
+// للمدير والمتابِع: عدد طلبات المتابعة الجديدة (الصلاحيات تُظهر للمتابِع ما أُسند إليه فقط)
+const newReqs = s && (role === 'manager' || role === 'mentor')
+  ? await rest('mentorship_requests', { select: 'id', status: 'eq.new', limit: 1 }, { token: s.token, count: true }).then((r) => r.total ?? 0).catch(() => 0) : 0;
 const initial = s ? (s.name || s.email || '؟').trim().charAt(0) : '';
 const rows = [
   { href: '/journey/goals', label: 'أهدافي', end: goals ? String(goals) : '' },
@@ -44,7 +47,7 @@ const rows = [
         <ul class="list-flat">
           {rows.map((r) => <li><a class="row-link" href={r.href}><span class="grow"><span class="t">{r.label}</span></span>{r.end && <span class="end">{r.end}</span>}<Chev /></a></li>)}
           <li><a class="row-link" href="/journey/paths"><span class="grow"><span class="t">كل مساراتي والأرشيف</span></span><Chev /></a></li>
-          {role && <li><a class="row-link" href="/admin"><span class="grow"><span class="t">لوحة الإدارة</span></span><Chev /></a></li>}
+          {role && <li><a class="row-link" href={newReqs ? '/admin/requests?status=new' : '/admin'}><span class="grow"><span class="t">لوحة الإدارة</span>{newReqs > 0 && <span class="s coral">{newReqs === 1 ? 'طلب متابعة جديد' : newReqs === 2 ? 'طلبا متابعة جديدان' : `${newReqs} طلبات متابعة جديدة`}</span>}</span><Chev /></a></li>}
         </ul>
         <a class="card-quiet card-cta" href="/support"><strong>تحب أن يرافقك أحد من الفريق؟</strong><span class="gold fs-0_9">اطلب متابعة</span></a>
         <div class="row justify-center gap-1_2 mt-1">

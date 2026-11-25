@@ -1,4 +1,4 @@
-import { defineConfig, sessionDrivers } from 'astro/config';
+import { defineConfig, envField, sessionDrivers } from 'astro/config';
 import node from '@astrojs/node';
 
 // المحوّل: node للتطوير والاختبار، cloudflare للإنتاج (ASTRO_ADAPTER=cloudflare).
@@ -22,4 +22,12 @@ export default defineConfig({
   session: { driver: sessionDrivers.memory() },
   security: { checkOrigin: true },
   devToolbar: { enabled: false },
+  // أسرار اختيارية (تُضبط في Cloudflare ← Settings ← Variables and Secrets). بدونها تعمل الميزة المرتبطة كأن لم تكن.
+  env: {
+    schema: {
+      // تنبيه الفريق على تيليجرام عند طلب متابعة جديد (بلا أي بيانات شخصية في الرسالة)
+      TELEGRAM_BOT_TOKEN: envField.string({ context: 'server', access: 'secret', optional: true }),
+      TELEGRAM_CHAT_ID: envField.string({ context: 'server', access: 'secret', optional: true }),
+    },
+  },
 });

@@ -8,7 +8,9 @@ const s = Astro.locals.session!;
 const [role, req] = await Promise.all([
   getStaffRole(s.token, s.userId).then((r) => r ?? claimStaffInvite(s.token)).catch(() => null),
   // مشاركة التقدّم مع المشرف (الهجرة 13): تظهر فقط لمن عنده طلب متابعة مفتوح
-  rest<{ id: string; share_progress: boolean }>('mentorship_requests', { select: 'id,share_progress', status: 'neq.closed', limit: 1 }, { token: s.token }).then((r) => r.rows[0] ?? null).catch(() => null),
+  rest<{ id: string; share_progress: boolean; share_goals?: boolean }>('mentorship_requests', { select: 'id,share_progress,share_goals', status: 'neq.closed', limit: 1 }, { token: s.token })
+    .catch(() => rest<{ id: string; share_progress: boolean; share_goals?: boolean }>('mentorship_requests', { select: 'id,share_progress', status: 'neq.closed', limit: 1 }, { token: s.token }))
+    .then((r) => r.rows[0] ?? null).catch(() => null),
 ]);
 ---
 <Base title="الإعدادات" noindex>
@@ -39,6 +41,13 @@ const [role, req] = await Promise.all([
             <input type="hidden" name="on" value={req.share_progress ? '0' : '1'} /><input type="hidden" name="next" value="/journey/settings" />
             <span class="grow-col">مشرفي يرى تقدّمي في مساراتي<span class="faint fs-0_85">{req.share_progress ? 'مفعّل' : 'متوقف'}</span></span>
             <button class="btn btn-ghost btn-sm" type="submit">{req.share_progress ? 'أوقف المشاركة' : 'شاركه'}</button>
+          </form>
+        )}
+        {req && req.share_goals !== undefined && (
+          <form method="post" action="/api/share-goals" class="row">
+            <input type="hidden" name="on" value={req.share_goals ? '0' : '1'} /><input type="hidden" name="next" value="/journey/settings" />
+            <span class="grow-col">مشرفي يرى التزامي بعاداتي اليومية<span class="faint fs-0_85">{req.share_goals ? 'مفعّل' : 'متوقف'}</span></span>
+            <button class="btn btn-ghost btn-sm" type="submit">{req.share_goals ? 'أوقف المشاركة' : 'شاركه'}</button>
           </form>
         )}
         <form method="post" action="/auth/logout"><button class="btn btn-ghost btn-sm" type="submit">تسجيل الخروج</button></form>

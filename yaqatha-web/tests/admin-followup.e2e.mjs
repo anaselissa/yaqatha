@@ -65,11 +65,12 @@ test('المستخدم يرسل طلبًا، ويرى حالته، ولا يرس
   await user.getByText('أضف وسيلة تواصل أخرى').click();
   await user.fill('#time', 'بعد العشاء');
   await user.getByText('شارك مشرفك تقدّمك في مساراتك').click();
+  await user.getByText('وشاركه التزامك بعاداتك اليومية').click();
   await submit(user, user.getByRole('button', { name: 'أرسل الطلب' }));
   assert.match(await toast(user), /وصل طلبك/);
   const t = await text(user);
   assert.match(t, /لديك طلب متابعة/); assert.match(t, /المحافظة على الصلاة/); assert.match(t, /جديد/);
-  assert.equal(sql(`select count(*) from mentorship_requests r join auth.users u on u.id=r.user_id where u.email='${USER}' and r.status='new' and r.share_progress`), '1', 'الطلب بموافقة المشاركة');
+  assert.equal(sql(`select count(*) from mentorship_requests r join auth.users u on u.id=r.user_id where u.email='${USER}' and r.status='new' and r.share_progress and r.share_goals`), '1', 'الطلب بالموافقتين');
 });
 
 test('قسم الأخوات المغلق يرفض الطلب برسالة لطيفة', async () => {
@@ -118,6 +119,7 @@ test('المتابِع يرى ما أُسند إليه فقط ويحدّث حا�
   const row = m.locator('li.adm-row', { hasText: 'عمر' });
   assert.equal(await row.count(), 1);
   assert.match(await row.innerText(), /تقدّمه في المسارات/, 'يرى التقدّم لأن صاحب الطلب وافق');
+  assert.match(await row.innerText(), /التزامه بعاداته اليومية/, 'ويرى العادات بموافقتها المنفصلة');
   await row.locator('summary').click();
   assert.equal(await row.locator('select[name="assigned_to"]').count(), 0, 'لا إسناد للمتابِع');
   await row.locator('select[name="status"]').selectOption('contacted');

@@ -578,8 +578,9 @@ select test.as_user(:'uc');
 select test.ok(public.set_share_progress(true), 'user turns sharing on for their open request');
 select test.ok(test.affected(format($$update public.mentorship_requests set status = 'closed' where id = %L$$, :'rq2')) = 0, 'still cannot change anything else on the request');
 select test.as_user(:'mt');
-select test.ok(jsonb_array_length(public.mentee_progress(:'rq2')) >= 1, 'assigned mentor sees progress once shared');
-select test.ok(not (public.mentee_progress(:'rq2') -> 0 ? 'note') and (public.mentee_progress(:'rq2') -> 0 ? 'done'), 'progress only: no notes or goals');
+select test.ok(jsonb_array_length(public.mentee_progress(:'rq2') -> 'paths') >= 1, 'assigned mentor sees progress once shared');
+select test.ok(public.mentee_progress(:'rq2') -> 'goals' = 'null'::jsonb, 'goals stay hidden without their own consent');
+select test.ok(not (public.mentee_progress(:'rq2') -> 'paths' -> 0 ? 'note') and (public.mentee_progress(:'rq2') -> 'paths' -> 0 ? 'done'), 'progress only: no notes');
 select test.as_user(:'edt');
 select test.throws(format($$select public.mentee_progress(%L)$$, :'rq2'), 'an editor (not assigned) cannot read it', 'not allowed');
 select test.as_user(:'ur');
@@ -590,6 +591,28 @@ select test.as_user(:'mt');
 select test.ok(public.mentee_progress(:'rq2') is null, 'turning it off hides it again');
 select test.as_anon();
 select test.throws(format($$select public.mentee_progress(%L)$$, :'rq2'), 'visitors cannot call it', 'permission denied');
+
+-- ---------- 23. مشاركة العادات اليومية، وحدّ الإرسال (الهجرة 14) ----------
+select test.as_user(:'uc');
+insert into public.goals (title, kind, days) values ('ورد يومي', 'daily', 30) returning id as gu \gset
+insert into public.goal_checkins (goal_id, day) values (:'gu', current_date);
+select test.ok(public.set_share_goals(true), 'user turns goal sharing on');
+select test.as_user(:'mt');
+select test.ok(public.mentee_progress(:'rq2') -> 'paths' = 'null'::jsonb and jsonb_array_length(public.mentee_progress(:'rq2') -> 'goals') = 1, 'goals shared, paths not');
+select test.ok((public.mentee_progress(:'rq2') -> 'goals' -> 0 ->> 'done')::int = 1 and not (public.mentee_progress(:'rq2') -> 'goals' -> 0 ? 'description'), 'goal: title and counts only');
+select test.as_user(:'uc');
+select public.set_share_goals(false);
+select test.as_user(:'mt');
+select test.ok(public.mentee_progress(:'rq2') is null, 'both off: nothing');
+select test.as_user(:'uc');
+select test.throws($$select * from public.rate_events$$, 'users cannot read the rate log', 'permission denied');
+select test.as_user(:'ur');
+do $$ begin for i in 1..12 loop
+  begin insert into public.material_reports (material_id, note) select id, 'r' from public.materials where status = 'published' limit 1;
+  exception when others then if sqlerrm <> 'rate limited' then raise; end if; end;
+end loop; end $$;
+select test.as_super();
+select test.ok((select count(*) from public.material_reports where reporter_id = :'ur' and created_at > now() - interval '1 hour') <= 10, 'reports capped at 10 an hour');
 
 select 'ALL TESTS PASSED' as result;
 rollback;

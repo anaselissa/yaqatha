@@ -2,7 +2,7 @@
 import Admin from '../../layouts/Admin.astro';
 import ErrorState from '../../components/ErrorState.astro';
 import EmptyState from '../../components/EmptyState.astro';
-import { assignees, listRequests, menteeProgress, type MenteePath } from '../../lib/admin-followup';
+import { assignees, listRequests, menteeProgress, type MenteeShare } from '../../lib/admin-followup';
 import { REQUEST_STATUS, TOPICS, waLink } from '../../lib/support';
 import { formatDate } from '../../lib/labels';
 import { load } from '../../lib/page';
@@ -14,8 +14,8 @@ const status = Astro.url.searchParams.get('status') ?? '';
 const data = await load(Astro.response, () => Promise.all([listRequests(s.token, status), role === 'manager' ? assignees(s.token) : Promise.resolve([] as string[])]));
 const [items, people] = data ?? [null, []];
 // من اختار أن يرى مشرفه تقدّمه: نجلب مساراته وأين وصل (دون أي شيء آخر)
-const progress = new Map<string, MenteePath[]>();
-if (items) await Promise.all(items.filter((r) => r.share_progress).slice(0, 50).map(async (r) => { const p = await menteeProgress(s.token, r.id); if (p) progress.set(r.id, p); }));
+const progress = new Map<string, MenteeShare>();
+if (items) await Promise.all(items.filter((r) => r.share_progress || r.share_goals).slice(0, 50).map(async (r) => { const p = await menteeProgress(s.token, r.id); if (p) progress.set(r.id, p); }));
 const back = status ? `?status=${status}` : '';
 const tabs: [string, string][] = [['', 'المفتوحة'], ['new', 'جديدة'], ['contacted', 'تم التواصل'], ['active', 'مستمرة'], ['closed', 'منتهية']];
 ---
@@ -50,10 +50,18 @@ const tabs: [string, string][] = [['', 'المفتوحة'], ['new', 'جديدة'
               </div>
               {progress.has(r.id) && (
                 <div class="mt-0_8 card-quiet">
-                  <strong class="fs-0_95">تقدّمه في المسارات (شاركه معك)</strong>
-                  {progress.get(r.id)!.length ? (
-                    <ul class="list-none p-0 m-0 stack sp-0_3">{progress.get(r.id)!.map((m) => <li class="fs-0_9">{m.title}: {m.done} من {m.total}<span class="faint">، آخر نشاط {formatDate(m.last_activity)}</span></li>)}</ul>
-                  ) : <p class="faint fs-0_9">لم يبدأ مسارًا بعد.</p>}
+                  {progress.get(r.id)!.paths && (<>
+                    <strong class="fs-0_95">تقدّمه في المسارات (شاركه معك)</strong>
+                    {progress.get(r.id)!.paths!.length ? (
+                      <ul class="list-none p-0 m-0 stack sp-0_3">{progress.get(r.id)!.paths!.map((m) => <li class="fs-0_9">{m.title}: {m.done} من {m.total}<span class="faint">، آخر نشاط {formatDate(m.last_activity)}</span></li>)}</ul>
+                    ) : <p class="faint fs-0_9">لم يبدأ مسارًا بعد.</p>}
+                  </>)}
+                  {progress.get(r.id)!.goals && (<>
+                    <strong class="fs-0_95">التزامه بعاداته اليومية (شاركه معك)</strong>
+                    {progress.get(r.id)!.goals!.length ? (
+                      <ul class="list-none p-0 m-0 stack sp-0_3">{progress.get(r.id)!.goals!.map((g) => <li class="fs-0_9">{g.title}: {g.done}{g.days ? ` من ${g.days}` : ''} يومًا<span class="faint">، آخر 7 أيام: {g.last7}{g.last_day ? `، آخر يوم ${formatDate(g.last_day)}` : ''}</span></li>)}</ul>
+                    ) : <p class="faint fs-0_9">لا عادات يومية الآن.</p>}
+                  </>)}
                 </div>
               )}
               <details class="fold mt-0_8">

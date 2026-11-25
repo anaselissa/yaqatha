@@ -36,12 +36,12 @@ export function waLink(phone: string | null | undefined, text?: string): string 
   return `https://wa.me/${d}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
 }
 
-export interface MyRequest { id: string; status: string; topic: string; created_at: string; share_progress?: boolean }
+export interface MyRequest { id: string; status: string; topic: string; created_at: string; share_progress?: boolean; share_goals?: boolean }
 export async function getMyRequest(token: string, userId: string): Promise<MyRequest | null> {
   try {
     const q = (select: string) => rest<MyRequest>('mentorship_requests', { select, user_id: `eq.${userId}`, status: 'neq.closed', limit: 1 }, { token });
     // share_progress من الهجرة 13؛ قبلها نقرأ بدونه
-    const { rows } = await q('id,status,topic,created_at,share_progress').catch(() => q('id,status,topic,created_at'));
+    const { rows } = await q('id,status,topic,created_at,share_progress,share_goals').catch(() => q('id,status,topic,created_at,share_progress')).catch(() => q('id,status,topic,created_at'));
     return rows[0] ?? null;
   } catch { return null; }
 }
