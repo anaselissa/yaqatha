@@ -5,7 +5,6 @@
 import { DataError, UnauthorizedError, mutate, one, rest, rpc } from './api';
 import { notifyTeam } from './notify';
 import { safeNext } from './auth';
-import { TOPICS } from './support';
 
 export interface Result { to: string; flash?: string; error?: boolean }
 type Handler = (a: { token: string; form: FormData }) => Promise<Result>;
@@ -172,7 +171,7 @@ export const HANDLERS: Record<string, Handler> = {
     const extra = { ...(share ? { share_progress: true } : {}), ...(shareGoals ? { share_goals: true } : {}) };
     await mutate('POST', 'mentorship_requests', token, { body: { ...body, ...extra } })
       .catch((e) => { if ((share || shareGoals) && e instanceof DataError && /share_|column/i.test(e.message)) return mutate('POST', 'mentorship_requests', token, { body }); throw e; });
-    await notifyTeam(`طلب متابعة جديد في «${TOPICS[topic] ?? topic}».\nافتح اللوحة: ${import.meta.env.SITE ?? ''}/admin/requests?status=new`);
+    await notifyTeam(`طلب متابعة جديد.\nافتح اللوحة: ${import.meta.env.SITE ?? ''}/admin/requests?status=new`);
     return { to: '/support', flash: 'وصل طلبك إلى فريق يقظة. سنتواصل معك قريبًا بإذن الله' };
   },
   'share-progress': async ({ token, form }) => {

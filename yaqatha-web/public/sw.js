@@ -1,6 +1,6 @@
 // عامل خدمة بسيط: صفحة «بلا اتصال» عند انقطاع الشبكة، وتخزين ملفات التصميم الثابتة فقط.
 // لا يُخزَّن أي محتوى شخصي (رحلتي، اللوحة، الحساب) إطلاقًا.
-const CACHE = 'yaqatha-v3';
+const CACHE = 'yaqatha-v4';
 const OFFLINE = '/offline/';
 const STATIC = [OFFLINE, '/favicon.svg', '/icon-192.png'];
 

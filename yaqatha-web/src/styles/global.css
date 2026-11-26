@@ -4,6 +4,7 @@
    مبدأ: الهدوء والوضوح؛ الحركة قليلة؛ الجمل بصوت المستخدم («أريد أن…») هي عناصر التنقل الرئيسية.
    ============================================================ */
 :root {
+  --mark-ray: #F5B83D; --mark-sun: #F5B83D; --mark-d1: #16304F; --mark-d2: #1D3D63; --mark-edge: #F5B83D; --mark-road: #F7F1E4;
   /* الوضع الداكن (الافتراضي): ليل كحلي، وشمس ذهبية، وتقدّم فيروزي، واحتفال مرجاني */
   --bg: #0E2138;
   --bg-2: #13294A;
@@ -40,6 +41,7 @@
 }
 /* الوضع الفاتح: رمل دافئ، وبطاقات بيضاء، والذهبي نفسه للأزرار */
 :root[data-theme='light'] {
+  --mark-ray: #D99A1E; --mark-sun: #F5B83D; --mark-d1: #EADFC8; --mark-d2: #DCCBA8; --mark-edge: #B9822A; --mark-road: #FFFFFF;
   --bg: #FBF5EA;
   --bg-2: #F4EBDA;
   --bar: #FFFFFF;
@@ -106,7 +108,7 @@ p { margin: 0; text-wrap: pretty; }
 .site-header .bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 4rem; padding-block: .6rem .2rem; }
 .brand { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; color: var(--gold-text); text-decoration: none; display: inline-flex; align-items: center; gap: .5rem; line-height: 1.2; }
 .brand:hover { color: var(--gold-text); }
-.brand svg { width: 1.65rem; height: 1.65rem; }
+.brand svg { width: 2.3rem; height: 1.7rem; }
 .who { display: flex; align-items: center; gap: .6rem; }
 .avatar { width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--gold); color: var(--on-gold); display: grid; place-items: center; font-weight: 600; text-decoration: none; flex: none; }
 .avatar:hover { color: var(--on-gold); background: var(--gold-hi); }
