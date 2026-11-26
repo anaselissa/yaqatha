@@ -21,7 +21,7 @@ t2 as (
     and not (privilege_type = 'SELECT' and table_name in (
       'doors','domains','topics','needs','need_topics','materials','material_domains','material_topics',
       'material_needs','paths','path_domains','path_needs','path_versions','steps','step_materials',
-      'homepage_items','slug_redirects','paths_current','series','series_items','path_suggested_goals','path_next','app_settings','material_questions','onboarding_questions','onboarding_options'))
+      'homepage_items','slug_redirects','paths_current','series','series_items','path_suggested_goals','path_next','app_settings','material_questions','onboarding_questions','onboarding_options','cheers','daily_tips','site_pages'))
 ),
 -- 3) الدوال القابلة للاستدعاء من anon هي المساعدة فقط
 t3 as (
@@ -32,7 +32,7 @@ t3 as (
   where n.nspname = 'public' and p.prokind = 'f'
     and has_function_privilege('anon', p.oid, 'execute')
     and p.proname not in ('can_read_step','can_read_version','has_enrollment_in_path','has_enrollment_in_version',
-                          'is_manager','is_staff','normalize_ar','search_content','search_norm','search_vec')
+                          'is_manager','is_staff','normalize_ar','search_content','search_norm','search_vec','public_links')
 ),
 -- 4) دوال المستخدم: authenticated فقط وليس anon؛ ودوال الفريق تتحقق من الدور داخليًا
 t4 as (
@@ -45,9 +45,9 @@ t4 as (
       'migrate_enrollment','restart_enrollment','restore_goal','claim_staff_invite','create_draft_version',
       'publish_path_version','withdraw_version','material_impact','delete_my_account','reorder_steps','apply_staff_invite',
       'handle_new_user','require_staff','set_share_progress','mentee_progress','goal_checkin_guard','set_share_goals','rate_guard',
-      'exam_for','submit_exam','exam_result','import_content','import_content_apply','public_links','exam_pass_percent','exam_questions_guard','exam_completion_guard')
+      'exam_for','submit_exam','exam_result','import_content','import_content_apply','site_pages_stamp','exam_pass_percent','exam_questions_guard','exam_completion_guard')
     and (has_function_privilege('anon', p.oid, 'execute')
-         or (p.proname in ('apply_staff_invite','handle_new_user','require_staff','goal_checkin_guard','rate_guard','exam_pass_percent','exam_questions_guard','exam_completion_guard')
+         or (p.proname in ('apply_staff_invite','handle_new_user','require_staff','goal_checkin_guard','rate_guard','exam_pass_percent','exam_questions_guard','exam_completion_guard','site_pages_stamp','import_content_apply')
              and has_function_privilege('authenticated', p.oid, 'execute')))
 ),
 -- 5) العروض تحترم RLS (security_invoker)
