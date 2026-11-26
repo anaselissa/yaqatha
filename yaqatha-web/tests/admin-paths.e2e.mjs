@@ -24,6 +24,7 @@ before(async () => {
 });
 after(async () => { await browser.close(); });
 
+const stepRow = (t) => ed.locator('#steps > ol > li').filter({ has: ed.locator(':scope > details > summary > strong', { hasText: t }) });
 const toast = async () => (await ed.locator('.toast').first().innerText()).trim();
 const submit = async (loc) => { await Promise.all([ed.waitForLoadState('load'), loc.click()]); await ed.waitForLoadState(); };
 const TITLE = `مسار اختبار ${run}`;
@@ -57,14 +58,31 @@ test('الخطوات: إضافة مع مادة، ترتيب، حذف', async () 
   }
   assert.equal(stepTitles(), 'الأولى|الثانية|الثالثة');
   assert.equal(sql(`select count(*) from step_materials sm join steps s on s.id=sm.step_id join path_versions v on v.id=s.version_id where v.path_id='${pathId}'`), '1');
-  const third = ed.locator('li.adm-row', { hasText: 'الثالثة' });
+  const third = stepRow('الثالثة');
   await third.locator('summary').click();
   await submit(third.getByRole('button', { name: 'حرّك لأعلى' }));
   assert.equal(stepTitles(), 'الأولى|الثالثة|الثانية');
-  const second = ed.locator('li.adm-row', { hasText: 'الثانية' });
+  const second = stepRow('الثانية');
   await second.locator('summary').click();
   await submit(second.getByRole('button', { name: 'حذف الخطوة' }));
   assert.equal(stepTitles(), 'الأولى|الثالثة');
+});
+
+test('الامتحان: لا نشر بدونه، ثم خطوة الامتحان وأسئلتها', async () => {
+  await submit(ed.getByRole('button', { name: 'انشر المسار' }));
+  assert.match(await toast(), /خطوة «الامتحان»/);
+  await submit(ed.getByRole('button', { name: 'أضف خطوة الامتحان' }));
+  assert.equal(stepTitles(), 'الأولى|الثالثة|الامتحان');
+  for (let i = 1; i <= 5; i++) {
+    if (!(await ed.locator('#eq-p').isVisible())) await ed.locator('summary', { hasText: '+ اكتب سؤالًا جديدًا' }).click();
+    await ed.fill('#eq-p', `سؤال ${i}`);
+    await ed.fill('#eq-o', 'صحيح\nخطأ');
+    await ed.fill('#eq-c', '1');
+    await submit(ed.getByRole('button', { name: 'أضف السؤال' }));
+    assert.match(await toast(), /أُضيف السؤال/);
+  }
+  assert.equal(sql(`select count(*) from exam_questions q join steps s on s.id=q.step_id join path_versions v on v.id=s.version_id where v.path_id='${pathId}'`), '5');
+  assert.match(await stepRow('الامتحان').locator(':scope > details > summary').innerText(), /جاهز للنشر/);
 });
 
 test('النشر: يظهر للزائر، والإصدار المنشور يقبل تصحيح النص فقط', async () => {
@@ -73,7 +91,7 @@ test('النشر: يظهر للزائر، والإصدار المنشور يقب
   const pub = await anon(`/paths/${slug}`);
   assert.equal(pub.status, 200); assert.match(pub.text, new RegExp(TITLE));
   assert.equal(await ed.getByText('+ أضف خطوة').count(), 0, 'لا إضافة خطوات على المنشور');
-  const first = ed.locator('li.adm-row', { hasText: 'الأولى' });
+  const first = stepRow('الأولى');
   await first.locator('summary').click();
   await first.locator('input[name="title"]').fill('الأولى (مصحّحة)');
   await submit(first.getByRole('button', { name: 'حفظ الخطوة' }));
@@ -84,10 +102,11 @@ test('النشر: يظهر للزائر، والإصدار المنشور يقب
 test('إصدار جديد: نسخة مسودة، تعديل، وملخص التغييرات إلزامي', async () => {
   await submit(ed.getByRole('button', { name: 'أنشئ إصدارًا جديدًا للتعديل' }));
   assert.match(await toast(), /إصدار مسودة/);
-  assert.equal(stepTitles(), 'الأولى (مصحّحة)|الثالثة', 'نُسخت الخطوات');
+  assert.equal(stepTitles(), 'الأولى (مصحّحة)|الثالثة|الامتحان', 'نُسخت الخطوات');
   await ed.getByText('+ أضف خطوة').click();
   await ed.fill('#new-title', 'الرابعة');
   await submit(ed.getByRole('button', { name: 'أضف الخطوة' }));
+  assert.equal(stepTitles(), 'الأولى (مصحّحة)|الثالثة|الرابعة|الامتحان', 'الخطوة الجديدة قبل الامتحان');
   await ed.locator('#changelog').evaluate((el) => el.removeAttribute('required'));
   await submit(ed.getByRole('button', { name: 'انشر الإصدار 2' }));
   assert.match(await toast(), /ما الذي تغيّر/);

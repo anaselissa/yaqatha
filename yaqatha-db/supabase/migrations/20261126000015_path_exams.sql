@@ -133,7 +133,7 @@ end $$;
 -- p_answers: {"<question_id>": <رقم الخيار الأصلي>, ...}. كل الأسئلة مطلوبة.
 create function public.submit_exam(p_enrollment_id uuid, p_step_id uuid, p_answers jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare uid uuid := public.require_user(); e public.enrollments; n int; score int; req int; ok boolean; res jsonb;
+declare uid uuid := public.require_user(); e public.enrollments; n int; score int; req int; ok boolean; aid uuid;
 begin
   select * into e from public.enrollments where id = p_enrollment_id and user_id = uid;
   if not found then raise exception 'enrollment not found' using errcode = 'P0002'; end if;
@@ -155,22 +155,13 @@ begin
     raise exception 'answer every question' using errcode = '22023';
   end if;
 
-  select count(*) filter (where (p_answers ->> q.id::text)::int = q.correct_index),
-         jsonb_agg(jsonb_build_object(
-           'id', q.id, 'prompt', q.prompt, 'options', q.options,
-           'chosen', (p_answers ->> q.id::text)::int, 'correct_index', q.correct_index,
-           'correct', (p_answers ->> q.id::text)::int = q.correct_index,
-           'explanation', q.explanation,
-           'material', case when m.id is null then null else jsonb_build_object('slug', m.slug, 'title', m.title) end
-         ) order by q.position)
-    into score, res
-    from public.exam_questions q left join public.materials m on m.id = q.material_id and m.status = 'published'
-   where q.step_id = p_step_id;
+  select count(*) filter (where (p_answers ->> q.id::text)::int = q.correct_index) into score
+    from public.exam_questions q where q.step_id = p_step_id;
 
   req := ceil(n * public.exam_pass_percent() / 100.0)::int;
   ok := score >= req;
   insert into public.exam_attempts (user_id, enrollment_id, step_id, score, total, passed, answers)
-  values (uid, e.id, p_step_id, score, n, ok, p_answers);
+  values (uid, e.id, p_step_id, score, n, ok, p_answers) returning id into aid;
 
   if ok then
     insert into public.enrollment_steps (enrollment_id, version_id, step_id, state)
@@ -179,7 +170,29 @@ begin
     update public.enrollments set last_step_id = p_step_id where id = e.id;
   end if;
 
-  return jsonb_build_object('score', score, 'total', n, 'required', req, 'passed', ok, 'results', res);
+  return jsonb_build_object('attempt_id', aid, 'score', score, 'total', n, 'required', req, 'passed', ok);
+end $$;
+
+-- مراجعة محاولة (لصاحبها فقط): كل سؤال بإجابته والإجابة الصحيحة والشرح ومادة المراجعة
+create function public.exam_result(p_attempt_id uuid) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := public.require_user(); a public.exam_attempts;
+begin
+  select * into a from public.exam_attempts where id = p_attempt_id and user_id = uid;
+  if not found then raise exception 'attempt not found' using errcode = 'P0002'; end if;
+  return jsonb_build_object(
+    'score', a.score, 'total', a.total, 'passed', a.passed,
+    'required', ceil(a.total * public.exam_pass_percent() / 100.0)::int,
+    'enrollment_id', a.enrollment_id, 'step_id', a.step_id,
+    'results', coalesce((select jsonb_agg(jsonb_build_object(
+           'id', q.id, 'prompt', q.prompt, 'options', q.options,
+           'chosen', (a.answers ->> q.id::text)::int, 'correct_index', q.correct_index,
+           'correct', (a.answers ->> q.id::text)::int = q.correct_index,
+           'explanation', q.explanation,
+           'material', case when m.id is null then null else jsonb_build_object('slug', m.slug, 'title', m.title) end
+         ) order by q.position)
+      from public.exam_questions q left join public.materials m on m.id = q.material_id and m.status = 'published'
+     where q.step_id = a.step_id), '[]'::jsonb));
 end $$;
 
 -- ---------- 7) النشر: امتحان واحد، آخر خطوة، 5 إلى 10 أسئلة ----------
@@ -301,5 +314,5 @@ end $$;
 
 -- ---------- 10) الصلاحيات ----------
 revoke execute on function public.exam_pass_percent(), public.exam_questions_guard(), public.exam_completion_guard(),
-  public.exam_for(uuid, uuid), public.submit_exam(uuid, uuid, jsonb) from public, anon, authenticated;
-grant execute on function public.exam_for(uuid, uuid), public.submit_exam(uuid, uuid, jsonb) to authenticated;
+  public.exam_for(uuid, uuid), public.submit_exam(uuid, uuid, jsonb), public.exam_result(uuid) from public, anon, authenticated;
+grant execute on function public.exam_for(uuid, uuid), public.submit_exam(uuid, uuid, jsonb), public.exam_result(uuid) to authenticated;

@@ -38,7 +38,7 @@ const withdrawn = e?.path_versions?.status === 'withdrawn';
 const active = e?.status === 'active';
 const linkedTitles = new Set(d?.linked.map((l) => l.goals?.title));
 const KIND: Record<string, string> = { carried: 'سيُنقل تقدمها', new: 'خطوة جديدة', removed: 'لن تظهر في الإصدار الجديد (تبقى في سجل إصدارك)' };
-const steps = d ? d.steps.map((s) => ({ id: s.id, position: s.position, title: s.title, state: d.state(s.id) })) : [];
+const steps = d ? d.steps.map((s) => ({ id: s.id, position: s.position, title: s.title, type: s.type, state: d.state(s.id) })) : [];
 const resume = d?.prog?.resume_step_id ?? steps.find((s) => s.state !== 'completed')?.id ?? null;
 const total = d?.prog?.total_steps ?? steps.length, doneN = d?.prog?.completed_steps ?? 0;
 const pathTitle = e?.path_versions?.title ?? 'مسار';

@@ -1,0 +1,155 @@
+---
+// خطوة الامتحان (آخر كل مسار): البداية، ثم سؤال في كل شاشة، ثم النتيجة. التصحيح في القاعدة فقط.
+// بلا JavaScript تظهر الأسئلة كلها في صفحة واحدة وزر الإرسال تحتها.
+import BackBtn from './BackBtn.astro';
+import ArcMove from './ArcMove.astro';
+import { cheer } from '../lib/cheers';
+
+export interface ExamInfo { total: number; required: number; pass_percent: number; best: { score: number; total: number; passed: boolean } | null; questions: { id: string; prompt: string; options: string[] }[] }
+export interface ExamResult { score: number; total: number; required: number; passed: boolean; enrollment_id: string; step_id: string;
+  results: { id: string; prompt: string; options: string[]; chosen: number; correct_index: number; correct: boolean; explanation: string | null; material: { slug: string; title: string } | null }[] }
+interface Props {
+  mode: 'intro' | 'questions' | 'result' | 'done' | 'unavailable';
+  info?: ExamInfo | null; result?: ExamResult | null;
+  enrollmentId: string; stepId: string; pathHref: string; here: string;
+  position: number; total: number; doneCount: number; nextHref: string;
+}
+const { mode, info, result, enrollmentId, stepId, pathHref, here, position, total, doneCount, nextHref } = Astro.props;
+const n = info?.total ?? 0;
+const qLabel = (k: number) => (k === 1 ? 'سؤال واحد' : k === 2 ? 'سؤالان' : k <= 10 ? `${k} أسئلة` : `${k} سؤالًا`);
+const rightLabel = (k: number) => (k === 1 ? 'إجابة صحيحة واحدة' : k === 2 ? 'إجابتان صحيحتان' : k <= 10 ? `${k} إجابات صحيحة` : `${k} إجابة صحيحة`);
+// خلط الخيارات لكل محاولة؛ القيمة المرسلة رقم الخيار الأصلي فيُصحَّح في القاعدة كما هو
+const shuffled = (opts: string[]) => opts.map((t, i) => ({ t, i })).sort(() => Math.random() - 0.5);
+const wrong = result?.results.filter((r) => !r.correct) ?? [];
+const c = cheer(doneCount);
+---
+{mode === 'unavailable' ? (
+  <div class="app-col focus-wrap">
+    <header class="focus-top"><div class="line"><BackBtn href={pathHref} close label="العودة إلى المسار" /><span class="count">الخطوة {position} من {total}</span></div></header>
+    <div class="focus-body"><h1 class="step-title">الامتحان غير متاح الآن</h1><p class="lead-dim">جرّب بعد قليل. تقدّمك محفوظ.</p></div>
+    <div class="dock"><a class="btn btn-ghost btn-block" href={pathHref}>العودة إلى المسار</a></div>
+  </div>
+) : mode === 'questions' && info ? (
+  <form method="post" action="/api/exam-submit" class="app-col focus-wrap exam" data-exam>
+    <input type="hidden" name="enrollment_id" value={enrollmentId} /><input type="hidden" name="step_id" value={stepId} />
+    <input type="hidden" name="next" value={here} />
+    <header class="focus-top">
+      <div class="line"><BackBtn href={here} close label="الخروج من الامتحان" /><span class="count" data-exam-count>{qLabel(n)}</span></div>
+      <div class="segs" aria-hidden="true" data-exam-segs>{info.questions.map(() => <i></i>)}</div>
+    </header>
+    <div class="focus-body">
+      {info.questions.map((q, k) => (
+        <fieldset class="exam-q" data-q={k}>
+          <legend class="q-title">{q.prompt}</legend>
+          <div class="list">
+            {shuffled(q.options).map((o) => <label class="choice exam-choice"><input type="radio" name={`a_${q.id}`} value={o.i} required /><span class="grow">{o.t}</span></label>)}
+          </div>
+        </fieldset>
+      ))}
+      <p class="lead-dim fs-0_9">لا تظهر الإجابات الصحيحة الآن. تراها كلها في النهاية.</p>
+    </div>
+    <div class="dock exam-dock">
+      <button class="btn btn-ghost" type="button" data-exam-prev hidden>السابق</button>
+      <button class="btn btn-primary btn-block" type="button" data-exam-next hidden>التالي</button>
+      <button class="btn btn-primary btn-block" type="submit" data-exam-send>أرسل الإجابات</button>
+    </div>
+  </form>
+) : mode === 'result' && result ? (
+  result.passed ? (
+    <div class="app-col focus-wrap">
+      <div class="focus-body done-hero">
+        <ArcMove from={Math.max(0, total - 1)} to={total} total={total} />
+        <p class="exam-score">{result.score} من {result.total}</p>
+        <h1>أكملت المسار</h1>
+        <p class="cheer">{c.t}{c.s && <span class="faint fs-0_85"> {c.s}</span>}</p>
+        {wrong.length > 0 && (
+          <details class="exam-review">
+            <summary>{wrong.length === 1 ? 'راجع السؤال الذي أخطأت فيه' : `راجع ${wrong.length} أسئلة أخطأت فيها`}</summary>
+            <ul class="exam-list">{wrong.map((r) => <li class="exam-item is-wrong">
+              <p class="q">{r.prompt}</p><p class="mine">إجابتك: {r.options[r.chosen]}</p><p class="right">الصحيحة: {r.options[r.correct_index]}</p>
+              {r.explanation && <p class="why">{r.explanation}</p>}
+              {r.material && <a href={`/library/${r.material.slug}`}>راجع: {r.material.title}</a>}
+            </li>)}</ul>
+          </details>
+        )}
+      </div>
+      <div class="dock"><a class="btn btn-primary btn-block" href={nextHref}>التالي</a></div>
+    </div>
+  ) : (
+    <div class="app-col focus-wrap">
+      <header class="focus-top"><div class="line"><BackBtn href={pathHref} close label="العودة إلى المسار" /><span class="count">النتيجة</span></div></header>
+      <div class="focus-body">
+        <p class="exam-score is-plain">{result.score} من {result.total}</p>
+        <h1 class="step-title">قريب. تحتاج {result.required} لتكمل المسار</h1>
+        <p class="lead-dim">راجع هذه الأسئلة، ثم أعد المحاولة متى شئت. يتغيّر ترتيب الأسئلة والخيارات كل مرة.</p>
+        <ul class="exam-list">{wrong.map((r) => <li class="exam-item is-wrong">
+          <p class="q">{r.prompt}</p><p class="mine">إجابتك: {r.options[r.chosen]}</p><p class="right">الصحيحة: {r.options[r.correct_index]}</p>
+          {r.explanation && <p class="why">{r.explanation}</p>}
+          {r.material && <a href={`/library/${r.material.slug}`}>راجع: {r.material.title}</a>}
+        </li>)}</ul>
+        {result.score > 0 && <p class="faint fs-0_9">و{rightLabel(result.score)}</p>}
+      </div>
+      <div class="dock">
+        <a class="btn btn-primary btn-block" href={`${here}?go=1`}>أعد المحاولة</a>
+        <a class="link-quiet" href={pathHref}>لاحقًا</a>
+      </div>
+    </div>
+  )
+) : (
+  <div class="app-col focus-wrap">
+    <header class="focus-top"><div class="line"><BackBtn href={pathHref} close label="العودة إلى المسار" /><span class="count">الخطوة {position} من {total}</span></div></header>
+    <div class="focus-body">
+      {mode === 'done' ? (
+        <>
+          <p class="started">أكملت الامتحان</p>
+          <h1 class="step-title">أنهيت هذا المسار</h1>
+          {info?.best && <p class="lead-dim">أفضل نتيجة: {info.best.score} من {info.best.total}</p>}
+        </>
+      ) : (
+        <>
+          <h1 class="step-title">امتحان قصير، ثم تكمل المسار</h1>
+          <p class="lead-dim">أسئلة من المواد التي قرأتها. خذ وقتك، وارجع للمواد متى شئت.</p>
+          <dl class="exam-facts">
+            <div><dt>الأسئلة</dt><dd>{n}</dd></div>
+            <div><dt>لتكمل المسار</dt><dd>{rightLabel(info?.required ?? 0)}</dd></div>
+            <div><dt>المحاولات</dt><dd>بلا حد</dd></div>
+            {info?.best && <div><dt>أفضل نتيجة</dt><dd>{info.best.score} من {info.best.total}</dd></div>}
+          </dl>
+        </>
+      )}
+    </div>
+    <div class="dock">
+      {mode === 'done'
+        ? <><a class="btn btn-primary btn-block" href={nextHref}>التالي</a><a class="link-quiet" href={`${here}?go=1`}>أعد الامتحان للمراجعة</a></>
+        : n > 0 ? <a class="btn btn-primary btn-block" href={`${here}?go=1`}>ابدأ</a> : <a class="btn btn-ghost btn-block" href={pathHref}>العودة إلى المسار</a>}
+    </div>
+  </div>
+)}
+<script>
+  // سؤال في كل شاشة: «التالي» بعد الاختيار، و«أرسل الإجابات» في آخر سؤال.
+  const f = document.querySelector<HTMLFormElement>('[data-exam]');
+  if (f) {
+    const qs = [...f.querySelectorAll<HTMLFieldSetElement>('.exam-q')];
+    const segs = [...f.querySelectorAll<HTMLElement>('[data-exam-segs] i')];
+    const count = f.querySelector<HTMLElement>('[data-exam-count]');
+    const prev = f.querySelector<HTMLButtonElement>('[data-exam-prev]')!, next = f.querySelector<HTMLButtonElement>('[data-exam-next]')!, send = f.querySelector<HTMLButtonElement>('[data-exam-send]')!;
+    let i = 0;
+    const answered = (k: number) => !!qs[k]?.querySelector('input:checked');
+    const show = (k: number) => {
+      i = k;
+      qs.forEach((q, j) => (q.hidden = j !== k));
+      segs.forEach((s, j) => s.className = j === k ? 'now' : answered(j) ? 'done' : '');
+      if (count) count.textContent = `السؤال ${k + 1} من ${qs.length}`;
+      prev.hidden = k === 0;
+      const last = k === qs.length - 1;
+      next.hidden = last; send.hidden = !last;
+      next.disabled = !answered(k); send.disabled = !answered(k);
+      window.scrollTo(0, 0);
+    };
+    f.classList.add('is-stepped');
+    qs.forEach((q) => q.querySelectorAll('input').forEach((r) => r.addEventListener('change', () => show(i))));
+    next.addEventListener('click', () => { if (answered(i)) show(i + 1); });
+    prev.addEventListener('click', () => show(Math.max(0, i - 1)));
+    show(0);
+  }
+</script>

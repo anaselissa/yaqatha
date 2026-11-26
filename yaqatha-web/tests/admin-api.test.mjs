@@ -68,6 +68,12 @@ test('مسار: إنشاء، خطوات، إعادة ترتيب بعد COMMIT، 
   assert.equal(re.status, 204, JSON.stringify(re.body));
   const got = (await api('edt', 'GET', `/steps?version_id=eq.${v1.id}&select=title&order=position`)).body.map((s) => s.title).join('');
   assert.equal(got, 'جأب', 'الترتيب ثابت بعد COMMIT الحقيقي');
+  const noExam = await api('edt', 'POST', '/rpc/publish_path_version', { p_version_id: v1.id });
+  assert.ok(noExam.status >= 400 && /exam/.test(noExam.body.message), 'لا نشر بلا امتحان');
+  const ex = (await api('edt', 'POST', '/steps', { version_id: v1.id, position: 4, type: 'exam', title: 'الامتحان' })).body[0];
+  const qs = Array.from({ length: 5 }, (_, i) => ({ step_id: ex.id, position: i + 1, prompt: `س${i + 1}`, options: ['أ', 'ب'], correct_index: 0 }));
+  assert.equal((await api('edt', 'POST', '/exam_questions', qs)).status, 201);
+  assert.equal((await api('usr', 'GET', `/exam_questions?step_id=eq.${ex.id}`)).body.length, 0, 'المستخدم لا يقرأ مفتاح الإجابات');
   assert.equal((await api('edt', 'POST', '/rpc/publish_path_version', { p_version_id: v1.id })).status, 204);
   assert.equal((await api(null, 'GET', `/paths_current?slug=eq.${slug}&select=version_no`)).body[0].version_no, 1);
   assert.equal((await api('edt', 'POST', '/steps', { version_id: v1.id, position: 9, type: 'read', title: 'متأخرة' })).status >= 400, true, 'الإصدار المنشور مجمّد');

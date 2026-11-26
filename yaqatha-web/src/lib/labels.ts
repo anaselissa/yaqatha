@@ -13,6 +13,7 @@ export const STEP_TYPE: Record<string, string> = {
   exercise: 'تمرين',
   reflection: 'سؤال للتفكير',
   review: 'مراجعة التجربة',
+  exam: 'الامتحان',
 };
 export const NATURE: Record<string, string> = {
   original_source: 'مصدر أصلي',

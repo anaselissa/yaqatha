@@ -3,7 +3,7 @@ import Admin from '../../../layouts/Admin.astro';
 import ErrorState from '../../../components/ErrorState.astro';
 import LinkPicker from '../../../components/admin/LinkPicker.astro';
 import { PUBLISH_STATUS, REVIEW_STATUS, taxonomyOptions } from '../../../lib/admin';
-import { PATH_STATUS, VERSION_STATUS, getPathEditor, listAdminPaths, materialOptions } from '../../../lib/admin-paths';
+import { EXAM_MAX, EXAM_MIN, PATH_STATUS, VERSION_STATUS, getPathEditor, listAdminPaths, materialOptions } from '../../../lib/admin-paths';
 import { CHANGE_TYPE, MATERIAL_TYPE, STEP_TYPE, durationLabel, formatDate, stepsLabel } from '../../../lib/labels';
 import { load } from '../../../lib/page';
 
@@ -18,6 +18,10 @@ const work = ed?.work ?? null;
 const isDraft = work?.status === 'draft';
 const pid = ed?.path.id ?? '';
 const matLabel = (m: { title: string; status: string; type: string }) => `${m.title} · ${MATERIAL_TYPE[m.type]}${m.status === 'published' ? '' : ` (${PUBLISH_STATUS[m.status]})`}`;
+const stepTypes = Object.entries(STEP_TYPE).filter(([k]) => k !== 'exam');
+const examN = ed?.examQs.length ?? 0;
+const examReady = examN >= EXAM_MIN && examN <= EXAM_MAX;
+const matTitle = new Map((mats ?? []).map((m) => [m.id, m.title]));
 const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).filter((x) => x.materials && x.materials.status !== 'published').length;
 ---
 <Admin title={work?.title ?? 'مسار'}>
@@ -62,23 +66,24 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
               const cur = st.step_materials[0]?.materials ?? null;
               return (
                 <li id={`s-${st.id}`} class="adm-row d-block">
-                  <details class="fold">
+                  <details class="fold" open={st.type === 'exam' && isDraft && !examReady}>
                     <summary>
                       <span class="gold">{i + 1}.</span> <strong>{st.title}</strong>
                       <span class="chip ms-0_4">{STEP_TYPE[st.type]}</span>
                       {cur && <span class="faint fs-0_9"> · {cur.title}{cur.status !== 'published' ? ' (غير منشورة)' : ''}</span>}
+                      {st.type === 'exam' && <span class={`chip ms-0_4 ${examReady ? 'chip-ok' : 'chip-warn'}`}>{examN} {examN >= 3 && examN <= 10 ? 'أسئلة' : 'سؤال'} · {examReady ? 'جاهز للنشر' : `المطلوب ${EXAM_MIN} إلى ${EXAM_MAX}`}</span>}
                     </summary>
                     <form method="post" action="/api/admin/step-save" class="adm-form mt-1">
                       <input type="hidden" name="path_id" value={pid} />
                       <input type="hidden" name="step_id" value={st.id} />
-                      {isDraft ? (
+                      {isDraft && st.type !== 'exam' ? (
                         <div class="field"><label for={`t-${st.id}`}>النوع</label>
-                          <select id={`t-${st.id}`} name="type">{Object.entries(STEP_TYPE).map(([k, l]) => <option value={k} selected={st.type === k}>{l}</option>)}</select></div>
+                          <select id={`t-${st.id}`} name="type">{stepTypes.map(([k, l]) => <option value={k} selected={st.type === k}>{l}</option>)}</select></div>
                       ) : <input type="hidden" name="type" value={st.type} />}
                       <div class="field"><label for={`ti-${st.id}`}>العنوان</label><input id={`ti-${st.id}`} name="title" type="text" required maxlength="200" value={st.title} /></div>
                       <div class="field"><label for={`in-${st.id}`}>التعليمات</label><textarea class="minh-6" id={`in-${st.id}`} name="instructions" maxlength="10000">{st.instructions ?? ''}</textarea>
                         <span class="hint">ما المطلوب من المستخدم في هذه الخطوة. يدعم Markdown.</span></div>
-                      {(isDraft || cur) && (
+                      {st.type !== 'exam' && (isDraft || cur) && (
                         <div class="field"><label for={`m-${st.id}`}>المادة</label>
                           <select id={`m-${st.id}`} name="material_id">
                             {isDraft && <option value="">— بلا مادة —</option>}
@@ -87,6 +92,70 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
                       )}
                       <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ الخطوة</button></div>
                     </form>
+                    {st.type === 'exam' && (
+                      <div id="exam" class="stack sp-0_8 mt-1">
+                        <h3 class="fs-1_1 m-0">أسئلة الامتحان</h3>
+                        <p class="faint m-0 fs-0_92">آخر خطوة في المسار، ولا يُنشر بدونها: من {EXAM_MIN} إلى {EXAM_MAX} أسئلة. يرى المستخدم سؤالًا في كل شاشة، والإجابات في النهاية. نسبة النجاح من <a href="/admin/settings#exam">الإعدادات</a>.</p>
+                        {examN === 0 && <p class="faint m-0">لا أسئلة بعد.</p>}
+                        <ol class="adm-list list-none">
+                          {ed.examQs.map((q, qi) => (
+                            <li class="adm-row d-block">
+                              <details class="fold">
+                                <summary><span class="gold">{qi + 1}.</span> {q.prompt}
+                                  <span class="faint fs-0_85"> · {q.source_question_id ? 'من «اختبر فهمك»' : 'سؤال خاص بالامتحان'}{q.material_id && matTitle.get(q.material_id) ? ` · يرتبط بمادة: ${matTitle.get(q.material_id)}` : ''}</span></summary>
+                                <form method="post" action="/api/admin/exam-q-save" class="adm-form mt-1">
+                                  <input type="hidden" name="path_id" value={pid} /><input type="hidden" name="step_id" value={st.id} /><input type="hidden" name="question_id" value={q.id} />
+                                  <div class="field"><label for={`qp-${q.id}`}>السؤال</label><input id={`qp-${q.id}`} name="prompt" type="text" required maxlength="500" value={q.prompt} /></div>
+                                  <div class="field"><label for={`qo-${q.id}`}>الخيارات، كل خيار في سطر (2 إلى 5)</label><textarea class="minh-6" id={`qo-${q.id}`} name="options" required>{q.options.join('\n')}</textarea></div>
+                                  {isDraft
+                                    ? <div class="field"><label for={`qc-${q.id}`}>رقم الإجابة الصحيحة</label><input id={`qc-${q.id}`} name="correct" type="number" min="1" max="5" required class="input maxw-10" value={q.correct_index + 1} /></div>
+                                    : <input type="hidden" name="correct" value={q.correct_index + 1} />}
+                                  <div class="field"><label for={`qm-${q.id}`}>مادة للمراجعة <span class="faint">(اختياري)</span></label>
+                                    <select id={`qm-${q.id}`} name="material_id"><option value="">— بلا مادة —</option>{mats.map((m) => <option value={m.id} selected={q.material_id === m.id}>{matLabel(m)}</option>)}</select></div>
+                                  <div class="field"><label for={`qe-${q.id}`}>شرح يظهر في النتيجة <span class="faint">(اختياري)</span></label><textarea class="minh-4" id={`qe-${q.id}`} name="explanation" maxlength="2000">{q.explanation ?? ''}</textarea></div>
+                                  {!isDraft && <p class="hint m-0">بعد النشر: تصحيح الصياغة فقط. الإجابة الصحيحة وعدد الخيارات ثابتان.</p>}
+                                  <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ السؤال</button></div>
+                                </form>
+                                {isDraft && (
+                                  <form method="post" action="/api/admin/exam-q-delete" class="mt-0_8">
+                                    <input type="hidden" name="path_id" value={pid} /><input type="hidden" name="step_id" value={st.id} /><input type="hidden" name="question_id" value={q.id} />
+                                    <button class="btn btn-danger btn-sm" type="submit">حذف السؤال</button>
+                                  </form>
+                                )}
+                              </details>
+                            </li>
+                          ))}
+                        </ol>
+                        {isDraft && ed.copyable.length > 0 && (
+                          <details class="fold">
+                            <summary><strong>انسخ من أسئلة مواد المسار ({ed.copyable.length} متاحة)</strong></summary>
+                            <form method="post" action="/api/admin/exam-q-copy" class="adm-form mt-1">
+                              <input type="hidden" name="path_id" value={pid} /><input type="hidden" name="step_id" value={st.id} />
+                              <fieldset class="stack sp-0_4"><legend class="sr-only">الأسئلة</legend>
+                                {ed.copyable.map((q) => <label class="check"><input type="checkbox" name="question" value={q.id} checked /> {q.prompt} <span class="faint fs-0_85">· {matTitle.get(q.material_id) ?? ''}</span></label>)}
+                              </fieldset>
+                              <div class="row"><button class="btn btn-primary btn-sm" type="submit">انسخ المختارة</button></div>
+                            </form>
+                          </details>
+                        )}
+                        {isDraft && (
+                          <details class="fold" open={examN < EXAM_MIN && !(examN === 0 && ed.copyable.length > 0)}>
+                            <summary><strong>+ اكتب سؤالًا جديدًا</strong></summary>
+                            <form method="post" action="/api/admin/exam-q-add" class="adm-form mt-1">
+                              <input type="hidden" name="path_id" value={pid} /><input type="hidden" name="step_id" value={st.id} />
+                              <div class="field"><label for="eq-p">السؤال</label><input id="eq-p" name="prompt" type="text" required maxlength="500" /></div>
+                              <div class="field"><label for="eq-o">الخيارات، كل خيار في سطر (2 إلى 5)</label><textarea class="minh-6" id="eq-o" name="options" required></textarea></div>
+                              <div class="field"><label for="eq-c">رقم الإجابة الصحيحة</label><input id="eq-c" name="correct" type="number" min="1" max="5" required class="input maxw-10" /></div>
+                              <div class="field"><label for="eq-m">مادة للمراجعة <span class="faint">(اختياري)</span></label>
+                                <select id="eq-m" name="material_id"><option value="">— بلا مادة —</option>{mats.map((m) => <option value={m.id}>{matLabel(m)}</option>)}</select>
+                                <span class="hint">تظهر رابطًا لمن أخطأ في السؤال.</span></div>
+                              <div class="field"><label for="eq-e">شرح يظهر في النتيجة <span class="faint">(اختياري)</span></label><textarea class="minh-4" id="eq-e" name="explanation" maxlength="2000"></textarea></div>
+                              <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف السؤال</button></div>
+                            </form>
+                          </details>
+                        )}
+                      </div>
+                    )}
                     {isDraft && (
                       <div class="row mt-0_8">
                         {[['up', 'حرّك لأعلى', i > 0], ['down', 'حرّك لأسفل', i < ed.steps.length - 1]].filter(([, , ok]) => ok).map(([dir, label]) => (
@@ -107,6 +176,15 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
             })}
           </ol>
 
+          {isDraft && !ed.exam && (
+            <div class="notice">
+              <strong>لا امتحان بعد.</strong> كل مسار ينتهي بامتحان قصير (من {EXAM_MIN} إلى {EXAM_MAX} أسئلة)، ولا يُنشر بدونه.
+              <form class="mt-0_8" method="post" action="/api/admin/exam-step-add">
+                <input type="hidden" name="path_id" value={pid} /><input type="hidden" name="version_id" value={work.id} />
+                <button class="btn btn-primary btn-sm" type="submit">أضف خطوة الامتحان</button>
+              </form>
+            </div>
+          )}
           {isDraft && (
             <details class="fold" open={ed.steps.length === 0}>
               <summary><strong>+ أضف خطوة</strong></summary>
@@ -114,7 +192,7 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
                 <input type="hidden" name="path_id" value={pid} />
                 <input type="hidden" name="version_id" value={work.id} />
                 <div class="field"><label for="new-type">النوع</label>
-                  <select id="new-type" name="type">{Object.entries(STEP_TYPE).map(([k, l]) => <option value={k}>{l}</option>)}</select></div>
+                  <select id="new-type" name="type">{stepTypes.map(([k, l]) => <option value={k}>{l}</option>)}</select></div>
                 <div class="field"><label for="new-title">العنوان</label><input id="new-title" name="title" type="text" required maxlength="200" placeholder="مثال: شاهد: فضل صلاة الفجر" /></div>
                 <div class="field"><label for="new-ins">التعليمات</label><textarea class="minh-5" id="new-ins" name="instructions" maxlength="10000"></textarea></div>
                 <div class="field"><label for="new-mat">المادة <span class="faint">(اختياري)</span></label>

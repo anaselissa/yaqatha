@@ -45,7 +45,7 @@ t4 as (
       'migrate_enrollment','restart_enrollment','restore_goal','claim_staff_invite','create_draft_version',
       'publish_path_version','withdraw_version','material_impact','delete_my_account','reorder_steps','apply_staff_invite',
       'handle_new_user','require_staff','set_share_progress','mentee_progress','goal_checkin_guard','set_share_goals','rate_guard',
-      'exam_for','submit_exam','exam_pass_percent','exam_questions_guard','exam_completion_guard')
+      'exam_for','submit_exam','exam_result','exam_pass_percent','exam_questions_guard','exam_completion_guard')
     and (has_function_privilege('anon', p.oid, 'execute')
          or (p.proname in ('apply_staff_invite','handle_new_user','require_staff','goal_checkin_guard','rate_guard','exam_pass_percent','exam_questions_guard','exam_completion_guard')
              and has_function_privilege('authenticated', p.oid, 'execute')))

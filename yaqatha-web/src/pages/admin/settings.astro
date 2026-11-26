@@ -33,6 +33,14 @@ const [st, mentors] = data ?? [null, null];
             <span class="hint">يُكتب للمستخدم بعد إرسال طلبه، فاختر مدة تستطيعون الالتزام بها.</span>
           </div>
         </fieldset>
+        <fieldset id="exam">
+          <legend>امتحان آخر المسار</legend>
+          <div class="field">
+            <label for="pass">نسبة النجاح (%)</label>
+            <input id="pass" name="exam_pass_percent" type="number" min="50" max="100" class="input maxw-8" value={st.exam_pass_percent} />
+            <span class="hint">لكل المسارات. مثال: 70% في امتحان من 6 أسئلة = 5 إجابات صحيحة (يُقرَّب للأعلى).</span>
+          </div>
+        </fieldset>
         <div><button class="btn btn-primary" type="submit">حفظ الإعدادات</button></div>
       </form>
 

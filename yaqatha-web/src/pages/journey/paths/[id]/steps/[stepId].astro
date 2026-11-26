@@ -5,6 +5,7 @@ import ErrorState from '../../../../../components/ErrorState.astro';
 import BackBtn from '../../../../../components/BackBtn.astro';
 import MaterialContent from '../../../../../components/MaterialContent.astro';
 import ArcMove from '../../../../../components/ArcMove.astro';
+import ExamStep, { type ExamInfo, type ExamResult } from '../../../../../components/ExamStep.astro';
 import { cheer } from '../../../../../lib/cheers';
 import { getEnrollment, getEnrollmentSteps, getMyProgress } from '../../../../../lib/user';
 import { getMaterialsFull } from '../../../../../lib/data';
@@ -16,13 +17,15 @@ if (!/^[0-9a-f-]{36}$/i.test(id!) || !/^[0-9a-f-]{36}$/i.test(stepId!)) return A
 const t = Astro.locals.session!.token;
 const showDone = Astro.url.searchParams.get('done') === '1';
 const qa = Astro.url.searchParams.get('qa');
+const examGo = Astro.url.searchParams.get('go') === '1';
+const resultId = Astro.url.searchParams.get('result');
 
 const data = await load(Astro.response, async () => {
   const e = await getEnrollment(t, id!);
   if (!e) return null;
   const r = await getEnrollmentSteps(t, e);
   const step = r.steps.find((s) => s.id === stepId);
-  if (!step) return { e, step: undefined, steps: r.steps, state: r.state, mats: [], me: null };
+  if (!step) return { e, step: undefined, steps: r.steps, state: r.state, mats: [], me: null, exam: null, result: null, examErr: false };
   let state = r.state(step.id);
   if (e.status === 'active' && !showDone) {
     // فتح الخطوة يحدّث «آخر خطوة»، ويعلّمها «بدأت» إن لم تبدأ بعد
@@ -32,9 +35,17 @@ const data = await load(Astro.response, async () => {
       if (ok) state = 'in_progress';
     }
   }
+  // الامتحان: الأسئلة بلا إجابات، أو مراجعة محاولة سابقة
+  let exam: ExamInfo | null = null, result: ExamResult | null = null, examErr = false;
+  if (step.type === 'exam' && !showDone) {
+    if (resultId && /^[0-9a-f-]{36}$/i.test(resultId)) result = await rpc<ExamResult>('exam_result', { p_attempt_id: resultId }, t).catch(() => null);
+    if (result && result.step_id !== step.id) result = null;
+    if (!result) exam = await rpc<ExamInfo>('exam_for', { p_enrollment_id: e.id, p_step_id: step.id }, t).catch(() => { examErr = true; return null; });
+    if (result?.passed) state = 'completed';
+  }
   const ids = step.step_materials.map((sm) => sm.materials?.id).filter((x): x is string => !!x);
   const [mats, me] = await Promise.all([showDone ? Promise.resolve([]) : getMaterialsFull(ids), showDone ? getMyProgress(t) : Promise.resolve(null)]);
-  return { e, step, steps: r.steps, state: (sid: string) => (sid === step.id ? state : r.state(sid)), mats, me };
+  return { e, step, steps: r.steps, state: (sid: string) => (sid === step.id ? state : r.state(sid)), mats, me, exam, result, examErr };
 });
 if (data === null && Astro.response.status !== 503) return Astro.rewrite('/404');
 if (data && !data.step) return Astro.rewrite('/404');
@@ -56,9 +67,19 @@ const remainingLabel = remaining === 1 ? 'بقيت خطوة واحدة' : remain
 const streak = data?.me?.streak_days ?? 0;
 const c = cheer(doneCount - 1);
 const prev = idx > 0 ? steps[idx - 1] : undefined;
+const isExam = step?.type === 'exam' && !showDone;
+const examMode = !isExam || !data ? 'intro'
+  : data.result ? 'result'
+  : data.examErr || !data.exam ? 'unavailable'
+  : !active || (state === 'completed' && !examGo) ? 'done'
+  : examGo ? 'questions' : 'intro';
+const afterExam = nextOpen && nextOpen.id !== step?.id ? `${pathHref}/steps/${nextOpen.id}` : `${pathHref}?finished=1`;
 ---
 <Base title={step?.title} noindex chrome="focus">
-  {!data || !e || !step ? <ErrorState /> : showDone ? (
+  {!data || !e || !step ? <ErrorState /> : isExam ? (
+    <ExamStep mode={examMode as any} info={data.exam} result={data.result} enrollmentId={e.id} stepId={step.id} pathHref={pathHref} here={here}
+      position={step.position} total={steps.length} doneCount={doneCount} nextHref={afterExam} />
+  ) : showDone ? (
     <div class="app-col focus-wrap">
       <div class="focus-body done-hero">
         <ArcMove from={Math.max(0, doneCount - 1)} to={doneCount} total={steps.length} />

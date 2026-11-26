@@ -6,11 +6,13 @@ import { DataError, inList, mutate, rest, rpc } from './api';
 import { BadInput, oneOf, opt, slugify, str, uuid, uuids, type Handler } from './admin-form';
 
 export const STEP_TYPES = ['watch', 'read', 'guidance', 'exercise', 'reflection', 'review'];
+export const EXAM_MIN = 5, EXAM_MAX = 10;
 const CHANGE_TYPES = ['quit_haram', 'perform_duty', 'acquire_good_deed', 'increase_knowledge'];
 export const VERSION_STATUS: Record<string, string> = { draft: 'مسودة', published: 'منشور', retired: 'إصدار سابق', withdrawn: 'مسحوب' };
 export const PATH_STATUS: Record<string, string> = { draft: 'لم يُنشر', published: 'منشور', hidden: 'موقوف للبدء الجديد', archived: 'مؤرشف' };
 
 export interface Version { id: string; version_no: number; status: string; title: string; description: string | null; purpose: string | null; duration_days: number | null; changelog: string | null; withdrawn_note: string | null; published_at: string | null }
+export interface ExamQ { id: string; step_id: string; position: number; prompt: string; options: string[]; correct_index: number; explanation: string | null; material_id: string | null; source_question_id: string | null }
 export interface StepRow { id: string; position: number; type: string; title: string; instructions: string | null; step_materials: { material_id: string; materials: { id: string; title: string; status: string; type: string } | null }[] }
 
 // ---------- القراءة ----------
@@ -43,7 +45,16 @@ export async function getPathEditor(token: string, pathId: string) {
   const steps = work
     ? (await rest<StepRow>('steps', { select: 'id,position,type,title,instructions,step_materials(material_id,materials(id,title,status,type))', version_id: `eq.${work.id}`, order: 'position' }, { token })).rows
     : [];
-  return { path, versions, work, steps, needIds, domainIds, review, goals, next, published: versions.find((v) => v.status === 'published') ?? null };
+  // الامتحان (الهجرة 15): أسئلته، وأسئلة «اختبر فهمك» من مواد الخطوات المتاحة للنسخ. قبل الهجرة: لا شيء.
+  const exam = steps.find((st) => st.type === 'exam') ?? null;
+  const matIds = [...new Set(steps.flatMap((st) => st.step_materials.map((sm) => sm.material_id)))];
+  const [examQs, matQs] = await Promise.all([
+    exam ? rest<ExamQ>('exam_questions', { select: 'id,step_id,position,prompt,options,correct_index,explanation,material_id,source_question_id', step_id: `eq.${exam.id}`, order: 'position' }, { token }).then((r) => r.rows).catch(() => []) : Promise.resolve([] as ExamQ[]),
+    exam && matIds.length ? rest<{ id: string; material_id: string; prompt: string }>('material_questions', { select: 'id,material_id,prompt', material_id: inList(matIds), order: 'position' }, { token }).then((r) => r.rows).catch(() => []) : Promise.resolve([]),
+  ]);
+  const copied = new Set(examQs.map((q) => q.source_question_id));
+  const copyable = matQs.filter((q) => !copied.has(q.id));
+  return { path, versions, work, steps, needIds, domainIds, review, goals, next, exam, examQs, copyable, published: versions.find((v) => v.status === 'published') ?? null };
 }
 
 export async function materialOptions(token: string) {
@@ -73,10 +84,20 @@ function versionFields(form: FormData) {
   if (duration_days !== null && !(Number.isInteger(duration_days) && duration_days >= 1 && duration_days <= 365)) throw new BadInput('duration_days');
   return { title, description: opt(form, 'description', 1000), purpose: opt(form, 'purpose', 2000), duration_days };
 }
-function stepFields(form: FormData) {
+function stepFields(form: FormData, types = STEP_TYPES) {
   const title = str(form, 'title', 200);
   if (!title) throw new BadInput('title');
-  return { type: oneOf(form, 'type', STEP_TYPES), title, instructions: opt(form, 'instructions', 10000) };
+  return { type: oneOf(form, 'type', types), title, instructions: opt(form, 'instructions', 10000) };
+}
+function examFields(form: FormData) {
+  const prompt = str(form, 'prompt', 500);
+  if (!prompt) throw new BadInput('prompt');
+  const options = str(form, 'options', 3000).split('\n').map((x) => x.trim()).filter(Boolean);
+  if (options.length < 2 || options.length > 5 || options.some((o) => o.length > 300)) throw new BadInput('options');
+  const n = Number(str(form, 'correct', 2));
+  if (!Number.isInteger(n) || n < 1 || n > options.length) throw new BadInput('correct');
+  const m = str(form, 'material_id', 40);
+  return { prompt, options, correct_index: n - 1, explanation: opt(form, 'explanation', 2000), material_id: m ? uuid(form, 'material_id') : null };
 }
 const materialOf = (form: FormData) => { const v = str(form, 'material_id', 40); return v ? uuid(form, 'material_id') : null; };
 const editor = (pathId: string, hash = '') => `/admin/paths/${pathId}${hash}`;
@@ -145,13 +166,17 @@ export const PATH_HANDLERS: Record<string, Handler> = {
     const [s] = await mutate<{ id: string }>('POST', 'steps', token, { body: { version_id: versionId, position: (rows[0]?.position ?? 0) + 1, ...stepFields(form) }, returning: true });
     const m = materialOf(form);
     if (m) await mutate('POST', 'step_materials', token, { body: { step_id: s.id, material_id: m, position: 1 } });
+    // الامتحان يبقى آخر خطوة: الخطوة الجديدة تُدرج قبله
+    const all = (await rest<{ id: string; type: string }>('steps', { select: 'id,type', version_id: `eq.${versionId}`, order: 'position' }, { token })).rows;
+    const ex = all.find((x) => x.type === 'exam');
+    if (ex && all[all.length - 1].id !== ex.id) await rpc('reorder_steps', { p_version_id: versionId, p_step_ids: [...all.filter((x) => x.id !== ex.id).map((x) => x.id), ex.id] }, token);
     return { to: editor(pathId, '#steps'), flash: 'أُضيفت الخطوة' };
   },
 
   'step-save': async ({ token, form }) => {
     const pathId = uuid(form, 'path_id'), stepId = uuid(form, 'step_id');
     const { isDraft } = await versionOfStep(token, stepId);
-    const f = stepFields(form);
+    const f = stepFields(form, [...STEP_TYPES, 'exam']);
     await mutate('PATCH', 'steps', token, { params: { id: `eq.${stepId}` }, body: isDraft ? f : { title: f.title, instructions: f.instructions } });
     await setStepMaterial(token, stepId, materialOf(form), isDraft);
     return { to: editor(pathId, `#s-${stepId}`), flash: 'حُفظت الخطوة' };
@@ -173,6 +198,48 @@ export const PATH_HANDLERS: Record<string, Handler> = {
     [ids[i], ids[j]] = [ids[j], ids[i]];
     await rpc('reorder_steps', { p_version_id: versionId, p_step_ids: ids }, token);
     return { to: editor(pathId, `#s-${stepId}`) };
+  },
+
+  'exam-step-add': async ({ token, form }) => {
+    const pathId = uuid(form, 'path_id'), versionId = uuid(form, 'version_id');
+    const { rows } = await rest<{ position: number; type: string }>('steps', { select: 'position,type', version_id: `eq.${versionId}`, order: 'position.desc' }, { token });
+    if (rows.some((r) => r.type === 'exam')) return { to: editor(pathId, '#exam') };
+    const [s] = await mutate<{ id: string }>('POST', 'steps', token, { body: { version_id: versionId, position: (rows[0]?.position ?? 0) + 1, type: 'exam', title: 'الامتحان', instructions: null }, returning: true });
+    return { to: editor(pathId, `#s-${s.id}`), flash: 'أُضيفت خطوة الامتحان آخر المسار. أضف لها من 5 إلى 10 أسئلة' };
+  },
+
+  'exam-q-add': async ({ token, form }) => {
+    const pathId = uuid(form, 'path_id'), stepId = uuid(form, 'step_id');
+    const { rows } = await rest<{ position: number }>('exam_questions', { select: 'position', step_id: `eq.${stepId}`, order: 'position.desc', limit: 1 }, { token });
+    await mutate('POST', 'exam_questions', token, { body: { step_id: stepId, position: (rows[0]?.position ?? 0) + 1, ...examFields(form) } });
+    return { to: editor(pathId, `#s-${stepId}`), flash: 'أُضيف السؤال' };
+  },
+
+  'exam-q-save': async ({ token, form }) => {
+    const pathId = uuid(form, 'path_id'), stepId = uuid(form, 'step_id');
+    await mutate('PATCH', 'exam_questions', token, { params: { id: `eq.${uuid(form, 'question_id')}`, step_id: `eq.${stepId}` }, body: examFields(form) });
+    return { to: editor(pathId, `#s-${stepId}`), flash: 'حُفظ السؤال' };
+  },
+
+  'exam-q-delete': async ({ token, form }) => {
+    const pathId = uuid(form, 'path_id'), stepId = uuid(form, 'step_id');
+    await mutate('DELETE', 'exam_questions', token, { params: { id: `eq.${uuid(form, 'question_id')}`, step_id: `eq.${stepId}` } });
+    return { to: editor(pathId, `#s-${stepId}`), flash: 'حُذف السؤال' };
+  },
+
+  'exam-q-copy': async ({ token, form }) => {
+    const pathId = uuid(form, 'path_id'), stepId = uuid(form, 'step_id');
+    const ids = uuids(form, 'question');
+    if (!ids.length) throw new BadInput('question');
+    const [src, have] = await Promise.all([
+      rest<{ id: string; material_id: string; prompt: string; options: string[]; correct_index: number; explanation: string | null }>('material_questions', { select: 'id,material_id,prompt,options,correct_index,explanation', id: inList(ids), order: 'position' }, { token }),
+      rest<{ position: number; source_question_id: string | null }>('exam_questions', { select: 'position,source_question_id', step_id: `eq.${stepId}`, order: 'position.desc' }, { token }),
+    ]);
+    const done = new Set(have.rows.map((r) => r.source_question_id));
+    let pos = have.rows[0]?.position ?? 0;
+    const body = src.rows.filter((q) => !done.has(q.id)).map((q) => ({ step_id: stepId, position: ++pos, prompt: q.prompt, options: q.options, correct_index: q.correct_index, explanation: q.explanation, material_id: q.material_id, source_question_id: q.id }));
+    if (body.length) await mutate('POST', 'exam_questions', token, { body });
+    return { to: editor(pathId, `#s-${stepId}`), flash: body.length === 1 ? 'نُسخ سؤال واحد' : `نُسخ ${body.length} أسئلة` };
   },
 
   'version-publish': async ({ token, form }) => {
@@ -226,6 +293,12 @@ export const PATH_HANDLERS: Record<string, Handler> = {
 };
 
 export const PATH_MESSAGES: [RegExp, string][] = [
+  [/exactly one exam step/, 'أضف خطوة «الامتحان» آخر المسار قبل النشر (زر «أضف خطوة الامتحان»)'],
+  [/exam must be the last step/, 'خطوة الامتحان يجب أن تكون آخر خطوة. حرّكها للأسفل ثم انشر'],
+  [/exam needs 5 to 10 questions/, 'الامتحان يحتاج من 5 إلى 10 أسئلة قبل النشر'],
+  [/questions belong to an exam step only/, 'الأسئلة لخطوة الامتحان فقط'],
+  [/exam questions of a published version/, 'بعد النشر يمكن تصحيح صياغة الأسئلة فقط، لا إضافتها أو حذفها أو تغيير الإجابة الصحيحة. أنشئ إصدارًا جديدًا لذلك'],
+  [/invalid input value for enum public\.step_type|relation "public\.exam_questions" does not exist/, 'الامتحان يحتاج تطبيق الهجرة 15 على قاعدة البيانات أولًا'],
   [/needs at least one step/, 'أضف خطوة واحدة على الأقل قبل النشر'],
   [/changelog is required/, 'اكتب «ما الذي تغيّر» قبل نشر إصدار جديد'],
   [/draft version already exists/, 'يوجد إصدار مسودة لهذا المسار فعلًا'],

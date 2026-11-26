@@ -24,7 +24,7 @@ export interface Request {
   share_progress?: boolean;
   share_goals?: boolean;
 }
-export interface MenteePath { title: string; done: number; total: number; started_at: string; last_activity: string }
+export interface MenteePath { title: string; done: number; total: number; started_at: string; last_activity: string; exam?: { score: number; total: number; passed: boolean } | null }
 export interface MenteeGoal { title: string; days: number | null; done: number; last7: number; last_day: string | null }
 export interface MenteeShare { paths: MenteePath[] | null; goals: MenteeGoal[] | null }
 /** ما اختار صاحب الطلب أن يشاركه: مساراته (الهجرة 13) وعاداته اليومية (الهجرة 14). null إن لم يشارك شيئًا. */
@@ -74,7 +74,10 @@ export const FOLLOWUP_HANDLERS: Record<string, Handler> = {
     if (wa && !/^\+?\d{8,15}$/.test(wa)) throw new BadInput('team_whatsapp');
     const days = Number(str(form, 'mentorship_response_days', 3) || 3);
     if (!Number.isInteger(days) || days < 1 || days > 30) throw new BadInput('mentorship_response_days');
+    const pass = Number(str(form, 'exam_pass_percent', 3) || 70);
+    if (!Number.isInteger(pass) || pass < 50 || pass > 100) throw new BadInput('exam_pass_percent');
     const values: [string, unknown][] = [
+      ['exam_pass_percent', pass],
       ['team_whatsapp', wa ? wa.replace(/^\+/, '') : null],
       ['mentorship_open', form.get('mentorship_open') === 'on'],
       ['women_section_open', form.get('women_section_open') === 'on'],

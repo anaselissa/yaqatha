@@ -11,8 +11,8 @@ export const TOPICS: Record<string, string> = {
 };
 export const REQUEST_STATUS: Record<string, string> = { new: 'جديد', contacted: 'تم التواصل', active: 'متابعة مستمرة', closed: 'منتهٍ' };
 
-export interface Settings { team_whatsapp: string | null; mentorship_open: boolean; women_section_open: boolean; mentorship_response_days: number }
-const DEFAULTS: Settings = { team_whatsapp: null, mentorship_open: false, women_section_open: false, mentorship_response_days: 3 };
+export interface Settings { team_whatsapp: string | null; mentorship_open: boolean; women_section_open: boolean; mentorship_response_days: number; exam_pass_percent: number }
+const DEFAULTS: Settings = { team_whatsapp: null, mentorship_open: false, women_section_open: false, mentorship_response_days: 3, exam_pass_percent: 70 };
 
 /** الإعدادات العامة. عند تعذّرها (قبل تطبيق الهجرة مثلًا) تُرجع قيمًا آمنة: الطلبات مغلقة. */
 export async function getSettings(token?: string): Promise<Settings> {

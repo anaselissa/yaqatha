@@ -103,6 +103,9 @@ test('ختام المسار: هدف مقترح ومسار تالٍ يظهران 
   await ed.selectOption('#next', nextId);
   await submit(ed, ed.locator('form[action="/api/admin/path-next-add"] button'));
   assert.equal(sql(`select count(*) from path_next where path_id='${pathId}'`), '1');
+  await submit(ed, ed.getByRole('button', { name: 'أضف خطوة الامتحان' }));
+  sql(`insert into exam_questions (step_id, position, prompt, options, correct_index) select s.id, g, 'س' || g, '["أ","ب"]', 0 from steps s join path_versions v on v.id=s.version_id, generate_series(1,5) g where v.path_id='${pathId}' and s.type='exam'`);
+  await ed.reload();
   await submit(ed, ed.getByRole('button', { name: 'انشر المسار' }));
 
   const user = await as(`finisher-${run}@y.test`);
@@ -111,6 +114,7 @@ test('ختام المسار: هدف مقترح ومسار تالٍ يظهران 
   await submit(user, user.getByRole('button', { name: 'ابدأ هذا المسار' }));
   const enr = user.url().match(/journey\/paths\/([0-9a-f-]{36})/)[1];
   assert.doesNotMatch(await user.locator('main').innerText(), /أكملت المسار/, 'لا ختام قبل الإكمال');
+  sql(`insert into exam_attempts (user_id, enrollment_id, step_id, score, total, passed, answers) select e.user_id, e.id, s.id, 5, 5, true, '{}' from enrollments e join steps s on s.version_id=e.version_id and s.type='exam' where e.id='${enr}'`);
   sql(`insert into enrollment_steps (enrollment_id, version_id, step_id, state) select '${enr}', s.version_id, s.id, 'completed' from steps s join enrollments e on e.version_id=s.version_id where e.id='${enr}' on conflict (enrollment_id, step_id) do update set state='completed'`);
   await user.goto(`${BASE}/journey/paths/${enr}`);
   const t = await user.locator('main').innerText();

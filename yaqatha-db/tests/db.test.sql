@@ -663,11 +663,15 @@ select test.ok((public.submit_exam(:'xen', :'xe', (select jsonb_object_agg(id, 0
                from (select (q ->> 'id') as id from jsonb_array_elements(public.exam_for(:'xen', :'xe') -> 'questions') q) x)) ->> 'score')::int = 4,
   'graded in the database: 4 of 5 (question 5 answer is 1)');
 select test.ok((select state = 'completed' from public.enrollment_steps where enrollment_id = :'xen' and step_id = :'xe'), 'passing completes the exam step');
+select id as xa from public.exam_attempts where passed limit 1 \gset
+select public.exam_result(:'xa') as xr \gset
+select test.ok(jsonb_array_length(:'xr'::jsonb -> 'results') = 5 and (:'xr'::jsonb -> 'results' -> 4 ->> 'correct_index')::int = 1 and (:'xr'::jsonb ->> 'score')::int = 4, 'exam_result reviews my attempt with the answer key');
 select test.ok((select count(*) from public.exam_attempts) = 2, 'user sees own attempts');
 select test.throws($$insert into public.exam_attempts (user_id, enrollment_id, step_id, score, total, passed, answers) values (auth.uid(), gen_random_uuid(), gen_random_uuid(), 5, 5, true, '{}')$$, 'attempts cannot be forged', 'permission denied');
 select test.as_user(:'ur');
 select test.ok((select count(*) from public.exam_attempts) = 0, 'others cannot see my attempts');
 select test.throws(format($$select public.exam_for(%L, %L)$$, :'xen', :'xe'), 'cannot open someone else''s exam', 'not found');
+select test.throws(format($$select public.exam_result(%L)$$, :'xa'), 'cannot read someone else''s result', 'not found');
 
 select test.as_user(:'edt');
 select public.create_draft_version(:'xp') as xv2 \gset

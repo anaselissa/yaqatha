@@ -53,7 +53,7 @@ const tabs: [string, string][] = [['', 'المفتوحة'], ['new', 'جديدة'
                   {progress.get(r.id)!.paths && (<>
                     <strong class="fs-0_95">تقدّمه في المسارات (شاركه معك)</strong>
                     {progress.get(r.id)!.paths!.length ? (
-                      <ul class="list-none p-0 m-0 stack sp-0_3">{progress.get(r.id)!.paths!.map((m) => <li class="fs-0_9">{m.title}: {m.done} من {m.total}<span class="faint">، آخر نشاط {formatDate(m.last_activity)}</span></li>)}</ul>
+                      <ul class="list-none p-0 m-0 stack sp-0_3">{progress.get(r.id)!.paths!.map((m) => <li class="fs-0_9">{m.title}: {m.done} من {m.total}{m.exam && <span>، الامتحان {m.exam.score} من {m.exam.total}{m.exam.passed ? ' (أكمل)' : ''}</span>}<span class="faint">، آخر نشاط {formatDate(m.last_activity)}</span></li>)}</ul>
                     ) : <p class="faint fs-0_9">لم يبدأ مسارًا بعد.</p>}
                   </>)}
                   {progress.get(r.id)!.goals && (<>

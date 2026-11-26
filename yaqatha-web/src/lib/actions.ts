@@ -58,6 +58,24 @@ export const HANDLERS: Record<string, Handler> = {
     await rpc('set_step_state', { p_enrollment_id: uuid(form, 'enrollment_id'), p_step_id: uuid(form, 'step_id'), p_state: state }, token);
     return { to: back(form) };
   },
+  // الامتحان: الإجابات a_<question_id>=<رقم الخيار الأصلي>. التصحيح والإكمال في القاعدة.
+  'exam-submit': async ({ token, form }) => {
+    const en = uuid(form, 'enrollment_id'), st = uuid(form, 'step_id');
+    const here = `/journey/paths/${en}/steps/${st}`;
+    const answers: Record<string, number> = {};
+    for (const [k, v] of form.entries()) {
+      const m = /^a_([0-9a-f-]{36})$/i.exec(k);
+      const n = Number(v);
+      if (m && Number.isInteger(n) && n >= 0 && n <= 4) answers[m[1].toLowerCase()] = n;
+    }
+    try {
+      const r = await rpc<{ attempt_id: string }>('submit_exam', { p_enrollment_id: en, p_step_id: st, p_answers: answers }, token);
+      return { to: `${here}?result=${r.attempt_id}` };
+    } catch (e) {
+      if (e instanceof DataError && /answer every question/.test(e.message)) return { to: `${here}?go=1`, flash: 'أجب عن كل الأسئلة ثم أرسل', error: true };
+      throw e;
+    }
+  },
   'migrate': async ({ token, form }) => {
     const id = await rpc<string>('migrate_enrollment', { p_enrollment_id: uuid(form, 'enrollment_id') }, token);
     return { to: `/journey/paths/${id}`, flash: 'انتقلت إلى الإصدار الجديد وحُفظ تقدمك' };

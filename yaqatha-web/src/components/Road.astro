@@ -1,7 +1,7 @@
 ---
 // «رحلتي»: الطريق يبدأ من الأعلى وينتهي عند الشمس في الأسفل، فيرى المستخدم بدايته وخطوته الحالية أولًا.
 // القائمة بترتيب الخطوات (1 أولًا) لقارئ الشاشة. كل عقدة رابط إلى خطوتها.
-interface S { id: string; position: number; title: string; state: string }
+interface S { id: string; position: number; title: string; state: string; type?: string }
 interface Props { steps: S[]; current: string | null; hrefBase: string }
 const { steps, current, hrefBase } = Astro.props;
 const H = 82, W = 350, n = steps.length;
@@ -36,7 +36,7 @@ const pct = (x: number) => `${((x / W) * 100).toFixed(1)}%`;
       return (
         <li class={`rn ${kind} ${right ? 'lbl-left' : 'lbl-right'}`} style={`top:${p.y}px;--x:${pct(p.x)}`}>
           <a href={`${hrefBase}/${s.id}`}>
-            <span class="dot">{s.state === 'completed' && i !== cur ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg> : s.position}</span>
+            <span class={`dot${s.type === 'exam' ? ' dot-exam' : ''}`}>{s.state === 'completed' && i !== cur ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg> : s.type === 'exam' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 8h12M6 12h12M6 16h7"></path></svg> : s.position}</span>
             <span class="lbl">{i === cur && <span class="today">اليوم</span>}<span class="t">{s.title}</span><span class="sr-only">{s.state === 'completed' ? ' (مكتملة)' : s.state === 'in_progress' ? ' (بدأتها)' : ''}</span></span>
           </a>
         </li>

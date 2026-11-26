@@ -149,6 +149,10 @@ p { margin: 0; text-wrap: pretty; }
 .link-quiet:hover { color: var(--text); }
 .chip { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.84rem; line-height: 1.5; padding: 0.15rem 0.7rem; border: 1px solid var(--line); border-radius: 99px; color: var(--dim); white-space: nowrap; }
 .chip-gold { border-color: var(--line-strong); color: var(--gold-text); }
+.chip-ok { border-color: var(--teal); color: var(--teal-text, var(--teal)); }
+.chip-warn { border-color: var(--coral); color: var(--coral); }
+label.check { display: flex; gap: .55rem; align-items: flex-start; line-height: 1.6; }
+label.check input { width: 1.1rem; height: 1.1rem; margin-top: .3rem; accent-color: var(--gold); flex: none; }
 .pill { display: inline-flex; align-items: center; gap: .35rem; font-size: .84rem; font-weight: 600; padding: .25rem .8rem; border-radius: 99px; line-height: 1.5; }
 .pill-teal { background: var(--teal-soft); color: var(--teal-text); }
 .pill-coral { background: var(--coral-soft); color: var(--coral); }
@@ -874,3 +878,31 @@ a.plain { color: inherit; text-decoration: none; }
 .opt .tag-right { color: var(--teal-text); font-weight: 600; }
 .next-card { text-decoration: none; color: var(--text); display: grid; gap: .15rem; }
 .next-card:hover { color: var(--text); border-color: var(--gold); }
+
+/* ---------- الامتحان (آخر كل مسار) ---------- */
+.rn .dot-exam { border-color: var(--gold); color: var(--gold-text); }
+.exam .exam-q { border: 0; padding: 0; margin: 0 0 1.4rem; min-width: 0; display: grid; gap: 1rem; }
+.exam .exam-q legend { padding: 0; margin-bottom: 1rem; }
+.exam .list { display: grid; gap: .75rem; }
+.exam-choice:has(input:checked) { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--surface)); }
+.exam-choice:has(input:focus-visible) { outline: 3px solid var(--gold); outline-offset: 2px; }
+.exam-dock { display: flex; flex-wrap: wrap; gap: .7rem; }
+.exam-dock .btn-block { flex: 1; width: auto; }
+.exam-dock [data-exam-prev] { flex: 0 0 6rem; }
+.exam-dock [hidden] { display: none !important; }
+.exam-score { font: 700 3.4rem/1 var(--font-display); color: var(--gold-text); margin: .6rem 0 0; }
+.exam-score.is-plain { color: var(--text); text-align: start; margin: 1rem 0 .4rem; }
+.exam-list { list-style: none; padding: 0; margin: 1.2rem 0 0; display: grid; gap: .7rem; text-align: start; width: 100%; }
+.exam-item { display: grid; gap: .35rem; padding: .9rem 1rem; border-radius: 14px; background: var(--surface); border-inline-start: 4px solid var(--teal); }
+.exam-item.is-wrong { border-inline-start-color: var(--coral); }
+.exam-item p { margin: 0; }
+.exam-item .q { font-weight: 600; line-height: 1.6; }
+.exam-item .mine { color: var(--coral); font-size: .92rem; }
+.exam-item .right { color: var(--teal-text); font-size: .92rem; }
+.exam-item .why { color: var(--body); font-size: .92rem; line-height: 1.8; }
+.exam-review { width: 100%; text-align: start; margin-top: .6rem; }
+.exam-review summary { cursor: pointer; padding: .9rem 1rem; border-radius: 14px; background: var(--surface); font-weight: 600; }
+.exam-facts { display: grid; gap: .6rem; margin: 1.4rem 0 0; }
+.exam-facts > div { display: flex; justify-content: space-between; gap: 1rem; padding: .85rem 1rem; border-radius: 14px; background: var(--surface); }
+.exam-facts dt { color: var(--dim); }
+.exam-facts dd { margin: 0; font-weight: 600; }
