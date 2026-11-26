@@ -3,7 +3,7 @@
 // بلا JavaScript تظهر الأسئلة كلها في صفحة واحدة وزر الإرسال تحتها.
 import BackBtn from './BackBtn.astro';
 import ArcMove from './ArcMove.astro';
-import { cheer } from '../lib/cheers';
+import { getCheers, pickCheer } from '../lib/site';
 
 export interface ExamInfo { total: number; required: number; pass_percent: number; best: { score: number; total: number; passed: boolean } | null; questions: { id: string; prompt: string; options: string[] }[] }
 export interface ExamResult { score: number; total: number; required: number; passed: boolean; enrollment_id: string; step_id: string;
@@ -21,7 +21,7 @@ const rightLabel = (k: number) => (k === 1 ? 'إجابة صحيحة واحدة' 
 // خلط الخيارات لكل محاولة؛ القيمة المرسلة رقم الخيار الأصلي فيُصحَّح في القاعدة كما هو
 const shuffled = (opts: string[]) => opts.map((t, i) => ({ t, i })).sort(() => Math.random() - 0.5);
 const wrong = result?.results.filter((r) => !r.correct) ?? [];
-const c = cheer(doneCount);
+const c = pickCheer(await getCheers(), doneCount);
 ---
 {mode === 'unavailable' ? (
   <div class="app-col focus-wrap">

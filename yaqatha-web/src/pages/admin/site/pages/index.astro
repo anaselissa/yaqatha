@@ -1,0 +1,17 @@
+---
+import Admin from '../../../../layouts/Admin.astro';
+import { PAGE_SLUGS, getSitePage } from '../../../../lib/site';
+import { formatDate } from '../../../../lib/labels';
+if (Astro.locals.staffRole !== 'manager') return Astro.rewrite('/404');
+const pages = await Promise.all(PAGE_SLUGS.map(async (slug) => ({ slug, ...(await getSitePage(slug)) })));
+---
+<Admin title="الصفحات النصية">
+  <p class="m-0"><a class="link-quiet" href="/admin/site">واجهة الموقع</a></p>
+  <ul class="adm-list mt-1">
+    {pages.map((p) => (
+      <li class="adm-row"><div class="grow"><a href={`/admin/site/pages/${p.slug}`}><strong>{p.title}</strong></a>
+        <div class="faint fs-0_9">{p.custom && p.updated_at ? `آخر تعديل: ${formatDate(p.updated_at)}` : 'النص الافتراضي (لم يُعدَّل بعد)'}</div></div>
+        <a class="btn btn-ghost btn-sm" href={`/admin/site/pages/${p.slug}`}>تعديل</a></li>
+    ))}
+  </ul>
+</Admin>

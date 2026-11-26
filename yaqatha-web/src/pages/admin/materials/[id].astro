@@ -17,6 +17,7 @@ const [item, tax] = data ?? [null, null];
     <div class="stack sp-1_2">
       <p class="row m-0">
         <span class={`state st-${item.material.status}`}>{PUBLISH_STATUS[item.material.status]}</span>
+        <a class="link-quiet" href={`/admin/materials/${id}/preview`} target="_blank" rel="noopener">معاينة كما يراها المستخدم ↗</a>
       </p>
       <MaterialForm m={item.material} needIds={item.needIds} domainIds={item.domainIds} review={item.review} {...tax} />
 

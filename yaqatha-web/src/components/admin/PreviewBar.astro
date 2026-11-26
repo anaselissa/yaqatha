@@ -1,0 +1,10 @@
+---
+// شريط «معاينة» فوق ما يراه المستخدم: واضح أنه غير منشور، ورجوع للتحرير
+interface Props { label: string; back: string }
+const { label, back } = Astro.props;
+---
+<div class="preview-bar" role="note">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+  <span><strong>معاينة:</strong> {label}</span>
+  <a href={back}>رجوع للتحرير</a>
+</div>

@@ -1,4 +1,6 @@
 ---
+import { getPublicLinks } from '../lib/site';
+const links = await getPublicLinks();
 ---
 <footer class="site-footer">
   <nav class="app-col" aria-label="روابط الموقع">
@@ -7,6 +9,8 @@
       <li><a href="/privacy">الخصوصية</a></li>
       <li><a href="/terms">الشروط</a></li>
       <li><a href="/support">تواصل معنا</a></li>
+      {links.whatsapp && <li><a href={links.whatsapp} target="_blank" rel="noopener">قروب واتساب</a></li>}
+      {links.instagram && <li><a href={links.instagram} target="_blank" rel="noopener">إنستغرام</a></li>}
     </ul>
   </nav>
 </footer>

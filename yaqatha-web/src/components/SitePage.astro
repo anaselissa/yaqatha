@@ -1,0 +1,21 @@
+---
+// صفحة نصية يديرها المدير من اللوحة (عن يقظة، الخصوصية، الشروط). بلا صف في القاعدة: النص الافتراضي.
+import Base from '../layouts/Base.astro';
+import BackBtn from './BackBtn.astro';
+import { getSitePage, type PageSlug } from '../lib/site';
+import { renderMarkdown } from '../lib/markdown';
+import { formatDate } from '../lib/labels';
+interface Props { slug: PageSlug; description: string }
+const { slug, description } = Astro.props;
+const page = await getSitePage(slug);
+---
+<Base title={page.title} description={description}>
+  <div class="app-col screen text-page">
+    <div class="screen-head"><BackBtn href="/account" /><h1>{page.title}</h1></div>
+    <div class="prose stack legal sp-1">
+      <Fragment set:html={renderMarkdown(page.body)} />
+      {page.updated_at && <p class="faint fs-0_85">آخر تحديث: {formatDate(page.updated_at)}</p>}
+      <slot />
+    </div>
+  </div>
+</Base>

@@ -743,5 +743,24 @@ select test.throws($$select public.import_content('{"format":"yaqatha-content/1"
 select test.as_user(:'uc');
 select test.throws($$select public.import_content('{}')$$, 'users cannot import', 'staff');
 
+-- ---------- 27. واجهة الموقع (الهجرة 18) ----------
+select test.as_anon();
+select test.ok((select count(*) from public.cheers) = 8, 'cheers seeded and public');
+select test.ok(public.public_links() = '{"whatsapp": null, "instagram": null}'::jsonb, 'empty links are hidden');
+select test.as_user(:'edt');
+insert into public.daily_tips (text, source) values ('نصيحة', 'مصدر');
+update public.cheers set status = 'hidden' where position = 3;
+select test.throws($$insert into public.site_pages (slug, title, body) values ('about', 'عن', 'نص')$$, 'editor cannot edit text pages', 'row-level security');
+select test.as_user(:'mgr');
+insert into public.site_pages (slug, title, body) values ('about', 'عن يقظة', '## نص');
+select test.ok((select updated_by is not null from public.site_pages where slug = 'about'), 'page edits are stamped');
+select test.throws($$insert into public.site_pages (slug, title, body) values ('home', 'x', 'y')$$, 'only known pages', 'check');
+update public.app_settings set value = '"https://chat.whatsapp.com/x"' where key = 'community_whatsapp_url';
+select test.as_anon();
+select test.ok((select count(*) from public.cheers) = 7, 'hidden cheer not shown to visitors');
+select test.ok((select count(*) from public.daily_tips) = 1, 'tip visible');
+select test.ok(public.public_links() ->> 'whatsapp' = 'https://chat.whatsapp.com/x', 'links readable by visitors');
+select test.throws($$insert into public.cheers (text) values ('x')$$, 'visitors cannot write', 'permission denied');
+
 select 'ALL TESTS PASSED' as result;
 rollback;

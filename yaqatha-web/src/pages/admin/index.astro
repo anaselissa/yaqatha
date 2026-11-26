@@ -10,16 +10,38 @@ const impact = stats ? await load(Astro.response, () => impactStats(s.token)) : 
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '—');
 const isManager = Astro.locals.staffRole === 'manager';
 const first = s.name?.split(' ')[0];
+const groups: { title: string; items: [string, string, string | number][] }[] = stats ? [
+  { title: 'المحتوى', items: [['/admin/materials', 'المواد', stats.published + stats.draft + stats.hidden], ['/admin/paths', 'المسارات', stats.pathsAll], ['/admin/series', 'السلاسل', stats.series], ['/admin/import', 'رفع محتوى', 'JSON']] },
+  { title: 'التصنيف', items: [['/admin/taxonomy', 'الاحتياجات', stats.needsAll], ['/admin/taxonomy#domains', 'المجالات', stats.domains], ['/admin/onboarding', 'أسئلة «من أين أبدأ»', stats.onb]] },
+  { title: 'واجهة الموقع', items: [['/admin/site/cheers', 'عبارات «أحسنت»', stats.cheers], ['/admin/site/tips', 'نصيحة اليوم', stats.tips], ...(isManager ? [['/admin/site/links', 'روابط التواصل', ''], ['/admin/site/pages', 'الصفحات النصية', 3]] as [string, string, string | number][] : [])] },
+  { title: 'المتابعة', items: [['/admin/reports', 'البلاغات', stats.reports], ...(isManager ? [['/admin/requests', 'طلبات المتابعة', impact?.requests_new ?? '']] as [string, string, string | number][] : [])] },
+  ...(isManager ? [{ title: 'الإدارة', items: [['/admin/team', 'الفريق', stats.team], ['/admin/settings', 'الإعدادات', '']] as [string, string, string | number][] }] : []),
+] : [];
 ---
 <Admin title={first ? `أهلًا ${first}` : 'لوحة الإدارة'}>
   {!stats ? <ErrorState /> : (
     <div class="stack sp-2">
+      <section class="stack sp-0_9" aria-labelledby="att-h">
+        <h2 id="att-h" class="block-title">يحتاج انتباهك</h2>
+        <div class="stats">
+          <a class="stat" href="/admin/materials?status=draft"><b class="gold">{stats.draft + stats.pathDrafts}</b><span>مسودات بانتظار المراجعة ({stats.draft} مادة، {stats.pathDrafts} مسار)</span></a>
+          <a class="stat" href="/admin/reports"><b class={stats.reports ? 'coral' : ''}>{stats.reports}</b><span>{stats.reports === 1 ? 'بلاغ مفتوح' : 'بلاغات مفتوحة'}</span></a>
+          {isManager && impact && <a class="stat" href="/admin/requests?status=new"><b class={impact.requests_new ? 'teal' : ''}>{impact.requests_new}</b><span>{impact.requests_new === 1 ? 'طلب متابعة جديد' : 'طلبات متابعة جديدة'}</span></a>}
+          <a class="stat" href="/admin/paths"><b>{stats.noExam}</b><span>مسارات منشورة بلا امتحان</span></a>
+        </div>
+      </section>
+
+      <nav class="adm-groups" aria-label="أقسام اللوحة">
+        {groups.map((g) => (
+          <section class="adm-group">
+            <h2>{g.title}</h2>
+            <ul>{g.items.map(([h, l, n]) => <li><a href={h}><span>{l}</span>{n !== '' && <span class="faint">{n}</span>}</a></li>)}</ul>
+          </section>
+        ))}
+      </nav>
       {impact && (
         <section class="stack sp-0_9">
           <h2 class="block-title">الأثر</h2>
-          {isManager && impact.requests_new > 0 && (
-            <a class="notice d-block td-none" href="/admin/requests?status=new"><strong>{impact.requests_new} طلب متابعة جديد</strong> بانتظار من يتواصل معه ←</a>
-          )}
           <div class="stats">
             <div class="stat"><b>{impact.users_total}</b><span>مستخدم مسجّل · {impact.users_7d} هذا الأسبوع</span></div>
             <div class="stat"><b>{impact.active_7d}</b><span>نشِط هذا الأسبوع</span></div>
@@ -53,9 +75,6 @@ const first = s.name?.split(' ')[0];
           <a class="stat" href="/admin/materials?status=hidden"><b>{stats.hidden}</b><span>مخفية</span></a>
           <a class="stat" href="/admin/taxonomy"><b>{stats.needsPub}<small class="faint fs-1"> / {stats.needsAll}</small></b><span>احتياج منشور</span></a>
         </div>
-        {stats.reports > 0 && (
-          <div class="notice" role="status"><strong>{stats.reports} بلاغ مفتوح</strong> على مواد من الزوار. <a href="/admin/reports">راجع البلاغات</a></div>
-        )}
       </section>
 
       <section class="stack sp-0_9">

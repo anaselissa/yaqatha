@@ -1,0 +1,47 @@
+---
+// محرر قائمة نصوص قصيرة بمصدرها («أحسنت»، نصيحة اليوم): إضافة، تعديل، إخفاء، ترتيب، حذف.
+import ErrorState from '../ErrorState.astro';
+import { SITE_LISTS, listSiteItems, type SiteList } from '../../lib/admin-site';
+interface Props { list: SiteList }
+const { list } = Astro.props;
+const cfg = SITE_LISTS[list];
+const s = Astro.locals.session!;
+let items: Awaited<ReturnType<typeof listSiteItems>> | null = null, missing = false;
+try { items = await listSiteItems(s.token, list); } catch (e) { missing = /does not exist|Could not find/.test((e as Error).message); }
+---
+{missing ? <p class="notice">هذا القسم يحتاج تطبيق الهجرة 18 على قاعدة البيانات أولًا.</p> : !items ? <ErrorState /> : (
+  <div class="stack sp-1_2">
+    <p class="lead-dim">{cfg.hint}</p>
+    {items.length === 0 && <p class="faint">لا شيء بعد.</p>}
+    <ol class="adm-list list-none">
+      {items.map((it, i) => (
+        <li class="adm-row d-block">
+          <details class="fold">
+            <summary><span class={it.status === 'hidden' ? 'faint' : ''}>{it.text}</span>{it.source && <span class="faint fs-0_85"> · {it.source}</span>}{it.status === 'hidden' && <span class="chip ms-0_4">مخفية</span>}</summary>
+            <form method="post" action="/api/admin/site-item-save" class="adm-form mt-1">
+              <input type="hidden" name="list" value={list} /><input type="hidden" name="id" value={it.id} />
+              <div class="field"><label for={`t-${it.id}`}>{cfg.one}</label><textarea class="minh-4" id={`t-${it.id}`} name="text" required maxlength={cfg.max}>{it.text}</textarea></div>
+              <div class="field"><label for={`s-${it.id}`}>المصدر <span class="faint">(للآية: السورة ورقمها، وللحديث: من رواه ورقمه)</span></label><input id={`s-${it.id}`} name="source" type="text" maxlength="200" value={it.source ?? ''} /></div>
+              <label class="check"><input type="checkbox" name="hidden" checked={it.status === 'hidden'} /> مخفية (لا تظهر للمستخدمين)</label>
+              <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ</button></div>
+            </form>
+            <div class="row mt-0_8">
+              {i > 0 && <form method="post" action="/api/admin/site-item-move"><input type="hidden" name="list" value={list} /><input type="hidden" name="id" value={it.id} /><input type="hidden" name="dir" value="up" /><button class="btn btn-ghost btn-sm" type="submit">↑ للأعلى</button></form>}
+              {i < items!.length - 1 && <form method="post" action="/api/admin/site-item-move"><input type="hidden" name="list" value={list} /><input type="hidden" name="id" value={it.id} /><input type="hidden" name="dir" value="down" /><button class="btn btn-ghost btn-sm" type="submit">↓ للأسفل</button></form>}
+              <form method="post" action="/api/admin/site-item-delete"><input type="hidden" name="list" value={list} /><input type="hidden" name="id" value={it.id} /><button class="btn btn-danger btn-sm" type="submit">حذف</button></form>
+            </div>
+          </details>
+        </li>
+      ))}
+    </ol>
+    <details class="fold" open={items.length === 0}>
+      <summary><strong>+ {cfg.one} جديدة</strong></summary>
+      <form method="post" action="/api/admin/site-item-add" class="adm-form mt-1">
+        <input type="hidden" name="list" value={list} />
+        <div class="field"><label for="new-t">{cfg.one}</label><textarea class="minh-4" id="new-t" name="text" required maxlength={cfg.max}></textarea></div>
+        <div class="field"><label for="new-s">المصدر</label><input id="new-s" name="source" type="text" maxlength="200" /></div>
+        <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف</button></div>
+      </form>
+    </details>
+  </div>
+)}

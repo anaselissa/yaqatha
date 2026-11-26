@@ -62,7 +62,7 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
 
       {work && (
         <section id="steps" class="stack sp-0_8">
-          <h2 class="block-title">الخطوات</h2>
+          <div class="title-row"><h2 class="block-title">الخطوات</h2>{work && ed.steps.length > 0 && <a class="link-quiet" href={`/admin/paths/${pid}/preview`} target="_blank" rel="noopener">معاينة ↗</a>}</div>
           {ed.steps.length === 0 && <p class="faint m-0">لا خطوات بعد. أضف الأولى من النموذج أدناه.</p>}
           <ol class="adm-list list-none">
             {ed.steps.map((st, i) => {
@@ -248,7 +248,7 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
                 <textarea class="minh-4" id="changelog" name="changelog" required maxlength="2000">{work!.changelog ?? ''}</textarea>
                 <span class="hint">يراه من بدأ إصدارًا أقدم، ليقرر الانتقال للجديد.</span></div>
             )}
-            <div class="row"><button class="btn btn-primary" type="submit">انشر {ed.published ? `الإصدار ${work!.version_no}` : 'المسار'}</button></div>
+            <div class="row"><a class="btn btn-ghost" href={`/admin/paths/${pid}/preview`} target="_blank" rel="noopener">معاينة كما يراه المستخدم ↗</a><button class="btn btn-primary" type="submit">انشر {ed.published ? `الإصدار ${work!.version_no}` : 'المسار'}</button></div>
           </form>
         </section>
       )}

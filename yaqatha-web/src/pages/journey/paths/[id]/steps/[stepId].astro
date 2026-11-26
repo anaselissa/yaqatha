@@ -6,7 +6,7 @@ import BackBtn from '../../../../../components/BackBtn.astro';
 import MaterialContent from '../../../../../components/MaterialContent.astro';
 import ArcMove from '../../../../../components/ArcMove.astro';
 import ExamStep, { type ExamInfo, type ExamResult } from '../../../../../components/ExamStep.astro';
-import { cheer } from '../../../../../lib/cheers';
+import { getCheers, pickCheer } from '../../../../../lib/site';
 import { getEnrollment, getEnrollmentSteps, getMyProgress } from '../../../../../lib/user';
 import { getMaterialsFull } from '../../../../../lib/data';
 import { rpc } from '../../../../../lib/api';
@@ -65,7 +65,7 @@ if (showDone && allDone) return Astro.redirect(`${pathHref}?finished=1`, 303);
 const state = data && step ? data.state(step.id) : 'not_started';
 const remainingLabel = remaining === 1 ? 'بقيت خطوة واحدة' : remaining === 2 ? 'بقيت خطوتان' : `بقيت ${remaining} خطوات`;
 const streak = data?.me?.streak_days ?? 0;
-const c = cheer(doneCount - 1);
+const c = pickCheer(await getCheers(), doneCount - 1);
 const prev = idx > 0 ? steps[idx - 1] : undefined;
 const isExam = step?.type === 'exam' && !showDone;
 const examMode = !isExam || !data ? 'intro'

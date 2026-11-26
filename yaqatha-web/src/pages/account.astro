@@ -5,6 +5,8 @@ import Chev from '../components/Chev.astro';
 import { getMyProgress } from '../lib/user';
 import { claimStaffInvite, getStaffRole } from '../lib/admin';
 import { rest } from '../lib/api';
+import { getPublicLinks } from '../lib/site';
+const links = await getPublicLinks();
 
 const s = Astro.locals.session;
 let me = null as Awaited<ReturnType<typeof getMyProgress>>, goals = 0, saved = 0, role: string | null = null;
@@ -49,6 +51,12 @@ const rows = [
           <li><a class="row-link" href="/journey/paths"><span class="grow"><span class="t">كل مساراتي والأرشيف</span></span><Chev /></a></li>
           {role && <li><a class="row-link" href={newReqs ? '/admin/requests?status=new' : '/admin'}><span class="grow"><span class="t">لوحة الإدارة</span>{newReqs > 0 && <span class="s coral">{newReqs === 1 ? 'طلب متابعة جديد' : newReqs === 2 ? 'طلبا متابعة جديدان' : `${newReqs} طلبات متابعة جديدة`}</span>}</span><Chev /></a></li>}
         </ul>
+        {(links.whatsapp || links.instagram) && (
+          <ul class="list-flat">
+            {links.whatsapp && <li><a class="row-link" href={links.whatsapp} target="_blank" rel="noopener"><span class="grow"><span class="t">قروب واتساب</span><span class="s">أخبار يقظة والمسارات الجديدة</span></span><Chev /></a></li>}
+            {links.instagram && <li><a class="row-link" href={links.instagram} target="_blank" rel="noopener"><span class="grow"><span class="t">إنستغرام</span></span><Chev /></a></li>}
+          </ul>
+        )}
         <a class="card-quiet card-cta" href="/support"><strong>تحب أن يرافقك أحد من الفريق؟</strong><span class="gold fs-0_9">اطلب متابعة</span></a>
         <div class="row justify-center gap-1_2 mt-1">
           <a class="link-quiet" href="/about">عن يقظة</a>
@@ -70,6 +78,8 @@ const rows = [
           <li><a class="row-link" href="/journey/goals/new"><span class="grow"><span class="t">أنشئ هدفًا</span><span class="s">يُحفظ على جهازك حتى تسجّل الدخول</span></span><Chev /></a></li>
           <li><a class="row-link" href="/support"><span class="grow"><span class="t">متابعة من الفريق</span></span><Chev /></a></li>
           <li><a class="row-link" href="/about"><span class="grow"><span class="t">عن يقظة</span></span><Chev /></a></li>
+          {links.whatsapp && <li><a class="row-link" href={links.whatsapp} target="_blank" rel="noopener"><span class="grow"><span class="t">قروب واتساب</span></span><Chev /></a></li>}
+          {links.instagram && <li><a class="row-link" href={links.instagram} target="_blank" rel="noopener"><span class="grow"><span class="t">إنستغرام</span></span><Chev /></a></li>}
         </ul>
       </>
     )}

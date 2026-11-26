@@ -67,7 +67,7 @@ export async function materialOptions(token: string) {
 }
 
 // ---------- مساعدات ----------
-export async function freeSlug(token: string, base: string, table: 'paths' | 'series' | 'materials' = 'paths') {
+export async function freeSlug(token: string, base: string, table: 'paths' | 'series' | 'materials' | 'needs' | 'domains' = 'paths') {
   const { rows } = await rest<{ slug: string }>(table, { select: 'slug', slug: `like.${base}*` }, { token });
   const taken = new Set(rows.map((r) => r.slug));
   if (!taken.has(base)) return base;

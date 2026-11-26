@@ -1,0 +1,20 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import ErrorState from '../../../components/ErrorState.astro';
+import { getLinksForEdit } from '../../../lib/admin-site';
+import { load } from '../../../lib/page';
+if (Astro.locals.staffRole !== 'manager') return Astro.rewrite('/404');
+const s = Astro.locals.session!;
+const d = await load(Astro.response, () => getLinksForEdit(s.token));
+---
+<Admin title="روابط التواصل">
+  <p class="m-0"><a class="link-quiet" href="/admin/site">واجهة الموقع</a></p>
+  {!d ? <ErrorState /> : !d.ready ? <p class="notice">هذا القسم يحتاج تطبيق الهجرة 18 على قاعدة البيانات أولًا.</p> : (
+    <form method="post" action="/api/admin/site-links-save" class="adm-form mt-1">
+      <div class="field"><label for="wa">قروب واتساب (رابط الدعوة)</label><input id="wa" name="community_whatsapp_url" type="url" dir="ltr" maxlength="500" value={d.whatsapp} placeholder="https://chat.whatsapp.com/…" /></div>
+      <div class="field"><label for="ig">إنستغرام</label><input id="ig" name="instagram_url" type="url" dir="ltr" maxlength="500" value={d.instagram} placeholder="https://instagram.com/…" /></div>
+      <p class="hint m-0">تظهر في «حسابي» وأسفل الصفحات. اترك الخانة فارغة لإخفاء الرابط.</p>
+      <div class="row"><button class="btn btn-primary" type="submit">حفظ الروابط</button></div>
+    </form>
+  )}
+</Admin>

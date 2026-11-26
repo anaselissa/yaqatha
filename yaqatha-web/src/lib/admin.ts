@@ -4,10 +4,11 @@
  */
 import { DataError, UnauthorizedError, inList, mutate, rest, rpc } from './api';
 import { BadInput, SLUG, UUID, httpUrl, oneOf, opt, slugify, str, uuid, uuids, type AdminResult, type Handler } from './admin-form';
-import { PATH_HANDLERS, PATH_MESSAGES } from './admin-paths';
+import { PATH_HANDLERS, PATH_MESSAGES, freeSlug } from './admin-paths';
 import { SERIES_HANDLERS, SERIES_MESSAGES } from './admin-series';
 import { FOLLOWUP_HANDLERS, FOLLOWUP_MESSAGES } from './admin-followup';
 import { REPORT_HANDLERS } from './admin-reports';
+import { SITE_HANDLERS } from './admin-site';
 import { parseYoutubeId, youtubeUrl } from './youtube';
 export { parseYoutubeId, youtubeInfo, youtubeThumb, youtubeUrl } from './youtube';
 export { slugify };
@@ -62,7 +63,23 @@ export async function dashboardStats(token: string) {
     count(token, 'needs'),
     rest('material_reports', { select: 'id', status: 'eq.open' }, { token, count: true, range: [0, 0] }).then((r) => r.total ?? 0),
   ]);
-  return { published, draft, hidden, needsPub, needsAll, reports };
+  // المراقبة: مسودات بانتظار المراجعة، ومسارات منشورة بلا امتحان، وأعداد الأقسام
+  const safe = (p: Promise<number>) => p.catch(() => 0);
+  const [pathsAll, pathDrafts, series, domains, onb, cheers, tips, team, pubVersions] = await Promise.all([
+    safe(count(token, 'paths')),
+    safe(count(token, 'path_versions', { status: 'eq.draft' })),
+    safe(count(token, 'series')),
+    safe(count(token, 'domains')),
+    safe(count(token, 'onboarding_questions')),
+    safe(count(token, 'cheers', { status: 'eq.published' })),
+    safe(count(token, 'daily_tips', { status: 'eq.published' })),
+    safe(count(token, 'staff_roles')),
+    rest<{ id: string }>('path_versions', { select: 'id', status: 'eq.published', limit: 1000 }, { token }).then((r) => r.rows.map((x) => x.id)).catch(() => [] as string[]),
+  ]);
+  const withExam = pubVersions.length
+    ? await rest<{ version_id: string }>('steps', { select: 'version_id', type: 'eq.exam', version_id: inList(pubVersions) }, { token }).then((r) => new Set(r.rows.map((x) => x.version_id)).size).catch(() => pubVersions.length)
+    : 0;
+  return { published, draft, hidden, needsPub, needsAll, reports, pathsAll, pathDrafts, series, domains, onb, cheers, tips, team, noExam: pubVersions.length - withExam };
 }
 
 export interface MaterialFilters { status?: string; type?: string; q?: string; page?: number }
@@ -97,8 +114,8 @@ export async function getAdminMaterial(token: string, id: string) {
 export async function taxonomyOptions(token: string) {
   const [doors, needs, domains] = await Promise.all([
     rest<{ id: number; title: string }>('doors', { select: 'id,title', order: 'sort_order' }, { token }).then((r) => r.rows),
-    rest<Option>('needs', { select: 'id,title,status,door_id', order: 'door_id,sort_order' }, { token }).then((r) => r.rows),
-    rest<Option>('domains', { select: 'id,title,status', order: 'sort_order' }, { token }).then((r) => r.rows),
+    rest<Option & { description?: string | null; change_type?: string | null; sort_order?: number; slug?: string }>('needs', { select: 'id,slug,title,description,status,door_id,change_type,sort_order', order: 'door_id,sort_order' }, { token }).then((r) => r.rows),
+    rest<Option & { description?: string | null; sort_order?: number; slug?: string }>('domains', { select: 'id,slug,title,description,status,sort_order', order: 'sort_order' }, { token }).then((r) => r.rows),
   ]);
   return { doors, needs, domains };
 }
@@ -183,6 +200,59 @@ export const ADMIN_HANDLERS: Record<string, Handler> = {
     const status = oneOf(form, 'status', ['draft', 'published', 'hidden']);
     await mutate('PATCH', 'domains', token, { params: { id: `eq.${uuid(form, 'id')}` }, body: { status } });
     return { to: '/admin/taxonomy', flash: status === 'published' ? 'نُشر المجال' : 'أُخفي المجال عن الزوار' };
+  },
+
+  // ---------- الاحتياجات والمجالات: تعديل النص، وإضافة، وترتيب. لا حذف (الإخفاء يكفي حتى لا تنكسر الروابط) ----------
+  'need-save': async ({ token, form }) => {
+    const title = str(form, 'title', 200);
+    if (!title) throw new BadInput('title');
+    const ct = str(form, 'change_type', 30);
+    await mutate('PATCH', 'needs', token, { params: { id: `eq.${uuid(form, 'id')}` }, body: {
+      title, description: opt(form, 'description', 1000), door_id: Number(oneOf(form, 'door_id', ['1', '2', '3', '4', '5', '6', '7', '8', '9'])),
+      change_type: ct ? oneOf(form, 'change_type', ['quit_haram', 'perform_duty', 'acquire_good_deed', 'increase_knowledge']) : null } });
+    return { to: '/admin/taxonomy', flash: 'حُفظ الاحتياج' };
+  },
+  'need-add': async ({ token, form }) => {
+    const title = str(form, 'title', 200);
+    if (!title) throw new BadInput('title');
+    const door = Number(oneOf(form, 'door_id', ['1', '2', '3', '4', '5', '6', '7', '8', '9']));
+    const ct = str(form, 'change_type', 30);
+    const { rows } = await rest<{ sort_order: number }>('needs', { select: 'sort_order', door_id: `eq.${door}`, order: 'sort_order.desc', limit: 1 }, { token });
+    const slug = await freeSlug(token, slugify(title), 'needs');
+    await mutate('POST', 'needs', token, { body: { slug, title, description: opt(form, 'description', 1000), door_id: door, status: 'draft',
+      change_type: ct ? oneOf(form, 'change_type', ['quit_haram', 'perform_duty', 'acquire_good_deed', 'increase_knowledge']) : null,
+      sort_order: (rows[0]?.sort_order ?? 0) + 1 } });
+    return { to: '/admin/taxonomy', flash: 'أُضيف الاحتياج مسودة. انشره بعد ربط محتوى به' };
+  },
+  'domain-save': async ({ token, form }) => {
+    const title = str(form, 'title', 200);
+    if (!title) throw new BadInput('title');
+    await mutate('PATCH', 'domains', token, { params: { id: `eq.${uuid(form, 'id')}` }, body: { title, description: opt(form, 'description', 1000) } });
+    return { to: '/admin/taxonomy#domains', flash: 'حُفظ المجال' };
+  },
+  'domain-add': async ({ token, form }) => {
+    const title = str(form, 'title', 200);
+    if (!title) throw new BadInput('title');
+    const { rows } = await rest<{ sort_order: number }>('domains', { select: 'sort_order', order: 'sort_order.desc', limit: 1 }, { token });
+    const slug = await freeSlug(token, slugify(title), 'domains');
+    await mutate('POST', 'domains', token, { body: { slug, title, description: opt(form, 'description', 1000), status: 'draft', sort_order: (rows[0]?.sort_order ?? 0) + 1 } });
+    return { to: '/admin/taxonomy#domains', flash: 'أُضيف المجال مسودة' };
+  },
+  'tax-move': async ({ token, form }) => {
+    const table = oneOf(form, 'table', ['needs', 'domains']) as 'needs' | 'domains', id = uuid(form, 'id');
+    const dir = oneOf(form, 'dir', ['up', 'down']);
+    const params: Record<string, string> = { select: 'id,sort_order', order: 'sort_order,title' };
+    if (table === 'needs') {
+      const me = await rest<{ door_id: number }>('needs', { select: 'door_id', id: `eq.${id}` }, { token });
+      params.door_id = `eq.${me.rows[0]?.door_id ?? 0}`;
+    }
+    const rows = (await rest<{ id: string; sort_order: number }>(table, params, { token })).rows;
+    const i = rows.findIndex((r) => r.id === id), j = dir === 'up' ? i - 1 : i + 1;
+    if (i >= 0 && j >= 0 && j < rows.length) {
+      [rows[i], rows[j]] = [rows[j], rows[i]];
+      await Promise.all(rows.map((r, k) => (r.sort_order === k + 1 ? null : mutate('PATCH', table, token, { params: { id: `eq.${r.id}` }, body: { sort_order: k + 1 } }))));
+    }
+    return { to: `/admin/taxonomy${table === 'domains' ? '#domains' : `#n-${id}`}` };
   },
 
   'team-invite': async ({ token, form }) => {
@@ -274,9 +344,10 @@ ADMIN_HANDLERS['onb-option-delete'] = async ({ token, form }) => {
   return { to: ONB, flash: 'حُذف الخيار' };
 };
 
-Object.assign(ADMIN_HANDLERS, PATH_HANDLERS, SERIES_HANDLERS, FOLLOWUP_HANDLERS, REPORT_HANDLERS);
+Object.assign(ADMIN_HANDLERS, PATH_HANDLERS, SERIES_HANDLERS, FOLLOWUP_HANDLERS, REPORT_HANDLERS, SITE_HANDLERS);
 
 const MESSAGES: [RegExp, string][] = [
+  [/relation "public\.(cheers|daily_tips|site_pages)" does not exist|Could not find the table 'public\.(cheers|daily_tips|site_pages)'/, 'هذا القسم يحتاج تطبيق الهجرة 18 على قاعدة البيانات أولًا'],
   ...PATH_MESSAGES,
   ...SERIES_MESSAGES,
   ...FOLLOWUP_MESSAGES,

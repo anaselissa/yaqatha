@@ -1,0 +1,45 @@
+---
+// معاينة خطوة كما يراها المستخدم. الامتحان: أسئلته بإجاباتها وشرحها (للمحرر فقط).
+import Base from '../../../../../layouts/Base.astro';
+import PreviewBar from '../../../../../components/admin/PreviewBar.astro';
+import MaterialContent from '../../../../../components/MaterialContent.astro';
+import { getPathEditor } from '../../../../../lib/admin-paths';
+import { getAdminMaterial } from '../../../../../lib/admin';
+import { STEP_TYPE } from '../../../../../lib/labels';
+import type { Material } from '../../../../../lib/data';
+if (!['manager', 'editor'].includes(Astro.locals.staffRole ?? '')) return Astro.rewrite('/404');
+const { id: pid = '', stepId = '' } = Astro.params;
+if (!/^[0-9a-f-]{36}$/i.test(pid) || !/^[0-9a-f-]{36}$/i.test(stepId)) return Astro.rewrite('/404');
+const t = Astro.locals.session!.token;
+const ed = await getPathEditor(t, pid);
+const step = ed?.steps.find((s) => s.id === stepId);
+if (!ed || !step) return Astro.rewrite('/404');
+const idx = ed.steps.indexOf(step);
+const prev = ed.steps[idx - 1], next = ed.steps[idx + 1];
+const mats = (await Promise.all(step.step_materials.map((sm) => getAdminMaterial(t, sm.material_id)))).filter((x) => !!x);
+const base = `/admin/paths/${pid}/preview`;
+---
+<Base title={`معاينة: ${step.title}`} noindex>
+  <div class="app-col screen">
+    <PreviewBar label={`الخطوة ${step.position} من ${ed.steps.length} (${STEP_TYPE[step.type] ?? ''})`} back={`/admin/paths/${pid}#s-${step.id}`} />
+    <h1 class="step-title">{step.title}</h1>
+    {step.instructions && <p class="step-text">{step.instructions}</p>}
+    {step.type === 'exam' ? (
+      <ol class="exam-list">
+        {ed.examQs.map((q) => (
+          <li class="exam-item">
+            <p class="q">{q.prompt}</p>
+            <ul class="m-0">{q.options.map((o, i) => <li class={i === q.correct_index ? 'teal fw-600' : ''}>{o}{i === q.correct_index ? ' ✓' : ''}</li>)}</ul>
+            {q.explanation && <p class="why">{q.explanation}</p>}
+          </li>
+        ))}
+        {ed.examQs.length === 0 && <p class="faint">لا أسئلة بعد.</p>}
+      </ol>
+    ) : mats.map((it) => <MaterialContent m={it!.material as unknown as Material} questions={it!.questions} heading={mats.length > 1 || !!step.instructions} />)}
+    {step.type !== 'exam' && mats.length === 0 && <p class="faint">لا مادة مرتبطة بهذه الخطوة.</p>}
+    <div class="row justify-between mt-1">
+      {prev ? <a class="btn btn-ghost" href={`${base}/${prev.id}`}>السابقة</a> : <a class="btn btn-ghost" href={base}>المسار</a>}
+      {next ? <a class="btn btn-primary" href={`${base}/${next.id}`}>التالية</a> : <a class="btn btn-primary" href={base}>المسار</a>}
+    </div>
+  </div>
+</Base>

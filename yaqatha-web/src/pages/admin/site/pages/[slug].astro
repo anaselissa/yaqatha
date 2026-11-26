@@ -1,0 +1,58 @@
+---
+// تحرير صفحة نصية (المدير): العنوان والنص بكتابة بسيطة، و«معاينة» قبل الحفظ. الصفحة تستقبل POST بنفسها.
+import Admin from '../../../../layouts/Admin.astro';
+import { PAGE_SLUGS, getSitePage, type PageSlug } from '../../../../lib/site';
+import { renderMarkdown } from '../../../../lib/markdown';
+import { DataError, UnauthorizedError, mutate, rest } from '../../../../lib/api';
+import { clearSession, setFlash } from '../../../../lib/auth';
+
+if (Astro.locals.staffRole !== 'manager') return Astro.rewrite('/404');
+const slug = Astro.params.slug as PageSlug;
+if (!PAGE_SLUGS.includes(slug)) return Astro.rewrite('/404');
+const s = Astro.locals.session!;
+const page = await getSitePage(slug);
+let title = page.title, body = page.body, preview: string | null = null, error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  title = String(form.get('title') ?? '').trim().slice(0, 120);
+  body = String(form.get('body') ?? '').replace(/\r\n/g, '\n').trim().slice(0, 60000);
+  if (!title || !body) error = 'العنوان والنص مطلوبان.';
+  else if (form.get('op') === 'preview') preview = renderMarkdown(body);
+  else {
+    try {
+      const { rows } = await rest<{ slug: string }>('site_pages', { select: 'slug', slug: `eq.${slug}` }, { token: s.token });
+      if (rows.length) await mutate('PATCH', 'site_pages', s.token, { params: { slug: `eq.${slug}` }, body: { title, body } });
+      else await mutate('POST', 'site_pages', s.token, { body: { slug, title, body } });
+      setFlash(Astro.cookies, 'حُفظت الصفحة', 'ok');
+      return Astro.redirect('/admin/site/pages', 303);
+    } catch (e) {
+      if (e instanceof UnauthorizedError) { clearSession(Astro.cookies); return Astro.redirect('/login?next=%2Fadmin&reason=expired', 303); }
+      error = e instanceof DataError && /site_pages/.test(e.message) ? 'هذا القسم يحتاج تطبيق الهجرة 18 على قاعدة البيانات أولًا.' : 'تعذّر الحفظ. حاول مرة أخرى.';
+    }
+  }
+}
+---
+<Admin title={page.title}>
+  <p class="m-0"><a class="link-quiet" href="/admin/site/pages">الصفحات النصية</a></p>
+  {error && <p class="notice imp-err mt-1" role="alert">{error}</p>}
+  <form method="post" class="adm-form mt-1">
+    <div class="field"><label for="title">العنوان</label><input id="title" name="title" type="text" required maxlength="120" value={title} /></div>
+    <div class="field"><label for="body">النص</label>
+      <span class="hint">عنوان فرعي: سطر يبدأ بـ ## · قائمة: سطر يبدأ بـ - · رابط: [النص](https://…) · سطر فارغ بين الفقرات</span>
+      <textarea id="body" name="body" class="minh-20" required maxlength="60000">{body}</textarea></div>
+    <div class="row">
+      <button class="btn btn-ghost" type="submit" name="op" value="preview">معاينة</button>
+      <button class="btn btn-primary" type="submit" name="op" value="save">حفظ</button>
+      <a class="link-quiet" href={`/${slug}`} target="_blank" rel="noopener">الصفحة كما هي الآن ↗</a>
+    </div>
+    <p class="hint m-0">يُسجَّل كل تعديل (من ومتى) في سجل التغييرات.</p>
+  </form>
+  {preview && (
+    <section class="card mt-1" aria-label="معاينة">
+      <p class="chip chip-gold m-0">معاينة (لم تُحفظ بعد)</p>
+      <h2>{title}</h2>
+      <div class="prose stack legal sp-1"><Fragment set:html={preview} /></div>
+    </section>
+  )}
+</Admin>

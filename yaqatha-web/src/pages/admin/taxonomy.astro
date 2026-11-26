@@ -3,6 +3,7 @@ import Admin from '../../layouts/Admin.astro';
 import ErrorState from '../../components/ErrorState.astro';
 import { PUBLISH_STATUS, contentCounts, taxonomyOptions } from '../../lib/admin';
 import { load } from '../../lib/page';
+import { CHANGE_TYPE } from '../../lib/labels';
 
 const s = Astro.locals.session!;
 const data = await load(Astro.response, () => Promise.all([taxonomyOptions(s.token), contentCounts(s.token)]));
@@ -13,6 +14,7 @@ const label = (st: string) => (st === 'published' ? 'منشور' : st === 'draft
   {!tax || !counts ? <ErrorState /> : (
     <div class="stack sp-2">
       <div class="notice">
+        العبارة تظهر للمستخدم في «اكتشف» كما هي، فاكتبها بصوته («أريد أن…»). لا حذف: الإخفاء يكفي حتى لا تنكسر روابط المسارات.<br />
         الاحتياج المنشور يظهر داخل بابه للزوار. <strong>انشره بعد أن تربط به مادة منشورة واحدة على الأقل</strong>، حتى لا يجد الزائر صفحة فارغة.
       </div>
 
@@ -20,12 +22,28 @@ const label = (st: string) => (st === 'published' ? 'منشور' : st === 'draft
         <section class="stack sp-0_6">
           <h2 class="block-title">{d.title}</h2>
           <ul class="adm-list">
-            {tax.needs.filter((n) => n.door_id === d.id).map((n) => {
+            {tax.needs.filter((n) => n.door_id === d.id).map((n, i, arr) => {
               const c = counts.needs[n.id] ?? 0;
               return (
-                <li class="adm-row">
+                <li class="adm-row" id={`n-${n.id}`}>
                   <div class="grow">
-                    <span class="fw-600">{n.title}</span>
+                    <details class="fold">
+                      <summary class="fw-600">{n.title}</summary>
+                      <form method="post" action="/api/admin/need-save" class="adm-form mt-1">
+                        <input type="hidden" name="id" value={n.id} />
+                        <div class="field"><label for={`nt-${n.id}`}>العبارة (بصوت المستخدم)</label><input id={`nt-${n.id}`} name="title" type="text" required maxlength="200" value={n.title} /></div>
+                        <div class="field"><label for={`nd-${n.id}`}>وصف قصير <span class="faint">(اختياري)</span></label><textarea class="minh-4" id={`nd-${n.id}`} name="description" maxlength="1000">{n.description ?? ''}</textarea></div>
+                        <div class="row">
+                          <div class="field flex-1"><label for={`nb-${n.id}`}>الباب</label><select id={`nb-${n.id}`} name="door_id">{tax.doors.map((x) => <option value={x.id} selected={x.id === n.door_id}>{x.title}</option>)}</select></div>
+                          <div class="field flex-1"><label for={`nc-${n.id}`}>نوع التغيير</label><select id={`nc-${n.id}`} name="change_type"><option value="">—</option>{Object.entries(CHANGE_TYPE).map(([k, l]) => <option value={k} selected={n.change_type === k}>{l}</option>)}</select></div>
+                        </div>
+                        <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ</button></div>
+                      </form>
+                      <div class="row mt-0_8">
+                        {i > 0 && <form method="post" action="/api/admin/tax-move"><input type="hidden" name="table" value="needs" /><input type="hidden" name="id" value={n.id} /><input type="hidden" name="dir" value="up" /><button class="btn btn-ghost btn-sm" type="submit">↑ للأعلى</button></form>}
+                        {i < arr.length - 1 && <form method="post" action="/api/admin/tax-move"><input type="hidden" name="table" value="needs" /><input type="hidden" name="id" value={n.id} /><input type="hidden" name="dir" value="down" /><button class="btn btn-ghost btn-sm" type="submit">↓ للأسفل</button></form>}
+                      </div>
+                    </details>
                     <div class="meta">
                       <span class={`state st-${n.status}`}>{label(n.status)}</span>
                       <span class={`chip${c ? ' chip-gold' : ''}`}>{c ? `${c} مادة منشورة` : 'بلا محتوى منشور'}</span>
@@ -41,19 +59,41 @@ const label = (st: string) => (st === 'published' ? 'منشور' : st === 'draft
               );
             })}
           </ul>
+          <details class="fold">
+            <summary><strong>+ احتياج جديد في «{d.title}»</strong></summary>
+            <form method="post" action="/api/admin/need-add" class="adm-form mt-1">
+              <input type="hidden" name="door_id" value={d.id} />
+              <div class="field"><label for={`new-n-${d.id}`}>العبارة (بصوت المستخدم)</label><input id={`new-n-${d.id}`} name="title" type="text" required maxlength="200" placeholder="أريد أن…" /></div>
+              <div class="field"><label for={`new-nd-${d.id}`}>وصف قصير <span class="faint">(اختياري)</span></label><textarea class="minh-4" id={`new-nd-${d.id}`} name="description" maxlength="1000"></textarea></div>
+              <div class="field"><label for={`new-nc-${d.id}`}>نوع التغيير</label><select id={`new-nc-${d.id}`} name="change_type"><option value="">—</option>{Object.entries(CHANGE_TYPE).map(([k, l]) => <option value={k}>{l}</option>)}</select></div>
+              <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف (مسودة)</button></div>
+            </form>
+          </details>
         </section>
       ))}
 
-      <section class="stack sp-0_6">
+      <section class="stack sp-0_6" id="domains">
         <h2 class="block-title">المجالات</h2>
         <p class="faint m-0">للمجال صفحة مستقلة تجمع مواده ومساراته من كل الأبواب.</p>
         <ul class="adm-list">
-          {tax.domains.map((d) => {
+          {tax.domains.map((d, i, arr) => {
             const c = counts.domains[d.id] ?? 0;
             return (
               <li class="adm-row">
                 <div class="grow">
-                  <span class="fw-600">{d.title}</span>
+                  <details class="fold">
+                    <summary class="fw-600">{d.title}</summary>
+                    <form method="post" action="/api/admin/domain-save" class="adm-form mt-1">
+                      <input type="hidden" name="id" value={d.id} />
+                      <div class="field"><label for={`dt-${d.id}`}>الاسم</label><input id={`dt-${d.id}`} name="title" type="text" required maxlength="200" value={d.title} /></div>
+                      <div class="field"><label for={`dd-${d.id}`}>وصف قصير</label><textarea class="minh-4" id={`dd-${d.id}`} name="description" maxlength="1000">{d.description ?? ''}</textarea></div>
+                      <div class="row"><button class="btn btn-primary btn-sm" type="submit">حفظ</button></div>
+                    </form>
+                    <div class="row mt-0_8">
+                      {i > 0 && <form method="post" action="/api/admin/tax-move"><input type="hidden" name="table" value="domains" /><input type="hidden" name="id" value={d.id} /><input type="hidden" name="dir" value="up" /><button class="btn btn-ghost btn-sm" type="submit">↑ للأعلى</button></form>}
+                      {i < arr.length - 1 && <form method="post" action="/api/admin/tax-move"><input type="hidden" name="table" value="domains" /><input type="hidden" name="id" value={d.id} /><input type="hidden" name="dir" value="down" /><button class="btn btn-ghost btn-sm" type="submit">↓ للأسفل</button></form>}
+                    </div>
+                  </details>
                   <div class="meta">
                     <span class={`state st-${d.status}`}>{label(d.status)}</span>
                     <span class={`chip${c ? ' chip-gold' : ''}`}>{c ? `${c} مادة منشورة` : 'بلا محتوى منشور'}</span>
@@ -69,6 +109,14 @@ const label = (st: string) => (st === 'published' ? 'منشور' : st === 'draft
             );
           })}
         </ul>
+        <details class="fold">
+          <summary><strong>+ مجال جديد</strong></summary>
+          <form method="post" action="/api/admin/domain-add" class="adm-form mt-1">
+            <div class="field"><label for="new-d">الاسم</label><input id="new-d" name="title" type="text" required maxlength="200" /></div>
+            <div class="field"><label for="new-dd">وصف قصير</label><textarea class="minh-4" id="new-dd" name="description" maxlength="1000"></textarea></div>
+            <div class="row"><button class="btn btn-primary btn-sm" type="submit">أضف (مسودة)</button></div>
+          </form>
+        </details>
       </section>
     </div>
   )}

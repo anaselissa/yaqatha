@@ -6,6 +6,7 @@ import Chev from '../components/Chev.astro';
 import { getHomepage } from '../lib/data';
 import { getEnrollments, getMyProgress, getProgress, getStepTitles } from '../lib/user';
 import { getDailyGoals, localDate } from '../lib/today';
+import { getTipOfDay } from '../lib/site';
 import { durationLabel } from '../lib/labels';
 import { load } from '../lib/page';
 import { SITE } from '../config';
@@ -17,7 +18,7 @@ const today = localDate(Astro.cookies);
 const data = await load(Astro.response, async () => {
   if (!s) return { home: await getHomepage(), me: null };
   const t = s.token;
-  const [enrs, me, habits] = await Promise.all([getEnrollments(t), getMyProgress(t), getDailyGoals(t, today)]);
+  const [enrs, me, habits, tip] = await Promise.all([getEnrollments(t), getMyProgress(t), getDailyGoals(t, today), getTipOfDay(today)]);
   const prog = await getProgress(t, enrs.map((e) => e.id));
   const titles = await getStepTitles(t, [...prog.values()].map((p) => p.resume_step_id ?? ''));
   const paths = enrs
@@ -26,7 +27,7 @@ const data = await load(Astro.response, async () => {
     .filter((x) => x.p && x.p.total_steps > 0 && x.p.completed_steps < x.p.total_steps && x.next)
     // ما بدأ فيه أولًا (الأكثر تقدّمًا نسبيًا)، ثم الأحدث
     .sort((a, b) => b.p!.completed_steps / b.p!.total_steps - a.p!.completed_steps / a.p!.total_steps);
-  return { home: paths.length ? null : await getHomepage(), me, paths, habits: habits ?? [] };
+  return { home: paths.length ? null : await getHomepage(), me, paths, habits: habits ?? [], tip };
 });
 
 const site = Astro.site!.toString().replace(/\/$/, '');
@@ -76,6 +77,13 @@ const habitsDone = habits.filter((h) => h.today === true);
         <div class="title-row"><h1>يومك</h1>{first && <span class="lead-dim" data-greet={first}>أهلًا يا {first}</span>}</div>
       ) : (
         <h1 data-greet={first}>{first ? `أهلًا يا ${first}` : 'أهلًا بك'}</h1>
+      )}
+      {data && 'tip' in data && data.tip && (
+        <aside class="tip-card" aria-label="نصيحة اليوم">
+          <span class="k">نصيحة اليوم</span>
+          <p>{data.tip.text}</p>
+          {data.tip.source && <span class="s">{data.tip.source}</span>}
+        </aside>
       )}
 
       {main ? (

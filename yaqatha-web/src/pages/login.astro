@@ -25,6 +25,8 @@ const ERRORS: Record<string, string> = {
 const ua = Astro.request.headers.get('user-agent') ?? '';
 const inApp = /FBAN|FBAV|Instagram|Line\/|MicroMessenger|Snapchat|TikTok|Twitter|; wv\)|WhatsApp|Telegram/i.test(ua);
 const backTo = next === '/journey' ? '/' : next.startsWith('/admin') ? '/' : next;
+// «متابعة التصفح»: إلى صفحة تُتصفَّح بلا حساب (المسار أو المادة نفسها إن كانت كذلك، وإلا «اكتشف»)
+const browseTo = /^\/(paths|library|discover|needs|doors|domains|series|search)(\/|\?|$)/.test(next) ? next : '/discover';
 ---
 <Base title="تسجيل الدخول" noindex chrome="focus">
   <div class="app-col focus-wrap">
@@ -54,7 +56,7 @@ const backTo = next === '/journey' ? '/' : next.startsWith('/admin') ? '/' : nex
         </button>
       </form>
       <p class="privacy-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>لا ننشر شيئًا باسمك، ولا يرى تقدّمك أحد. <a href="/privacy">الخصوصية</a></p>
-      <a class="link-quiet" href={backTo}>متابعة التصفح دون حساب</a>
+      <a class="link-quiet" href={browseTo}>متابعة التصفح دون حساب</a>
     </div>
   </div>
 </Base>

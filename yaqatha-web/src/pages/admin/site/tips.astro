@@ -1,0 +1,9 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import SiteListEditor from '../../../components/admin/SiteListEditor.astro';
+if (!['manager', 'editor'].includes(Astro.locals.staffRole ?? '')) return Astro.rewrite('/404');
+---
+<Admin title="نصيحة اليوم">
+  <p class="m-0"><a class="link-quiet" href="/admin/site">واجهة الموقع</a></p>
+  <SiteListEditor list="tips" />
+</Admin>

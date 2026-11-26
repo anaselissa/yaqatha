@@ -1,0 +1,35 @@
+---
+// معاينة المسار كما يراه المستخدم: نسخة العمل (المسودة إن وُجدت)، وكل خطوة تُفتح للمعاينة
+import Base from '../../../../../layouts/Base.astro';
+import PreviewBar from '../../../../../components/admin/PreviewBar.astro';
+import LevelPill from '../../../../../components/LevelPill.astro';
+import Chev from '../../../../../components/Chev.astro';
+import { getPathEditor } from '../../../../../lib/admin-paths';
+import { STEP_TYPE, durationLabel } from '../../../../../lib/labels';
+if (!['manager', 'editor'].includes(Astro.locals.staffRole ?? '')) return Astro.rewrite('/404');
+const pid = Astro.params.id ?? '';
+if (!/^[0-9a-f-]{36}$/i.test(pid)) return Astro.rewrite('/404');
+const ed = await getPathEditor(Astro.locals.session!.token, pid);
+if (!ed || !ed.work) return Astro.rewrite('/404');
+const w = ed.work;
+const label = `الإصدار ${w.version_no} (${w.status === 'draft' ? 'مسودة' : w.status === 'published' ? 'منشور' : w.status})${w.status !== 'published' ? '. لا يراه الزوار' : ''}`;
+---
+<Base title={`معاينة: ${w.title}`} noindex>
+  <div class="app-col screen">
+    <PreviewBar label={label} back={`/admin/paths/${pid}`} />
+    <h1>{w.title}</h1>
+    <p class="meta-line"><LevelPill level={w.level} /><span>{durationLabel(w.duration_days)}</span><span>{ed.steps.length} خطوات</span></p>
+    {w.description && <p class="step-text">{w.description}</p>}
+    {w.purpose && <p class="card-quiet"><strong>الغرض:</strong> {w.purpose}</p>}
+    <section class="screen-sec" aria-labelledby="steps-h">
+      <h2 id="steps-h" class="sec-title">الخطوات</h2>
+      <ol class="list-flat path-steps">
+        {ed.steps.map((s) => (
+          <li><a class="row-link" href={`/admin/paths/${pid}/preview/${s.id}`}>
+            <span class="grow"><span class="t">{s.position}. {s.title}</span><span class="s">{STEP_TYPE[s.type] ?? ''}{s.type === 'exam' ? ` · ${ed.examQs.length} أسئلة` : ''}</span></span><Chev />
+          </a></li>
+        ))}
+      </ol>
+    </section>
+  </div>
+</Base>

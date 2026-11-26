@@ -1,0 +1,16 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+const isManager = Astro.locals.staffRole === 'manager';
+if (!['manager', 'editor'].includes(Astro.locals.staffRole ?? '')) return Astro.rewrite('/404');
+const items: [string, string, string][] = [
+  ['/admin/site/cheers', 'عبارات «أحسنت»', 'تظهر بعد كل خطوة'],
+  ['/admin/site/tips', 'نصيحة اليوم', 'أعلى «يومك»، واحدة كل يوم'],
+  ...(isManager ? [['/admin/site/links', 'روابط التواصل', 'قروب واتساب وإنستغرام'], ['/admin/site/pages', 'الصفحات النصية', 'عن يقظة، الخصوصية، الشروط']] as [string, string, string][] : []),
+];
+---
+<Admin title="واجهة الموقع">
+  <p class="lead-dim">نصوص تظهر للمستخدمين، تعدّلها هنا بلا كود. كل جزء في صفحة مستقلة، وكل تعديل يُسجَّل (من ومتى).</p>
+  <ul class="adm-list">
+    {items.map(([h, t, s]) => <li class="adm-row"><div class="grow"><a href={h}><strong>{t}</strong></a><div class="faint fs-0_9">{s}</div></div><a class="btn btn-ghost btn-sm" href={h}>افتح</a></li>)}
+  </ul>
+</Admin>

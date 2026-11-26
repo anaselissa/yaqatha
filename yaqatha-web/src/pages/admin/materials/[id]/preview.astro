@@ -1,0 +1,22 @@
+---
+// معاينة المادة كما يراها المستخدم (للفريق، حتى المسودة)
+import Base from '../../../../layouts/Base.astro';
+import MaterialContent from '../../../../components/MaterialContent.astro';
+import PreviewBar from '../../../../components/admin/PreviewBar.astro';
+import { getAdminMaterial, PUBLISH_STATUS } from '../../../../lib/admin';
+import type { Material } from '../../../../lib/data';
+if (!['manager', 'editor'].includes(Astro.locals.staffRole ?? '')) return Astro.rewrite('/404');
+const id = Astro.params.id ?? '';
+if (!/^[0-9a-f-]{36}$/i.test(id)) return Astro.rewrite('/404');
+const item = await getAdminMaterial(Astro.locals.session!.token, id);
+if (!item) return Astro.rewrite('/404');
+const m = item.material as unknown as Material;
+---
+<Base title={`معاينة: ${m.title}`} noindex>
+  <div class="app-col screen">
+    <PreviewBar label={`${PUBLISH_STATUS[item.material.status] ?? ''}${item.material.status !== 'published' ? '. لا يراها الزوار' : ''}`} back={`/admin/materials/${id}`} />
+    <h1>{m.title}</h1>
+    {m.description && <p class="lead-dim">{m.description}</p>}
+    <MaterialContent m={m} questions={item.questions} />
+  </div>
+</Base>

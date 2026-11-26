@@ -43,7 +43,7 @@ test('مستخدم يبلّغ عن مشكلة في مادة', async () => {
 test('المحرر يرى البلاغ بلا هوية المبلِّغ، مع رابط تعديل المادة', async () => {
   ed = await as(`reditor-${run}@admin.test`, 'editor');
   await ed.goto(`${BASE}/admin`);
-  await ed.getByRole('link', { name: 'راجع البلاغات' }).click();
+  await ed.getByRole('link', { name: /بلاغ مفتوح/ }).click();
   await ed.waitForURL(/\/admin\/reports$/);
   const row = ed.locator('.adm-row', { hasText: NOTE });
   await row.waitFor();
