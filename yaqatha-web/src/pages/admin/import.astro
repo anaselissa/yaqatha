@@ -1,0 +1,139 @@
+---
+// رفع المحتوى بالجملة: اختيار ملفات JSON ← فحص (بلا تغيير) ← رفع كمسودات. الملف كله أو لا شيء.
+// الصفحة نفسها تستقبل POST: الفحص يعرض النتيجة ويحمل نص الملفات السليمة في النموذج التالي، فلا حالة على الخادم.
+import Admin from '../../layouts/Admin.astro';
+import LevelPill from '../../components/LevelPill.astro';
+import { DataError, UnauthorizedError, rpc } from '../../lib/api';
+import { clearSession } from '../../lib/auth';
+
+const s = Astro.locals.session!;
+if (!['manager', 'editor'].includes(Astro.locals.staffRole ?? '')) return Astro.rewrite('/404');
+
+interface Report { dry_run: boolean; path: { id: string; slug: string; title: string; level: string; steps: number } | null;
+  materials_new: number; materials_updated: number; materials_skipped: number; questions: number; exam_questions: number; warnings: string[] }
+interface Item { name: string; text: string; ok: boolean; report?: Report; error?: string }
+
+const MAX_FILES = 20, MAX_BYTES = 2_000_000;
+let stage: 'pick' | 'check' | 'done' = 'pick';
+let items: Item[] = [];
+let formError: string | null = null;
+
+async function run(name: string, text: string, dry: boolean): Promise<Item> {
+  let json: unknown;
+  try { json = JSON.parse(text); } catch { return { name, text, ok: false, error: 'الملف ليس JSON صالحًا (تأكد أنه نُسخ كاملًا)' }; }
+  try {
+    const report = await rpc<Report>('import_content', { p: json, p_dry_run: dry }, s.token);
+    return { name, text, ok: true, report };
+  } catch (e) {
+    if (e instanceof UnauthorizedError) throw e;
+    const msg = e instanceof DataError ? e.message : 'تعذّر الفحص';
+    return { name, text, ok: false, error: /function public\.import_content|Could not find the function/.test(msg) ? 'الرفع يحتاج تطبيق الهجرة 17 على قاعدة البيانات أولًا' : msg };
+  }
+}
+
+if (Astro.request.method === 'POST') {
+  try {
+    const form = await Astro.request.formData();
+    const op = form.get('op');
+    if (op === 'check') {
+      const files: { name: string; text: string }[] = [];
+      for (const f of form.getAll('files')) if (f instanceof File && f.size > 0) files.push({ name: f.name, text: f.size > MAX_BYTES ? '' : await f.text() });
+      const pasted = String(form.get('pasted') ?? '').trim();
+      if (pasted) files.push({ name: 'نص ملصوق', text: pasted });
+      if (!files.length) formError = 'اختر ملفًا واحدًا على الأقل، أو الصق النص.';
+      else if (files.length > MAX_FILES) formError = `حتى ${MAX_FILES} ملفًا في المرة الواحدة.`;
+      else {
+        for (const f of files) items.push(f.text ? await run(f.name, f.text, true) : { ...f, ok: false, error: 'الملف أكبر من 2 ميغابايت' });
+        stage = 'check';
+      }
+    } else if (op === 'apply') {
+      const names = form.getAll('name').map(String), texts = form.getAll('text').map(String);
+      for (let i = 0; i < texts.length && i < MAX_FILES; i++) items.push(await run(names[i] ?? `ملف ${i + 1}`, texts[i], false));
+      stage = 'done';
+    }
+  } catch (e) {
+    if (e instanceof UnauthorizedError) { clearSession(Astro.cookies); return Astro.redirect('/login?next=%2Fadmin%2Fimport&reason=expired', 303); }
+    throw e;
+  }
+}
+
+const okItems = items.filter((i) => i.ok);
+const sum = (k: 'materials_new' | 'materials_updated' | 'questions' | 'exam_questions') => okItems.reduce((a, i) => a + (i.report?.[k] ?? 0), 0);
+const totals = { paths: okItems.filter((i) => i.report?.path).length, mats: sum('materials_new') + sum('materials_updated'), qs: sum('questions'), ex: sum('exam_questions') };
+const fileWord = (n: number) => (n === 1 ? 'ملفًا واحدًا' : n === 2 ? 'ملفين' : n <= 10 ? `${n} ملفات` : `${n} ملفًا`);
+const fileWordDone = (n: number) => (n === 1 ? 'رُفع ملف واحد' : n === 2 ? 'رُفع ملفان' : n <= 10 ? `رُفعت ${n} ملفات` : `رُفع ${n} ملفًا`);
+const counts = (r: Report) => [r.path ? `${r.path.steps} خطوات + الامتحان` : null, `${r.materials_new + r.materials_updated} مواد`, r.exam_questions ? `${r.exam_questions} أسئلة امتحان` : null].filter(Boolean).join(' · ');
+---
+<Admin title="رفع محتوى">
+  <div class="stack sp-1_2 imp">
+    {stage === 'pick' && (
+      <>
+        <p class="lead-dim">ارفع ملفات JSON الجاهزة من محادثة جمع المحتوى. كل شيء ينزل <strong>مسودة</strong>، ولا يراه أحد حتى تنشره.</p>
+        {formError && <p class="notice imp-err" role="alert">{formError}</p>}
+        <form method="post" enctype="multipart/form-data" class="adm-form">
+          <input type="hidden" name="op" value="check" />
+          <label class="imp-drop">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
+            <strong>اختر ملفًا أو أكثر</strong>
+            <span class="faint" dir="ltr">.json · حتى {MAX_FILES}</span>
+            <input type="file" name="files" accept=".json,application/json" multiple />
+          </label>
+          <details class="fold"><summary><strong>أو الصق النص</strong></summary>
+            <div class="field mt-1"><label for="pasted" class="sr-only">نص JSON</label><textarea id="pasted" name="pasted" class="minh-8" dir="ltr"></textarea></div>
+          </details>
+          <p class="hint m-0">الصيغة: <span dir="ltr">claude/content-import-format.md</span> في ملفات المشروع (نفسها التي تقرؤها محادثة جمع المحتوى).</p>
+          <button class="btn btn-primary btn-block" type="submit">افحص الملفات</button>
+          <p class="hint center m-0">الفحص لا يغيّر شيئًا. تراجع النتيجة أولًا.</p>
+        </form>
+      </>
+    )}
+
+    {stage === 'check' && (
+      <>
+        <h2>نتيجة الفحص</h2>
+        <div class="imp-totals">
+          <div><b>{totals.paths}</b><span>مسار</span></div><div><b>{totals.mats}</b><span>مادة</span></div>
+          <div><b>{totals.qs}</b><span>سؤال</span></div><div><b>{totals.ex}</b><span>للامتحان</span></div>
+        </div>
+        <ul class="imp-list">
+          {items.map((it) => (
+            <li class={`imp-file ${!it.ok ? 'is-bad' : it.report!.warnings.length ? 'is-warn' : 'is-ok'}`}>
+              <span class="nm" dir="ltr">{it.name}</span>
+              {it.ok && it.report && <>
+                <span class="t">{it.report.path ? it.report.path.title : 'مواد للمكتبة'}{it.report.path && <LevelPill level={it.report.path.level} />}</span>
+                <span class="c">{counts(it.report)}</span>
+              </>}
+              <span class="st">{!it.ok ? 'لن يُرفع' : it.report!.warnings.length ? (it.report!.warnings.length === 1 ? 'جاهز، مع ملاحظة' : `جاهز، مع ${it.report!.warnings.length} ملاحظات`) : 'جاهز'}</span>
+              {!it.ok && <ul><li>{it.error}</li></ul>}
+              {it.ok && it.report!.warnings.length > 0 && <ul>{it.report!.warnings.map((w) => <li>{w}</li>)}</ul>}
+            </li>
+          ))}
+        </ul>
+        {items.some((i) => !i.ok) && <p class="hint m-0">الملفات التي فيها أخطاء لا تُرفع. صحّحها في محادثة جمع المحتوى ثم أعد رفعها.</p>}
+        <form method="post" class="stack sp-0_6">
+          <input type="hidden" name="op" value="apply" />
+          {okItems.map((it) => <><input type="hidden" name="name" value={it.name} /><textarea name="text" hidden>{it.text}</textarea></>)}
+          {okItems.length > 0 && <button class="btn btn-primary btn-block" type="submit">ارفع {fileWord(okItems.length)} كمسودات</button>}
+          <a class="btn btn-ghost btn-block" href="/admin/import">رجوع</a>
+        </form>
+      </>
+    )}
+
+    {stage === 'done' && (
+      <>
+        <h2>{okItems.length ? `${fileWordDone(okItems.length)} كمسودات` : 'لم يُرفع شيء'}</h2>
+        {okItems.length > 0 && <p class="lead-dim">لا يظهر شيء للزوار بعد. راجع كل مسار، ثم انشره من صفحته.</p>}
+        <ul class="imp-list">
+          {items.map((it) => it.ok && it.report ? (
+            <li><a class="imp-done" href={it.report.path ? `/admin/paths/${it.report.path.id}` : '/admin/materials?status=draft'}>
+              <span><span class="t">{it.report.path?.title ?? 'مواد للمكتبة'}</span>
+                <span class="c">مسودة · {it.report.materials_new + it.report.materials_updated} مواد{it.report.materials_updated ? ` (${it.report.materials_updated} حُدّثت)` : ''}</span></span>
+              <span class="gold">راجع</span></a></li>
+          ) : <li class="imp-file is-bad"><span class="nm" dir="ltr">{it.name}</span><span class="st">لم يُرفع</span><ul><li>{it.error}</li></ul></li>)}
+        </ul>
+        {okItems.length > 0 && <p class="card-quiet">ملاحظات المراجعة (review_note) ظاهرة في صفحة كل مادة ومسار، وحالة المراجعة «تجريبي» حتى يغيّرها المراجع.</p>}
+        <a class="btn btn-ghost btn-block" href="/admin/import">ارفع ملفات أخرى</a>
+      </>
+    )}
+  </div>
+</Admin>

@@ -705,5 +705,43 @@ select test.as_user(:'uc');
 update public.path_versions set level = 'intro' where id = :'lv';
 select test.ok((select level = 'basic' from public.path_versions where id = :'lv'), 'users cannot change levels');
 
+-- ---------- 26. رفع المحتوى بالجملة (الهجرة 17) ----------
+select test.as_user(:'edt');
+select $j${
+  "format": "yaqatha-content/1",
+  "path": { "slug": "imp-fajr", "title": "الفجر المستورد", "level": "intro", "change_type": "perform_duty", "duration_days": 3,
+    "needs": ["prayer-consistency"], "domain": "worship",
+    "steps": [ { "type": "read", "title": "اقرأ", "materials": ["imp-why"] }, { "type": "exercise", "title": "طبّق", "materials": ["imp-how"] } ],
+    "exam_questions": [
+      {"prompt":"س1","options":["أ","ب"],"correct_index":0,"material":"imp-why"},{"prompt":"س2","options":["أ","ب"],"correct_index":1},
+      {"prompt":"س3","options":["أ","ب"],"correct_index":0},{"prompt":"س4","options":["أ","ب"],"correct_index":0},{"prompt":"س5","options":["أ","ب","ج"],"correct_index":2}],
+    "suggested_goals": [{"title":"الفجر 7 أيام"}],
+    "next_paths": [{"slug":"imp-next","kind":"next_level"}],
+    "review_note": "راجع الحديث الثاني" },
+  "materials": [
+    {"slug":"imp-why","title":"لماذا","type":"article","body":"نص","needs":["prayer-consistency"],"domain":"worship",
+     "questions":[{"prompt":"ق","options":["x","y"],"correct_index":0}], "review_note":"تحقق من التخريج"},
+    {"slug":"imp-how","title":"كيف","type":"exercise","body":"نص"} ]
+}$j$ as imp \gset
+select public.import_content(:'imp'::jsonb) as dry \gset
+select test.ok((:'dry'::jsonb ->> 'dry_run')::boolean and (:'dry'::jsonb ->> 'materials_new')::int = 2 and (:'dry'::jsonb ->> 'exam_questions')::int = 5
+               and (:'dry'::jsonb -> 'path' ->> 'steps')::int = 2, 'dry run reports the real result');
+select test.ok((select count(*) from public.materials where slug like 'imp-%') = 0 and (select count(*) from public.paths where slug = 'imp-fajr') = 0, 'dry run changes nothing');
+select public.import_content(:'imp'::jsonb, false) as res \gset
+select test.ok((select status = 'draft' from public.paths where slug = 'imp-fajr')
+               and (select bool_and(status = 'draft') from public.materials where slug like 'imp-%'), 'everything lands as draft');
+select test.ok((select string_agg(s.type::text, ',' order by s.position) from public.steps s join public.path_versions v on v.id = s.version_id join public.paths p on p.id = v.path_id where p.slug = 'imp-fajr') = 'read,exercise,exam', 'exam appended as the last step');
+select test.ok((select level = 'intro' from public.path_versions v join public.paths p on p.id = v.path_id where p.slug = 'imp-fajr'), 'level imported');
+select test.ok((select internal_note = 'تحقق من التخريج' from public.content_review cr join public.materials m on m.id = cr.entity_id where m.slug = 'imp-why'), 'review note kept for the reviewer');
+select test.ok((select count(*) from public.pending_path_links) = 1, 'unknown next path is kept pending');
+select public.import_content(:'imp'::jsonb, false) as res2 \gset
+select test.ok((:'res2'::jsonb ->> 'materials_updated')::int = 2 and :'res2'::jsonb -> 'path' = 'null'::jsonb, 're-import updates draft materials and leaves the existing path');
+select test.throws($$select public.import_content('{"format":"yaqatha-content/1","path":{"slug":"imp-bad","title":"x","level":"intro","steps":[{"type":"read","title":"a","materials":["nope"]}],"exam_questions":[{"prompt":"1","options":["a","b"],"correct_index":0},{"prompt":"2","options":["a","b"],"correct_index":0},{"prompt":"3","options":["a","b"],"correct_index":0},{"prompt":"4","options":["a","b"],"correct_index":0},{"prompt":"5","options":["a","b"],"correct_index":0}]},"materials":[{"slug":"imp-orphan","title":"y","type":"article"}]}', false)$$,
+  'a file with an error imports nothing', 'غير معرّفة');
+select test.ok((select count(*) from public.materials where slug = 'imp-orphan') = 0, 'all or nothing per file');
+select test.throws($$select public.import_content('{"format":"yaqatha-content/1","path":{"slug":"imp-x","title":"x","level":"intro","steps":[{"type":"read","title":"a"}],"exam_questions":[]}}')$$, 'exam questions required', '5 إلى 10');
+select test.as_user(:'uc');
+select test.throws($$select public.import_content('{}')$$, 'users cannot import', 'staff');
+
 select 'ALL TESTS PASSED' as result;
 rollback;
