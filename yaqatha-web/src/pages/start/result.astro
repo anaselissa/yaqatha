@@ -5,13 +5,17 @@ import ErrorState from '../../components/ErrorState.astro';
 import BackBtn from '../../components/BackBtn.astro';
 import { getPath, recommend } from '../../lib/data';
 import { durationLabel } from '../../lib/labels';
+import { getMyProgress } from '../../lib/user';
+import LevelPill from '../../components/LevelPill.astro';
 import { load } from '../../lib/page';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const chosen = [...Astro.url.searchParams.values()].filter((v) => UUID.test(v)).slice(0, 20);
 if (!chosen.length) return Astro.redirect('/start');
 const skip = Math.max(0, Math.min(5, Number(Astro.url.searchParams.get('alt') ?? 0) || 0));
 const r = await load(Astro.response, async () => {
-  const rec = await recommend(chosen);
+  const [rec, me] = await Promise.all([recommend(chosen), Astro.locals.session ? getMyProgress(Astro.locals.session.token) : Promise.resolve(null)]);
+  // من لم يكمل مسارًا بعد: التمهيدي أولًا (ترتيب ثابت لما عداه)
+  if (rec.content && !(me && me.paths_done > 0)) rec.content.paths = [...rec.content.paths].sort((a, b) => (a.level === 'intro' ? 0 : 1) - (b.level === 'intro' ? 0 : 1));
   const pick = rec.content?.paths[skip] ?? rec.content?.paths[0] ?? null;
   const full = pick ? await getPath(pick.slug) : null;
   return { ...rec, pick, steps: full && 'steps' in full ? full.steps : [] };
@@ -32,7 +36,7 @@ const altHref = (() => { const u = new URL(Astro.url); u.searchParams.set('alt',
             <p class="lead-dim">اخترناه لك من إجاباتك{r.top ? `: ${r.top.title}` : ''}</p>
             <section class="card card-lg" aria-labelledby="pick-h">
               <h2 id="pick-h">{r.pick.title}</h2>
-              <p class="meta"><span class="pill pill-teal">{durationLabel(r.pick.duration_days)}</span>{r.steps.length > 0 && <span class="chip">{r.steps.length} خطوات</span>}</p>
+              <p class="meta"><LevelPill level={r.pick.level} /><span class="pill pill-teal">{durationLabel(r.pick.duration_days)}</span>{r.steps.length > 0 && <span class="chip">{r.steps.length} خطوات</span>}</p>
               {r.pick.description && <p class="sub">{r.pick.description}</p>}
               {r.steps.length > 0 && (
                 <ol class="first-steps">

@@ -22,7 +22,7 @@
     "description": "سطر أو سطران يظهران على بطاقة المسار (≤ 1000 حرف).",
     "purpose": "ما الذي سيتغيّر في حياة من يكمله (≤ 2000 حرف).",
     "duration_days": 7,
-    "level": "easy",
+    "level": "intro",
     "change_type": "perform_duty",
     "needs": ["prayer-consistency"],
     "domain": "worship",
@@ -79,7 +79,7 @@
 
 | الحقل | القيم |
 |---|---|
-| `level` | `easy` (سهل) · `medium` (متوسط) · `advanced` (متقدم). إلزامي. |
+| `level` | `intro` (تمهيدي) · `basic` (أساسي) · `advanced` (متقدم). إلزامي. يصف مقدار الالتزام ومرحلة الطريق، لا صعوبة الموضوع. |
 | `exam_questions` | **إلزامي لكل مسار: 5 إلى 10 أسئلة** (قرار 26 نوفمبر). تُضاف تلقائيًا كخطوة «الامتحان» في آخر المسار، فلا تكتبها ضمن `steps`. `material` (اختياري) slug المادة التي يُراجعها من أخطأ. يجوز تكرار أسئلة «اختبر فهمك» من مواد المسار. |
 | `change_type` | `quit_haram` ترك محرّم · `perform_duty` أداء فريضة · `acquire_good_deed` اكتساب خير · `increase_knowledge` زيادة علم |
 | `material.type` | `article` مقال · `video` مقطع (يوتيوب في `url`) · `external_link` رابط خارجي · `guidance` إرشاد عملي · `exercise` تمرين · `reflection` تأمل |

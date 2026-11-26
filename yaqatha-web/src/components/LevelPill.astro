@@ -1,0 +1,6 @@
+---
+import { PATH_LEVEL } from '../lib/labels';
+interface Props { level?: string | null }
+const { level } = Astro.props;
+---
+{level && PATH_LEVEL[level] && <span class={`lvl lvl-${level}`}>{PATH_LEVEL[level]}</span>}

@@ -68,6 +68,9 @@ test('مسار: إنشاء، خطوات، إعادة ترتيب بعد COMMIT، 
   assert.equal(re.status, 204, JSON.stringify(re.body));
   const got = (await api('edt', 'GET', `/steps?version_id=eq.${v1.id}&select=title&order=position`)).body.map((s) => s.title).join('');
   assert.equal(got, 'جأب', 'الترتيب ثابت بعد COMMIT الحقيقي');
+  const noLevel = await api('edt', 'POST', '/rpc/publish_path_version', { p_version_id: v1.id });
+  assert.ok(noLevel.status >= 400 && /level/.test(noLevel.body.message), 'لا نشر بلا مستوى');
+  assert.equal((await api('edt', 'PATCH', `/path_versions?id=eq.${v1.id}`, { level: 'intro' })).status < 300, true);
   const noExam = await api('edt', 'POST', '/rpc/publish_path_version', { p_version_id: v1.id });
   assert.ok(noExam.status >= 400 && /exam/.test(noExam.body.message), 'لا نشر بلا امتحان');
   const ex = (await api('edt', 'POST', '/steps', { version_id: v1.id, position: 4, type: 'exam', title: 'الامتحان' })).body[0];

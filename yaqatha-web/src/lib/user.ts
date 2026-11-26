@@ -96,11 +96,17 @@ export async function getPathEnding(t: string, pathId: string) {
 async function pathEnding(t: string, pathId: string) {
   const [goals, next] = await Promise.all([
     rest<{ id: string; title: string; description: string | null }>('path_suggested_goals', { select: 'id,title,description', path_id: `eq.${pathId}`, order: 'position' }, { token: t }).then((r) => r.rows),
-    rest<{ next_path_id: string }>('path_next', { select: 'next_path_id', path_id: `eq.${pathId}`, order: 'position' }, { token: t }).then((r) => r.rows.map((x) => x.next_path_id)),
+    // نوع الرابط (المستوى التالي / مسار قريب) من الهجرة 16؛ قبلها كلها «قريب»
+    rest<{ next_path_id: string; kind?: string }>('path_next', { select: 'next_path_id,kind', path_id: `eq.${pathId}`, order: 'position' }, { token: t })
+      .catch(() => rest<{ next_path_id: string; kind?: string }>('path_next', { select: 'next_path_id', path_id: `eq.${pathId}`, order: 'position' }, { token: t }))
+      .then((r) => r.rows),
   ]);
-  const paths = next.length
-    ? (await rest<{ path_id: string; slug: string; title: string; description: string | null; duration_days: number | null }>('paths_current', { select: 'path_id,slug,title,description,duration_days', path_id: `in.(${next.join(',')})` }, { token: t })).rows
-        .sort((a, b) => next.indexOf(a.path_id) - next.indexOf(b.path_id))
+  const ids = next.map((x) => x.next_path_id);
+  const kind = new Map(next.map((x) => [x.next_path_id, x.kind ?? 'related']));
+  const paths = ids.length
+    ? (await rest<{ path_id: string; slug: string; title: string; description: string | null; duration_days: number | null; level?: string | null }>('paths_current', { select: '*', path_id: `in.(${ids.join(',')})` }, { token: t })).rows
+        .map((p) => ({ ...p, kind: kind.get(p.path_id) ?? 'related' }))
+        .sort((a, b) => (a.kind === 'next_level' ? 0 : 1) - (b.kind === 'next_level' ? 0 : 1) || ids.indexOf(a.path_id) - ids.indexOf(b.path_id))
     : [];
   return { goals, paths };
 }

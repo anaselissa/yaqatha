@@ -1,5 +1,6 @@
 ---
 import { durationLabel, stepsLabel } from '../lib/labels';
+import LevelPill from './LevelPill.astro';
 import type { PathCard } from '../lib/data';
 interface Props { path: PathCard }
 const { path } = Astro.props;
@@ -8,6 +9,7 @@ const { path } = Astro.props;
   <h3>{path.title}</h3>
   {path.description && <p>{path.description}</p>}
   <div class="meta">
+    <LevelPill level={path.level} />
     <span class="chip chip-gold">{durationLabel(path.duration_days)}</span>
     {path.steps_count ? <span class="chip">{stepsLabel(path.steps_count)}</span> : null}
   </div>

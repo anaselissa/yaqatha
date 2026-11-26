@@ -3,6 +3,7 @@
 import Base from '../../../layouts/Base.astro';
 import ErrorState from '../../../components/ErrorState.astro';
 import BackBtn from '../../../components/BackBtn.astro';
+import LevelPill from '../../../components/LevelPill.astro';
 import { getPath, resolveRedirect } from '../../../lib/data';
 import { STEP_TYPE, durationLabel, formatDate } from '../../../lib/labels';
 import { FEATURES } from '../../../config';
@@ -35,11 +36,17 @@ const ICON: Record<string, string> = {
       <div class="screen-head"><BackBtn href="/discover" label="رجوع إلى اكتشف" /></div>
       <h1>{path.title}</h1>
       <p class="meta-line">
+        <LevelPill level={path.level} />
         <span>{durationLabel(path.duration_days)}</span>
         <span>{steps.length} خطوات</span>
       </p>
       {path.description && <p class="step-text">{path.description}</p>}
       {path.purpose && <p class="card-quiet"><strong>الغرض:</strong> {path.purpose}</p>}
+      {data.nextLevel && (
+        <a class="row-link card-link" href={`/paths/${data.nextLevel.slug}`}>
+          <span class="grow"><span class="s">بعده</span><span class="t">{data.nextLevel.title}</span></span><LevelPill level={data.nextLevel.level} />
+        </a>
+      )}
       {path.version_no > 1 && data.changelog && <p class="notice"><strong>ما الجديد: </strong>{data.changelog}</p>}
 
       <section class="screen-sec" aria-labelledby="steps-h">

@@ -1,16 +1,16 @@
 -- ============================================================================
 -- يَقَظَة — الهجرة 16: مستويات المسارات (قرارات أنس، 26 نوفمبر)
--- • سهل / متوسط / متقدم على كل إصدار. يقدّره المحرر، ولا يُنشر إصدار بلا مستوى.
--- • الإصدارات المنشورة والسابقة تأخذ «سهل»، ويغيّرها المحرر (المستوى بيان وصفي، يُعدَّل حتى بعد النشر).
+-- • تمهيدي / أساسي / متقدم على كل إصدار (اعتمدها محمد). يقدّره المحرر، ولا يُنشر إصدار بلا مستوى.
+-- • الإصدارات المنشورة والسابقة تأخذ «تمهيدي»، ويغيّرها المحرر (المستوى بيان وصفي، يُعدَّل حتى بعد النشر).
 -- • روابط «ما بعد المسار» صار لها نوع: المستوى التالي، أو مسار قريب.
 -- • لا قفل: المستوى لا يمنع أحدًا من بدء أي مسار.
 -- إضافات فقط، آمنة للتطبيق على الإنتاج.
 -- ============================================================================
 
-create type public.path_level as enum ('easy', 'medium', 'advanced');
+create type public.path_level as enum ('intro', 'basic', 'advanced');
 
 alter table public.path_versions add column level public.path_level;
-update public.path_versions set level = 'easy' where status <> 'draft';
+update public.path_versions set level = 'intro' where status <> 'draft';
 grant insert (level), update (level) on public.path_versions to authenticated;
 
 alter table public.path_next add column kind text not null default 'related' check (kind in ('next_level', 'related'));
@@ -91,3 +91,12 @@ begin
 
   return nid;
 end $$;
+
+-- المستوى في عرض المسارات المنشورة (عمود جديد في آخره؛ الصلاحيات تبقى)
+create or replace view public.paths_current with (security_invoker = true) as
+select p.id as path_id, p.slug, p.change_type,
+       v.id as version_id, v.version_no, v.title, v.description, v.purpose,
+       v.duration_days, v.published_at, v.level
+  from public.paths p
+  join public.path_versions v on v.path_id = p.id and v.status = 'published'
+ where p.status = 'published';

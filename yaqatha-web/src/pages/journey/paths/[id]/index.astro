@@ -5,6 +5,7 @@ import ErrorState from '../../../../components/ErrorState.astro';
 import BackBtn from '../../../../components/BackBtn.astro';
 import Road from '../../../../components/Road.astro';
 import PostButton from '../../../../components/PostButton.astro';
+import LevelPill from '../../../../components/LevelPill.astro';
 import { getEnrollment, getEnrollmentSteps, getGoals, getLatestVersions, getPathEnding, getProgress, planMigration } from '../../../../lib/user';
 import { rest } from '../../../../lib/api';
 import { durationLabel } from '../../../../lib/labels';
@@ -44,7 +45,8 @@ const total = d?.prog?.total_steps ?? steps.length, doneN = d?.prog?.completed_s
 const pathTitle = e?.path_versions?.title ?? 'مسار';
 // «استمر والعدّاد يكمل»: هدف يومي باسم أول هدف مقترح أو باسم المسار، مربوط بهذا المسار
 const habitTitle = d?.ending?.goals[0]?.title ?? pathTitle.replace(/^\[تجريبي\]\s*/, '');
-const nextPath = d?.ending?.paths[0];
+const nextLevel = d?.ending?.paths.find((p) => p.kind === 'next_level');
+const nextPath = d?.ending?.paths.find((p) => p.kind !== 'next_level');
 ---
 <Base title={pathTitle} noindex>
   {!d || !e ? <ErrorState /> : d.done && active ? (
@@ -62,6 +64,13 @@ const nextPath = d?.ending?.paths[0];
 
       <section class="screen-sec" aria-labelledby="next-h">
         <h2 id="next-h" class="sec-title">ماذا بعد؟</h2>
+        {nextLevel && (
+          <a class="next-level" href={`/paths/${nextLevel.slug}`}>
+            <span class="k">المستوى التالي</span>
+            <span class="t">{nextLevel.title}</span>
+            <span class="m"><LevelPill level={nextLevel.level} />{nextLevel.duration_days ? <span>{durationLabel(nextLevel.duration_days)}</span> : null}</span>
+          </a>
+        )}
         <ul class="list">
           <li>
             <form method="post" action="/api/goal-create">
@@ -93,8 +102,8 @@ const nextPath = d?.ending?.paths[0];
 
       <div class="stack">
         {nextPath
-          ? <a class="btn btn-primary btn-block" href={`/paths/${nextPath.slug}`}>المسار التالي: {nextPath.title}</a>
-          : <a class="btn btn-primary btn-block" href="/discover">اختر مسارك التالي</a>}
+          ? <a class={`btn btn-block ${nextLevel ? 'btn-ghost' : 'btn-primary'}`} href={`/paths/${nextPath.slug}`}>{nextLevel ? 'مسار قريب' : 'المسار التالي'}: {nextPath.title}</a>
+          : !nextLevel && <a class="btn btn-primary btn-block" href="/discover">اختر مسارك التالي</a>}
         <p class="center"><a class="link-quiet" href="/support">تحب أن يتابع معك أحد من الفريق؟</a></p>
       </div>
       <details class="fold"><summary>خيارات المسار</summary>

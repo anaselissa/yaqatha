@@ -68,6 +68,16 @@ test('الخطوات: إضافة مع مادة، ترتيب، حذف', async () 
   assert.equal(stepTitles(), 'الأولى|الثالثة');
 });
 
+test('المستوى: لا نشر بدونه، ثم يختاره المحرر', async () => {
+  await submit(ed.getByRole('button', { name: 'انشر المسار' }));
+  assert.match(await toast(), /اختر مستوى المسار/);
+  await ed.locator('summary', { hasText: 'بيانات الإصدار' }).click();
+  await ed.locator('input[name="level"][value="basic"]').check();
+  await submit(ed.locator('form[action="/api/admin/version-save"] button'));
+  assert.match(await toast(), /حُفظت بيانات الإصدار/);
+  assert.equal(sql(`select level from path_versions where path_id='${pathId}'`), 'basic');
+});
+
 test('الامتحان: لا نشر بدونه، ثم خطوة الامتحان وأسئلتها', async () => {
   await submit(ed.getByRole('button', { name: 'انشر المسار' }));
   assert.match(await toast(), /خطوة «الامتحان»/);
@@ -90,6 +100,7 @@ test('النشر: يظهر للزائر، والإصدار المنشور يقب
   assert.match(await toast(), /نُشر المسار/);
   const pub = await anon(`/paths/${slug}`);
   assert.equal(pub.status, 200); assert.match(pub.text, new RegExp(TITLE));
+  assert.match(pub.text, /أساسي/, 'المستوى ظاهر للزائر');
   assert.equal(await ed.getByText('+ أضف خطوة').count(), 0, 'لا إضافة خطوات على المنشور');
   const first = stepRow('الأولى');
   await first.locator('summary').click();
@@ -97,6 +108,21 @@ test('النشر: يظهر للزائر، والإصدار المنشور يقب
   await submit(first.getByRole('button', { name: 'حفظ الخطوة' }));
   assert.match(await toast(), /حُفظت الخطوة/);
   assert.equal(sql(`select count(*) from steps s join path_versions v on v.id=s.version_id where v.path_id='${pathId}' and s.title='الأولى (مصحّحة)'`), '1');
+});
+
+test('المستوى للزائر: تصفية «المسارات»، و«بعده» من رابط المستوى التالي', async () => {
+  assert.match((await anon('/paths?level=basic')).text, new RegExp(TITLE));
+  assert.doesNotMatch((await anon('/paths?level=advanced')).text, new RegExp(TITLE));
+  const other = sql(`select p.id||'|'||v.title from paths p join path_versions v on v.path_id=p.id and v.status='published' where p.status='published' and p.id<>'${pathId}' order by p.slug limit 1`).split('|');
+  await ed.goto(`${BASE}/admin/paths/${pathId}#ending`);
+  await ed.selectOption('#next', other[0]);
+  await ed.selectOption('#next-kind', 'next_level');
+  await submit(ed.locator('form[action="/api/admin/path-next-add"] button'));
+  assert.match(await toast(), /أُضيف المستوى التالي/);
+  assert.equal(sql(`select kind from path_next where path_id='${pathId}'`), 'next_level');
+  const pub = await anon(`/paths/${slug}`);
+  assert.match(pub.text, new RegExp(`بعده\\s*${other[1].replace(/[[\]]/g, '.')}`));
+  sql(`delete from path_next where path_id='${pathId}'`);
 });
 
 test('إصدار جديد: نسخة مسودة، تعديل، وملخص التغييرات إلزامي', async () => {

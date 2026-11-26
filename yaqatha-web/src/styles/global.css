@@ -906,3 +906,14 @@ a.plain { color: inherit; text-decoration: none; }
 .exam-facts > div { display: flex; justify-content: space-between; gap: 1rem; padding: .85rem 1rem; border-radius: 14px; background: var(--surface); }
 .exam-facts dt { color: var(--dim); }
 .exam-facts dd { margin: 0; font-weight: 600; }
+
+/* ---------- مستوى المسار (الهجرة 16) ---------- */
+.lvl { display: inline-flex; align-items: center; font-size: .78rem; font-weight: 600; line-height: 1; padding: .32rem .7rem; border-radius: 999px; white-space: nowrap; }
+.lvl-intro { background: color-mix(in srgb, var(--teal) 16%, transparent); color: var(--teal-text); }
+.lvl-basic { background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold-text); }
+.lvl-advanced { background: color-mix(in srgb, var(--coral) 16%, transparent); color: var(--coral-text, var(--coral)); }
+.meta-line .lvl { margin-inline-end: .1rem; }
+.next-level { display: grid; gap: .3rem; padding: 1rem 1.1rem; margin-bottom: .8rem; border-radius: 18px; background: var(--surface); border: 2px solid var(--gold); color: var(--text); text-decoration: none; }
+.next-level .k { font-size: .82rem; font-weight: 600; color: var(--gold-text); }
+.next-level .t { font-size: 1.15rem; font-weight: 600; }
+.next-level .m { display: flex; align-items: center; gap: .6rem; font-size: .85rem; color: var(--dim); }

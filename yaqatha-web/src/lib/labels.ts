@@ -50,3 +50,7 @@ export const GOAL_STATUS: Record<string, string> = {
 export const STEP_STATE: Record<string, string> = {
   not_started: 'لم تبدأ', in_progress: 'قيد التنفيذ', completed: 'مكتملة',
 };
+
+/** مستوى المسار (الهجرة 16): يصف مقدار الالتزام ومرحلة الطريق، لا صعوبة الموضوع */
+export const PATH_LEVEL: Record<string, string> = { intro: 'تمهيدي', basic: 'أساسي', advanced: 'متقدم' };
+export const LEVELS = ['intro', 'basic', 'advanced'] as const;

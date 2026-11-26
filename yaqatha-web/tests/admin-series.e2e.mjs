@@ -105,6 +105,7 @@ test('ختام المسار: هدف مقترح ومسار تالٍ يظهران 
   assert.equal(sql(`select count(*) from path_next where path_id='${pathId}'`), '1');
   await submit(ed, ed.getByRole('button', { name: 'أضف خطوة الامتحان' }));
   sql(`insert into exam_questions (step_id, position, prompt, options, correct_index) select s.id, g, 'س' || g, '["أ","ب"]', 0 from steps s join path_versions v on v.id=s.version_id, generate_series(1,5) g where v.path_id='${pathId}' and s.type='exam'`);
+  sql(`update path_versions set level='intro' where path_id='${pathId}' and status='draft'`);
   await ed.reload();
   await submit(ed, ed.getByRole('button', { name: 'انشر المسار' }));
 

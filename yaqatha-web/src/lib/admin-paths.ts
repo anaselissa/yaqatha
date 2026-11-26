@@ -11,7 +11,7 @@ const CHANGE_TYPES = ['quit_haram', 'perform_duty', 'acquire_good_deed', 'increa
 export const VERSION_STATUS: Record<string, string> = { draft: 'مسودة', published: 'منشور', retired: 'إصدار سابق', withdrawn: 'مسحوب' };
 export const PATH_STATUS: Record<string, string> = { draft: 'لم يُنشر', published: 'منشور', hidden: 'موقوف للبدء الجديد', archived: 'مؤرشف' };
 
-export interface Version { id: string; version_no: number; status: string; title: string; description: string | null; purpose: string | null; duration_days: number | null; changelog: string | null; withdrawn_note: string | null; published_at: string | null }
+export interface Version { id: string; version_no: number; status: string; title: string; description: string | null; purpose: string | null; duration_days: number | null; changelog: string | null; withdrawn_note: string | null; published_at: string | null; level?: string | null }
 export interface ExamQ { id: string; step_id: string; position: number; prompt: string; options: string[]; correct_index: number; explanation: string | null; material_id: string | null; source_question_id: string | null }
 export interface StepRow { id: string; position: number; type: string; title: string; instructions: string | null; step_materials: { material_id: string; materials: { id: string; title: string; status: string; type: string } | null }[] }
 
@@ -30,7 +30,10 @@ export async function listAdminPaths(token: string) {
 export async function getPathEditor(token: string, pathId: string) {
   const [path, versions, needIds, domainIds, review] = await Promise.all([
     rest<{ id: string; slug: string; status: string; change_type: string | null }>('paths', { select: 'id,slug,status,change_type', id: `eq.${pathId}` }, { token }).then((r) => r.rows[0] ?? null),
-    rest<Version>('path_versions', { select: 'id,version_no,status,title,description,purpose,duration_days,changelog,withdrawn_note,published_at', path_id: `eq.${pathId}`, order: 'version_no.desc' }, { token }).then((r) => r.rows),
+    // المستوى من الهجرة 16؛ قبلها يُجلب الباقي بلا المستوى
+    rest<Version>('path_versions', { select: 'id,version_no,status,title,description,purpose,duration_days,changelog,withdrawn_note,published_at,level', path_id: `eq.${pathId}`, order: 'version_no.desc' }, { token })
+      .catch(() => rest<Version>('path_versions', { select: 'id,version_no,status,title,description,purpose,duration_days,changelog,withdrawn_note,published_at', path_id: `eq.${pathId}`, order: 'version_no.desc' }, { token }))
+      .then((r) => r.rows),
     rest<{ need_id: string }>('path_needs', { select: 'need_id', path_id: `eq.${pathId}` }, { token }).then((r) => r.rows.map((x) => x.need_id)),
     rest<{ domain_id: string }>('path_domains', { select: 'domain_id', path_id: `eq.${pathId}` }, { token }).then((r) => r.rows.map((x) => x.domain_id)),
     rest<{ review_status: string; internal_note: string | null }>('content_review', { select: 'review_status,internal_note', entity_type: 'eq.path', entity_id: `eq.${pathId}` }, { token }).then((r) => r.rows[0] ?? null),
@@ -38,7 +41,9 @@ export async function getPathEditor(token: string, pathId: string) {
   if (!path) return null;
   const [goals, next] = await Promise.all([
     rest<{ id: string; title: string; description: string | null; position: number }>('path_suggested_goals', { select: 'id,title,description,position', path_id: `eq.${pathId}`, order: 'position' }, { token }).then((r) => r.rows),
-    rest<{ next_path_id: string; position: number }>('path_next', { select: 'next_path_id,position', path_id: `eq.${pathId}`, order: 'position' }, { token }).then((r) => r.rows),
+    rest<{ next_path_id: string; position: number; kind?: string }>('path_next', { select: 'next_path_id,position,kind', path_id: `eq.${pathId}`, order: 'position' }, { token })
+      .catch(() => rest<{ next_path_id: string; position: number; kind?: string }>('path_next', { select: 'next_path_id,position', path_id: `eq.${pathId}`, order: 'position' }, { token }))
+      .then((r) => r.rows),
   ]);
   // نسخة العمل: المسودة إن وُجدت، وإلا الإصدار المنشور، وإلا الأحدث
   const work = versions.find((v) => v.status === 'draft') ?? versions.find((v) => v.status === 'published') ?? versions[0] ?? null;
@@ -84,6 +89,13 @@ function versionFields(form: FormData) {
   if (duration_days !== null && !(Number.isInteger(duration_days) && duration_days >= 1 && duration_days <= 365)) throw new BadInput('duration_days');
   return { title, description: opt(form, 'description', 1000), purpose: opt(form, 'purpose', 2000), duration_days };
 }
+const LEVEL_KEYS = ['intro', 'basic', 'advanced'];
+const levelOf = (form: FormData) => (str(form, 'level', 20) ? oneOf(form, 'level', LEVEL_KEYS) : null);
+/** يحفظ مع المستوى، وقبل الهجرة 16 (لا عمود level) يحفظ بدونه */
+async function withLevelFallback(fn: (withLevel: boolean) => Promise<unknown>) {
+  try { await fn(true); }
+  catch (e) { if (e instanceof DataError && /level|kind/.test(e.message)) await fn(false); else throw e; }
+}
 function stepFields(form: FormData, types = STEP_TYPES) {
   const title = str(form, 'title', 200);
   if (!title) throw new BadInput('title');
@@ -128,7 +140,8 @@ export const PATH_HANDLERS: Record<string, Handler> = {
     const slug = await freeSlug(token, slugify(v.title));
     const change_type = str(form, 'change_type', 30) ? oneOf(form, 'change_type', CHANGE_TYPES) : null;
     const [p] = await mutate<{ id: string }>('POST', 'paths', token, { body: { slug, change_type }, returning: true });
-    await mutate('POST', 'path_versions', token, { body: { path_id: p.id, ...v } });
+    const level = levelOf(form);
+    await withLevelFallback((w) => mutate('POST', 'path_versions', token, { body: { path_id: p.id, ...v, ...(w && level ? { level } : {}) } }));
     await syncPathLinks(token, 'path_needs', 'need_id', p.id, uuids(form, 'need'));
     await syncPathLinks(token, 'path_domains', 'domain_id', p.id, uuids(form, 'domain'));
     return { to: editor(p.id, '#steps'), flash: 'أُنشئ المسار. أضف خطواته الآن' };
@@ -156,7 +169,8 @@ export const PATH_HANDLERS: Record<string, Handler> = {
     const v = versionFields(form);
     const body: Record<string, unknown> = { title: v.title, description: v.description, purpose: v.purpose };
     if (form.has('duration_days')) body.duration_days = v.duration_days; // المدة لا تتغير بعد النشر (الحقل لا يُرسل)
-    await mutate('PATCH', 'path_versions', token, { params: { id: `eq.${id}` }, body });
+    const level = form.has('level') ? levelOf(form) : undefined;
+    await withLevelFallback((w) => mutate('PATCH', 'path_versions', token, { params: { id: `eq.${id}` }, body: w && level !== undefined ? { ...body, level } : body }));
     return { to: editor(pathId), flash: 'حُفظت بيانات الإصدار' };
   },
 
@@ -275,8 +289,10 @@ export const PATH_HANDLERS: Record<string, Handler> = {
     const pathId = uuid(form, 'path_id'), next = uuid(form, 'next_path_id');
     if (next === pathId) throw new BadInput('next_path_id');
     const { rows } = await rest<{ position: number }>('path_next', { select: 'position', path_id: `eq.${pathId}`, order: 'position.desc', limit: 1 }, { token });
-    await mutate('POST', 'path_next', token, { body: { path_id: pathId, next_path_id: next, position: (rows[0]?.position ?? 0) + 1 }, ignoreDuplicates: true });
-    return { to: editor(pathId, '#ending'), flash: 'أُضيف المسار التالي' };
+    const kind = str(form, 'kind', 20) === 'next_level' ? 'next_level' : 'related';
+    const base = { path_id: pathId, next_path_id: next, position: (rows[0]?.position ?? 0) + 1 };
+    await withLevelFallback((w) => mutate('POST', 'path_next', token, { body: w ? { ...base, kind } : base, ignoreDuplicates: true }));
+    return { to: editor(pathId, '#ending'), flash: kind === 'next_level' ? 'أُضيف المستوى التالي' : 'أُضيف المسار القريب' };
   },
 
   'path-next-delete': async ({ token, form }) => {
@@ -293,6 +309,7 @@ export const PATH_HANDLERS: Record<string, Handler> = {
 };
 
 export const PATH_MESSAGES: [RegExp, string][] = [
+  [/needs a level/, 'اختر مستوى المسار من «بيانات الإصدار» قبل النشر'],
   [/exactly one exam step/, 'أضف خطوة «الامتحان» آخر المسار قبل النشر (زر «أضف خطوة الامتحان»)'],
   [/exam must be the last step/, 'خطوة الامتحان يجب أن تكون آخر خطوة. حرّكها للأسفل ثم انشر'],
   [/exam needs 5 to 10 questions/, 'الامتحان يحتاج من 5 إلى 10 أسئلة قبل النشر'],

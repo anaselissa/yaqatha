@@ -18,7 +18,7 @@ export interface Material extends MaterialCard {
 export interface PathCard {
   path_id: string; slug: string; change_type: string | null; version_id: string; version_no: number;
   title: string; description: string | null; purpose: string | null; duration_days: number | null;
-  published_at: string | null; steps_count?: number;
+  published_at: string | null; steps_count?: number; level?: string | null;
 }
 export interface Step {
   id: string; position: number; type: string; title: string; instructions: string | null;
@@ -160,13 +160,14 @@ export async function getMaterialRelations(materialId: string) {
 }
 
 // ---------- المسارات ----------
-export interface PathFilters { domain?: string; duration?: 'open' | 'fixed'; page?: number }
+export interface PathFilters { domain?: string; duration?: 'open' | 'fixed'; level?: string; page?: number }
 
 export async function listPaths(f: PathFilters) {
   const page = Math.max(1, f.page ?? 1);
   const params: Record<string, string | number> = { select: '*', order: 'published_at.desc,slug' };
   if (f.duration === 'open') params.duration_days = 'is.null';
   if (f.duration === 'fixed') params.duration_days = 'not.is.null';
+  if (f.level) params.level = `eq.${f.level}`;
   if (f.domain) {
     const d = await getDomain(f.domain);
     const ids = d ? await idsFrom('path_domains', 'domain_id', d.id, 'path_id') : [];
@@ -194,7 +195,11 @@ export async function getPath(slug: string) {
     one<{ changelog: string | null }>('path_versions', { select: 'changelog', id: `eq.${path.version_id}` }),
   ]);
   for (const s of steps) s.step_materials.sort((a, b) => a.position - b.position);
-  return { path: { ...path, steps_count: steps.length }, steps, needs, domains, changelog: version?.changelog ?? null };
+  // «بعده»: المستوى التالي إن حدده الفريق (الهجرة 16؛ قبلها لا شيء)
+  const nl = await rest<{ next_path_id: string }>('path_next', { select: 'next_path_id', path_id: `eq.${path.path_id}`, kind: 'eq.next_level', order: 'position', limit: 1 })
+    .then((r) => r.rows[0]?.next_path_id).catch(() => undefined);
+  const nextLevel = nl ? await one<PathCard>('paths_current', { select: '*', path_id: `eq.${nl}` }).catch(() => null) : null;
+  return { path: { ...path, steps_count: steps.length }, steps, needs, domains, changelog: version?.changelog ?? null, nextLevel };
 }
 
 // ---------- الرئيسية ----------

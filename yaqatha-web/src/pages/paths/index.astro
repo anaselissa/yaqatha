@@ -6,15 +6,17 @@ import Pager from '../../components/Pager.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import ErrorState from '../../components/ErrorState.astro';
 import { getDomains, listPaths } from '../../lib/data';
+import { LEVELS, PATH_LEVEL } from '../../lib/labels';
 import { load } from '../../lib/page';
 
 const q = Astro.url.searchParams;
 const domain = q.get('domain')?.slice(0, 80) || undefined;
 const duration = q.get('duration') === 'open' || q.get('duration') === 'fixed' ? (q.get('duration') as 'open' | 'fixed') : undefined;
+const level = (LEVELS as readonly string[]).includes(q.get('level') ?? '') ? q.get('level')! : undefined;
 const page = Math.max(1, parseInt(q.get('page') ?? '1', 10) || 1);
-const filtered = Boolean(domain || duration);
+const filtered = Boolean(domain || duration || level);
 const data = await load(Astro.response, async () => {
-  const [list, domains] = await Promise.all([listPaths({ domain, duration, page }), getDomains()]);
+  const [list, domains] = await Promise.all([listPaths({ domain, duration, level, page }).catch((e) => { if (level) return { items: [], total: 0, page: 1, pages: 1 }; throw e; }), getDomains()]);
   return { list, domains };
 });
 if (data && data.list.items.length === 0 && data.list.total > 0 && page > 1) {
@@ -24,7 +26,7 @@ if (data && data.list.items.length === 0 && data.list.total > 0 && page > 1) {
 }
 const link = (over: Record<string, string | undefined>) => {
   const u = new URLSearchParams();
-  for (const [k, v] of Object.entries({ domain, duration, ...over })) if (v) u.set(k, v);
+  for (const [k, v] of Object.entries({ domain, duration, level, ...over })) if (v) u.set(k, v);
   const s = u.toString();
   return s ? `/paths?${s}` : '/paths';
 };
@@ -44,6 +46,13 @@ const link = (over: Record<string, string | undefined>) => {
           <a href={link({ duration: 'fixed' })} aria-current={duration === 'fixed' ? 'true' : undefined}>بمدة محددة</a>
           <a href={link({ duration: 'open' })} aria-current={duration === 'open' ? 'true' : undefined}>مفتوحة</a>
         </div>
+        {data.list.items.some((p) => p.level) || level ? (
+          <div class="filters" role="group" aria-label="المستوى">
+            <a href={link({ level: undefined })} aria-current={!level ? 'true' : undefined}>كل المستويات</a>
+            {LEVELS.map((l) => <a href={link({ level: l })} aria-current={level === l ? 'true' : undefined}>{PATH_LEVEL[l]}</a>)}
+          </div>
+        ) : null}
+        {level && <p class="hint">المستوى يصف مقدار الالتزام اليومي، لا مستواك أنت.</p>}
         {data.domains.length > 0 && (
           <div class="filters" role="group" aria-label="المجال">
             <a href={link({ domain: undefined })} aria-current={!domain ? 'true' : undefined}>كل المجالات</a>
@@ -54,7 +63,7 @@ const link = (over: Record<string, string | undefined>) => {
           <>
             <h2 class="sr-only">قائمة المسارات</h2>
             <div class="grid grid-2">{data.list.items.map((p) => <PathCard path={p} />)}</div>
-            <Pager page={data.list.page} pages={data.list.pages} base="/paths" params={{ domain, duration }} />
+            <Pager page={data.list.page} pages={data.list.pages} base="/paths" params={{ domain, duration, level }} />
           </>
         ) : (
           <EmptyState title={filtered ? 'لا توجد مسارات بهذه التصفية' : 'لم تُنشر مسارات بعد'} text={filtered ? 'جرّب تصفية أوسع.' : 'نعمل على إعداد المسارات بعناية، ولن نعرض إلا ما راجعناه.'}>

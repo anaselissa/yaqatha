@@ -6,7 +6,7 @@ import ErrorState from '../components/ErrorState.astro';
 import Chev from '../components/Chev.astro';
 import { getDoors, getHomepage, type Need } from '../lib/data';
 import { rest } from '../lib/api';
-import { durationLabel } from '../lib/labels';
+import { PATH_LEVEL, durationLabel } from '../lib/labels';
 import { load } from '../lib/page';
 
 const tab = Astro.url.searchParams.get('t') === 'grow' ? 'grow' : 'fix';
@@ -40,7 +40,7 @@ const doorTitle = (id: number) => data?.doors.find((d) => d.id === id)?.title ??
         <section class="screen-sec" aria-labelledby="sh-h">
           <div class="title-row"><h2 id="sh-h" class="sec-title">مسارات للبدء</h2><a class="link-quiet" href="/paths">كل المسارات</a></div>
           <ul class="hscroll">
-            {data.startHere.map((p) => <li><a href={`/paths/${p.slug}`}><span class="d">{durationLabel(p.duration_days)}</span><span class="t">{p.title}</span></a></li>)}
+            {data.startHere.map((p) => <li><a href={`/paths/${p.slug}`}><span class="d">{p.level && PATH_LEVEL[p.level] ? `${PATH_LEVEL[p.level]} · ` : ''}{durationLabel(p.duration_days)}</span><span class="t">{p.title}</span></a></li>)}
           </ul>
         </section>
       )}

@@ -4,7 +4,8 @@ import ErrorState from '../../../components/ErrorState.astro';
 import LinkPicker from '../../../components/admin/LinkPicker.astro';
 import { PUBLISH_STATUS, REVIEW_STATUS, taxonomyOptions } from '../../../lib/admin';
 import { EXAM_MAX, EXAM_MIN, PATH_STATUS, VERSION_STATUS, getPathEditor, listAdminPaths, materialOptions } from '../../../lib/admin-paths';
-import { CHANGE_TYPE, MATERIAL_TYPE, STEP_TYPE, durationLabel, formatDate, stepsLabel } from '../../../lib/labels';
+import { CHANGE_TYPE, MATERIAL_TYPE, PATH_LEVEL, STEP_TYPE, durationLabel, formatDate, stepsLabel } from '../../../lib/labels';
+import LevelPill from '../../../components/LevelPill.astro';
 import { load } from '../../../lib/page';
 
 const s = Astro.locals.session!;
@@ -19,6 +20,8 @@ const isDraft = work?.status === 'draft';
 const pid = ed?.path.id ?? '';
 const matLabel = (m: { title: string; status: string; type: string }) => `${m.title} · ${MATERIAL_TYPE[m.type]}${m.status === 'published' ? '' : ` (${PUBLISH_STATUS[m.status]})`}`;
 const stepTypes = Object.entries(STEP_TYPE).filter(([k]) => k !== 'exam');
+const hasLevels = !!work && 'level' in work; // الهجرة 16
+const LEVEL_DESC: Record<string, string> = { intro: 'التزام خفيف، مناسب للبداية', basic: 'التزام أكبر بعد بداية ثابتة', advanced: 'لمن ثبت على ما قبله' };
 const examN = ed?.examQs.length ?? 0;
 const examReady = examN >= EXAM_MIN && examN <= EXAM_MAX;
 const matTitle = new Map((mats ?? []).map((m) => [m.id, m.title]));
@@ -208,13 +211,23 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
       {work && (
         <section id="info" class="stack sp-0_8">
           <details class="fold">
-            <summary><strong>بيانات الإصدار {work.version_no}</strong> (الاسم والوصف والمدة)</summary>
+            <summary><strong>بيانات الإصدار {work.version_no}</strong> (الاسم والوصف والمدة{hasLevels ? ' والمستوى' : ''})
+              {hasLevels && (work.level ? <LevelPill level={work.level} /> : <span class="chip chip-warn">بلا مستوى</span>)}</summary>
             <form method="post" action="/api/admin/version-save" class="adm-form mt-1">
               <input type="hidden" name="path_id" value={pid} />
               <input type="hidden" name="version_id" value={work.id} />
               <div class="field"><label for="v-title">اسم المسار</label><input id="v-title" name="title" type="text" required maxlength="200" value={work.title} /></div>
               <div class="field"><label for="v-desc">وصف قصير</label><textarea class="minh-5" id="v-desc" name="description" maxlength="1000">{work.description ?? ''}</textarea></div>
               <div class="field"><label for="v-purpose">الهدف منه</label><textarea class="minh-4" id="v-purpose" name="purpose" maxlength="2000">{work.purpose ?? ''}</textarea></div>
+              {hasLevels && (
+                <fieldset class="stack sp-0_4">
+                  <legend>المستوى <span class="faint">(إلزامي قبل النشر، ويُعدَّل بعده)</span></legend>
+                  {Object.entries(PATH_LEVEL).map(([k, l]) => (
+                    <label class="check"><input type="radio" name="level" value={k} checked={work.level === k} required /> <span><LevelPill level={k} /> <span class="faint fs-0_85">{LEVEL_DESC[k]}</span></span></label>
+                  ))}
+                  <span class="hint">تقديرك أنت لمقدار الالتزام، لا صعوبة الموضوع.</span>
+                </fieldset>
+              )}
               {isDraft
                 ? <div class="field"><label for="v-days">المدة بالأيام <span class="faint">(فارغ = مفتوح)</span></label><input id="v-days" name="duration_days" type="number" min="1" max="365" class="input maxw-10" value={work.duration_days ?? ''} /></div>
                 : <p class="faint m-0">المدة: {durationLabel(work.duration_days)} (لا تتغير بعد النشر)</p>}
@@ -266,14 +279,14 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
           </details>
         </div>
         <div class="stack sp-0_5">
-          <h3 class="fs-1_1">المسار التالي</h3>
+          <h3 class="fs-1_1">ما بعد المسار</h3>
           {ed.next.length === 0 && <p class="faint m-0">لا مسارات تالية بعد.</p>}
           <ul class="adm-list">
             {ed.next.map((n) => {
               const np = pathTitle.get(n.next_path_id);
               return (
                 <li class="adm-row">
-                  <div class="grow"><a href={`/admin/paths/${n.next_path_id}`}>{np?.title ?? 'مسار'}</a>
+                  <div class="grow">{n.kind && <div class={`fs-0_85 ${n.kind === 'next_level' ? 'gold' : 'faint'}`}>{n.kind === 'next_level' ? 'المستوى التالي' : 'مسار قريب'}</div>}<a href={`/admin/paths/${n.next_path_id}`}>{np?.title ?? 'مسار'}</a>
                     {np && !np.published && <div class="meta"><span class="chip">غير منشور؛ لن يظهر للمستخدم</span></div>}</div>
                   <form method="post" action="/api/admin/path-next-delete" class="acts"><input type="hidden" name="path_id" value={pid} /><input type="hidden" name="next_path_id" value={n.next_path_id} /><button class="btn btn-ghost btn-sm" type="submit">إزالة</button></form>
                 </li>
@@ -287,6 +300,10 @@ const unpublishedMats = (ed?.steps ?? []).flatMap((st) => st.step_materials).fil
               <select id="next" name="next_path_id" class="input flex-1 minw-12">
                 {allPaths.filter((p) => p.id !== pid && !ed.next.some((n) => n.next_path_id === p.id)).map((p) => <option value={p.id}>{p.title}{p.published ? '' : ' (غير منشور)'}</option>)}
               </select>
+              {hasLevels && (
+                <><label class="sr-only" for="next-kind">نوعه</label>
+                <select id="next-kind" name="kind" class="input w-auto"><option value="next_level">المستوى التالي</option><option value="related" selected>مسار قريب</option></select></>
+              )}
               <button class="btn btn-primary btn-sm" type="submit">أضف</button>
             </form>
           )}
