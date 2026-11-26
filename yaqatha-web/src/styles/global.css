@@ -106,9 +106,9 @@ p { margin: 0; text-wrap: pretty; }
 /* ---------- الرأس، والشريط السفلي، والتذييل ---------- */
 .site-header { background: var(--bg); }
 .site-header .bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 4rem; padding-block: .6rem .2rem; }
-.brand { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; color: var(--gold-text); text-decoration: none; display: inline-flex; align-items: center; gap: .5rem; line-height: 1.2; }
+.brand { font-family: var(--font-display); font-size: 1.7rem; font-weight: 700; color: var(--gold-text); text-decoration: none; display: inline-flex; align-items: center; gap: .5rem; line-height: 1.2; }
 .brand:hover { color: var(--gold-text); }
-.brand svg { width: 2.3rem; height: 1.7rem; }
+.brand svg { width: 3.2rem; height: 2.4rem; }
 .who { display: flex; align-items: center; gap: .6rem; }
 .avatar { width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--gold); color: var(--on-gold); display: grid; place-items: center; font-weight: 600; text-decoration: none; flex: none; }
 .avatar:hover { color: var(--on-gold); background: var(--gold-hi); }
