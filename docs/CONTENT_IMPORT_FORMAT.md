@@ -34,6 +34,9 @@
         "materials": ["fajr-why"]
       }
     ],
+    "exam_questions": [
+      { "prompt": "…", "options": ["…", "…", "…"], "correct_index": 0, "explanation": "…", "material": "fajr-why" }
+    ],
     "suggested_goals": [
       { "title": "الفجر في وقته 7 أيام", "description": "…" }
     ],
@@ -76,7 +79,8 @@
 
 | الحقل | القيم |
 |---|---|
-| `level` | `easy` (سهل) · `medium` (متوسط) · `advanced` (متقدم). إلزامي. المتقدم يحتاج امتحانًا لاحقًا: اكتب له 5–10 أسئلة في `exam_questions` بنفس شكل `questions`. |
+| `level` | `easy` (سهل) · `medium` (متوسط) · `advanced` (متقدم). إلزامي. |
+| `exam_questions` | **إلزامي لكل مسار: 5 إلى 10 أسئلة** (قرار 26 نوفمبر). تُضاف تلقائيًا كخطوة «الامتحان» في آخر المسار، فلا تكتبها ضمن `steps`. `material` (اختياري) slug المادة التي يُراجعها من أخطأ. يجوز تكرار أسئلة «اختبر فهمك» من مواد المسار. |
 | `change_type` | `quit_haram` ترك محرّم · `perform_duty` أداء فريضة · `acquire_good_deed` اكتساب خير · `increase_knowledge` زيادة علم |
 | `material.type` | `article` مقال · `video` مقطع (يوتيوب في `url`) · `external_link` رابط خارجي · `guidance` إرشاد عملي · `exercise` تمرين · `reflection` تأمل |
 | `step.type` | `watch` · `read` · `guidance` · `exercise` · `reflection` · `review` |

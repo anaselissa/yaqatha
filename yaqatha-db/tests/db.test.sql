@@ -8,6 +8,15 @@
 begin;
 
 create schema test;
+create function test.add_exam(v uuid, n int default 5) returns uuid language plpgsql as $$
+declare sid uuid;
+begin
+  insert into public.steps (version_id, position, type, title)
+  values (v, (select coalesce(max(position), 0) + 1 from public.steps where version_id = v), 'exam', 'الامتحان') returning id into sid;
+  insert into public.exam_questions (step_id, position, prompt, options, correct_index)
+  select sid, g, 'سؤال ' || g, '["أ","ب","ج"]'::jsonb, 0 from generate_series(1, n) g;
+  return sid;
+end $$;
 create function test.ok(cond boolean, msg text) returns void language plpgsql as $$
 begin
   if coalesce(cond, false) then raise notice 'ok   - %', msg;
@@ -163,11 +172,12 @@ insert into public.steps (version_id, position, type, title) values (:'v1', 2, '
 insert into public.step_materials (step_id, material_id) values (:'s1', :'m1');
 insert into public.path_needs (path_id, need_id) select :'p1', id from public.needs where slug = 'anger-control';
 select test.throws(format($$update public.path_versions set status = 'published' where id = %L$$, :'v1'), 'versions cannot be published by direct UPDATE', 'permission denied');
+select test.add_exam(:'v1') as ex1 \gset
 select public.publish_path_version(:'v1');
 
 select test.as_anon();
 select test.ok((select count(*) from public.paths_current where slug = 'anger-7days') = 1, 'published path appears in paths_current');
-select test.ok((select count(*) from public.steps where version_id = :'v1') = 2, 'anon reads steps of the published version');
+select test.ok((select count(*) from public.steps where version_id = :'v1') = 3, 'anon reads steps of the published version');
 select test.ok((select count(*) from public.step_materials) = 1, 'anon reads step materials');
 
 select test.as_user(:'edt');
@@ -191,7 +201,7 @@ select test.throws(format($$select public.set_step_state(%L, %L, 'completed')$$,
 
 select test.as_user(:'ua');
 select public.set_step_state(:'ea', :'s1', 'completed');
-select test.ok((select completed_steps = 1 and total_steps = 2 and resume_step_id = :'s2' from public.enrollment_progress where enrollment_id = :'ea'), 'progress 1/2 and next step is step 2');
+select test.ok((select completed_steps = 1 and total_steps = 3 and resume_step_id = :'s2' from public.enrollment_progress where enrollment_id = :'ea'), 'progress 1/2 and next step is step 2');
 select public.set_step_state(:'ea', :'s1', 'in_progress');
 select test.ok((select completed_steps = 0 and resume_step_id = :'s1' from public.enrollment_progress where enrollment_id = :'ea'), 'reopening a step is allowed and resumes there');
 select public.set_step_state(:'ea', :'s1', 'completed');
@@ -233,10 +243,11 @@ select test.ok((select count(*) from public.material_reports) = 1, 'staff see re
 
 -- ---------- 8. إصدار جديد: ثبات تجربة من بدأ الإصدار 1 ----------
 select public.create_draft_version(:'p1') as v2 \gset
-select test.ok((select count(*) from public.steps where version_id = :'v2') = 2, 'draft v2 clones the steps');
+select test.ok((select count(*) from public.steps where version_id = :'v2') = 3, 'draft v2 clones the steps');
 select test.ok((select count(*) from public.step_materials sm join public.steps s on s.id = sm.step_id where s.version_id = :'v2') = 1, 'draft v2 clones step materials');
 select test.throws(format($$select public.create_draft_version(%L)$$, :'p1'), 'only one draft version at a time', 'draft version already exists');
 delete from public.steps where version_id = :'v2' and step_key = :'k2';
+update public.steps set position = 10 where version_id = :'v2' and type = 'exam';
 insert into public.steps (version_id, position, type, title) values (:'v2', 2, 'watch', 'شاهد');
 insert into public.steps (version_id, position, type, title) values (:'v2', 3, 'review', 'راجع');
 select test.throws(format($$select public.publish_path_version(%L)$$, :'v2'), 'new version needs a changelog', 'changelog is required');
@@ -246,21 +257,21 @@ select test.as_super();
 select test.ok((select status = 'retired' from public.path_versions where id = :'v1') and (select status = 'published' from public.path_versions where id = :'v2'), 'v1 retired, v2 published');
 select test.as_user(:'ua');
 select test.ok((select version_id = :'v1' from public.enrollments where id = :'ea'), 'user A stays on v1 after v2 is published');
-select test.ok((select completed_steps = 1 and total_steps = 2 from public.enrollment_progress where enrollment_id = :'ea'), 'user A progress unchanged (1/2)');
-select test.ok((select count(*) from public.steps where version_id = :'v1') = 2, 'user A can still read their v1 steps');
+select test.ok((select completed_steps = 1 and total_steps = 3 from public.enrollment_progress where enrollment_id = :'ea'), 'user A progress unchanged (1/3)');
+select test.ok((select count(*) from public.steps where version_id = :'v1') = 3, 'user A can still read their v1 steps');
 select test.as_anon();
 select test.ok((select count(*) from public.steps where version_id = :'v1') = 0, 'anon cannot read retired v1 steps');
-select test.ok((select count(*) from public.steps where version_id = :'v2') = 3, 'anon reads the 3 steps of v2');
+select test.ok((select count(*) from public.steps where version_id = :'v2') = 4, 'anon reads the 4 steps of v2');
 select test.ok((select version_no = 2 from public.paths_current where slug = 'anger-7days'), 'paths_current shows v2');
 
 -- ---------- 9. الانتقال إلى الإصدار الجديد ----------
 select test.as_user(:'ua');
-select test.ok((select count(*) filter (where kind = 'carried') = 1 and count(*) filter (where kind = 'new') = 2 and count(*) filter (where kind = 'removed') = 1 from public.plan_migration(:'ea')), 'migration plan: 1 carried, 2 new, 1 removed');
+select test.ok((select count(*) filter (where kind = 'carried') = 2 and count(*) filter (where kind = 'new') = 2 and count(*) filter (where kind = 'removed') = 1 from public.plan_migration(:'ea')), 'migration plan: 2 carried (incl. exam), 2 new, 1 removed');
 select public.migrate_enrollment(:'ea') as ea2 \gset
 select test.ok(public.migrate_enrollment(:'ea') = :'ea2'::uuid, 'migrate_enrollment is idempotent');
 select test.ok((select version_id = :'v2' and status = 'active' and migrated_from = :'ea' from public.enrollments where id = :'ea2'), 'new enrollment is on v2');
 select test.ok((select status = 'archived' and archive_reason = 'migrated' from public.enrollments where id = :'ea'), 'old enrollment archived, not deleted');
-select test.ok((select completed_steps = 1 and total_steps = 3 from public.enrollment_progress where enrollment_id = :'ea2'), 'carried progress: 1/3 on v2');
+select test.ok((select completed_steps = 1 and total_steps = 4 from public.enrollment_progress where enrollment_id = :'ea2'), 'carried progress: 1/4 on v2');
 select test.ok((select count(*) from public.enrollment_steps where enrollment_id = :'ea') = 1, 'old enrollment progress preserved');
 select test.ok((select enrollment_id = :'ea2' from public.goal_enrollments where goal_id = :'g1'), 'goal link moved to the new enrollment');
 select test.ok((select already_active and enrollment_id = :'ea2' from public.start_path(:'p1')), 'start_path now returns the migrated enrollment');
@@ -385,6 +396,7 @@ select test.throws(format($$select public.reorder_steps(%L, array[%L,%L,%L]::uui
 select test.as_user(:'ua');
 select test.throws(format($$select public.reorder_steps(%L, array[]::uuid[])$$, :'rv'), 'non-staff cannot reorder', 'staff only');
 select test.as_user(:'edt');
+select test.add_exam(:'rv');
 select public.publish_path_version(:'rv');
 select test.throws(format($$select public.reorder_steps(%L, array[%L,%L,%L]::uuid[])$$, :'rv', :'ra', :'rb', :'rc'), 'a published version cannot be reordered', 'only a draft');
 
@@ -420,6 +432,7 @@ select test.throws(format($$insert into public.path_next (path_id, next_path_id)
 select test.as_anon();
 select test.ok(not exists (select 1 from public.path_suggested_goals where path_id = :'pa'), 'suggested goals of an unpublished path are hidden');
 select test.as_user(:'edt');
+select test.add_exam(:'va');
 select public.publish_path_version(:'va');
 select test.as_anon();
 select test.ok(exists (select 1 from public.path_suggested_goals where path_id = :'pa'), 'suggested goals visible once the path is published');
@@ -613,6 +626,56 @@ do $$ begin for i in 1..12 loop
 end loop; end $$;
 select test.as_super();
 select test.ok((select count(*) from public.material_reports where reporter_id = :'ur' and created_at > now() - interval '1 hour') <= 10, 'reports capped at 10 an hour');
+
+-- ---------- 24. امتحان آخر المسار (الهجرة 15) ----------
+select test.as_user(:'edt');
+insert into public.paths (slug) values ('exam-path') returning id as xp \gset
+insert into public.path_versions (path_id, title) values (:'xp', 'مسار بامتحان') returning id as xv \gset
+insert into public.steps (version_id, position, type, title) values (:'xv', 1, 'read', 'اقرأ') returning id as xs1 \gset
+select test.throws(format($$select public.publish_path_version(%L)$$, :'xv'), 'no exam: cannot publish', 'exactly one exam');
+select test.add_exam(:'xv', 4) as xe \gset
+select test.throws(format($$select public.publish_path_version(%L)$$, :'xv'), 'fewer than 5 questions: cannot publish', '5 to 10');
+insert into public.exam_questions (step_id, position, prompt, options, correct_index) values (:'xe', 5, 'سؤال 5', '["أ","ب"]', 1);
+select test.throws(format($$insert into public.exam_questions (step_id, prompt, options, correct_index) values (%L, 'x', '["أ","ب"]', 0)$$, :'xs1'), 'questions only on an exam step', 'exam step only');
+update public.steps set position = 9 where id = :'xe';
+update public.steps set position = 10 where id = :'xs1';
+select test.throws(format($$select public.publish_path_version(%L)$$, :'xv'), 'exam must be last', 'last step');
+update public.steps set position = 1 where id = :'xs1';
+select public.publish_path_version(:'xv');
+select test.throws(format($$delete from public.exam_questions where step_id = %L$$, :'xe'), 'published exam questions cannot be removed', 'only be corrected');
+select test.throws(format($$update public.exam_questions set correct_index = 1 where step_id = %L and position = 1$$, :'xe'), 'published answer key cannot change', 'only be corrected');
+update public.exam_questions set prompt = 'سؤال 1 (مصحح)' where step_id = :'xe' and position = 1;
+select test.ok((select prompt = 'سؤال 1 (مصحح)' from public.exam_questions where step_id = :'xe' and position = 1), 'wording can be corrected after publishing');
+
+select test.as_user(:'uc');
+select enrollment_id as xen from public.start_path(:'xp') \gset
+select test.ok((select count(*) from public.exam_questions) = 0, 'users cannot read the question table (answers)');
+select test.ok((select jsonb_array_length(public.exam_for(:'xen', :'xe') -> 'questions') = 5
+                and not (public.exam_for(:'xen', :'xe') -> 'questions' -> 0 ? 'correct_index')
+                and (public.exam_for(:'xen', :'xe') ->> 'required')::int = 4), 'exam_for: 5 questions, no answers, 4 required at 70%');
+select test.throws(format($$select public.set_step_state(%L, %L, 'completed')$$, :'xen', :'xe'), 'exam step cannot be marked completed by hand', 'exam not passed');
+select public.set_step_state(:'xen', :'xe', 'in_progress');
+select test.throws(format($$select public.submit_exam(%L, %L, '{}')$$, :'xen', :'xe'), 'every question must be answered', 'answer every question');
+select test.ok(not (public.submit_exam(:'xen', :'xe', (select jsonb_object_agg(id, 1) from (select (q ->> 'id') as id from jsonb_array_elements(public.exam_for(:'xen', :'xe') -> 'questions') q) x)) ->> 'passed')::boolean,
+  'wrong answers: not passed');
+select test.ok((select coalesce(state::text, '') <> 'completed' from public.enrollment_steps where enrollment_id = :'xen' and step_id = :'xe'), 'failed attempt leaves the step open');
+select test.ok((public.submit_exam(:'xen', :'xe', (select jsonb_object_agg(id, 0)
+               from (select (q ->> 'id') as id from jsonb_array_elements(public.exam_for(:'xen', :'xe') -> 'questions') q) x)) ->> 'score')::int = 4,
+  'graded in the database: 4 of 5 (question 5 answer is 1)');
+select test.ok((select state = 'completed' from public.enrollment_steps where enrollment_id = :'xen' and step_id = :'xe'), 'passing completes the exam step');
+select test.ok((select count(*) from public.exam_attempts) = 2, 'user sees own attempts');
+select test.throws($$insert into public.exam_attempts (user_id, enrollment_id, step_id, score, total, passed, answers) values (auth.uid(), gen_random_uuid(), gen_random_uuid(), 5, 5, true, '{}')$$, 'attempts cannot be forged', 'permission denied');
+select test.as_user(:'ur');
+select test.ok((select count(*) from public.exam_attempts) = 0, 'others cannot see my attempts');
+select test.throws(format($$select public.exam_for(%L, %L)$$, :'xen', :'xe'), 'cannot open someone else''s exam', 'not found');
+
+select test.as_user(:'edt');
+select public.create_draft_version(:'xp') as xv2 \gset
+select test.ok((select count(*) from public.exam_questions q join public.steps s on s.id = q.step_id where s.version_id = :'xv2') = 5, 'new draft copies the exam questions');
+select test.as_user(:'mgr');
+update public.app_settings set value = '100' where key = 'exam_pass_percent';
+select test.as_user(:'uc');
+select test.ok((public.exam_for(:'xen', :'xe') ->> 'required')::int = 5, 'pass percent comes from settings');
 
 select 'ALL TESTS PASSED' as result;
 rollback;
