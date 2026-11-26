@@ -11,6 +11,7 @@ create schema test;
 create function test.add_exam(v uuid, n int default 5) returns uuid language plpgsql as $$
 declare sid uuid;
 begin
+  update public.path_versions set level = coalesce(level, 'easy') where id = v;
   insert into public.steps (version_id, position, type, title)
   values (v, (select coalesce(max(position), 0) + 1 from public.steps where version_id = v), 'exam', 'الامتحان') returning id into sid;
   insert into public.exam_questions (step_id, position, prompt, options, correct_index)
@@ -630,7 +631,7 @@ select test.ok((select count(*) from public.material_reports where reporter_id =
 -- ---------- 24. امتحان آخر المسار (الهجرة 15) ----------
 select test.as_user(:'edt');
 insert into public.paths (slug) values ('exam-path') returning id as xp \gset
-insert into public.path_versions (path_id, title) values (:'xp', 'مسار بامتحان') returning id as xv \gset
+insert into public.path_versions (path_id, title, level) values (:'xp', 'مسار بامتحان', 'medium') returning id as xv \gset
 insert into public.steps (version_id, position, type, title) values (:'xv', 1, 'read', 'اقرأ') returning id as xs1 \gset
 select test.throws(format($$select public.publish_path_version(%L)$$, :'xv'), 'no exam: cannot publish', 'exactly one exam');
 select test.add_exam(:'xv', 4) as xe \gset
@@ -680,6 +681,29 @@ select test.as_user(:'mgr');
 update public.app_settings set value = '100' where key = 'exam_pass_percent';
 select test.as_user(:'uc');
 select test.ok((public.exam_for(:'xen', :'xe') ->> 'required')::int = 5, 'pass percent comes from settings');
+
+-- ---------- 25. مستويات المسارات (الهجرة 16) ----------
+select test.as_user(:'edt');
+insert into public.paths (slug) values ('level-path') returning id as lp \gset
+insert into public.path_versions (path_id, title) values (:'lp', 'بلا مستوى') returning id as lv \gset
+insert into public.steps (version_id, position, type, title) values (:'lv', 1, 'read', 'اقرأ');
+select test.add_exam(:'lv') as lx \gset
+update public.path_versions set level = null where id = :'lv';
+select test.throws(format($$select public.publish_path_version(%L)$$, :'lv'), 'no level: cannot publish', 'needs a level');
+update public.path_versions set level = 'advanced' where id = :'lv';
+select public.publish_path_version(:'lv');
+update public.path_versions set level = 'medium' where id = :'lv';
+select test.ok((select level = 'medium' from public.path_versions where id = :'lv'), 'level can be adjusted after publishing');
+select public.create_draft_version(:'lp') as lv2 \gset
+select test.ok((select level = 'medium' from public.path_versions where id = :'lv2'), 'new draft copies the level');
+insert into public.path_next (path_id, next_path_id, kind) values (:'lp', :'xp', 'next_level');
+select test.throws(format($$insert into public.path_next (path_id, next_path_id, kind) values (%L, %L, 'other')$$, :'xp', :'lp'), 'path_next kind is constrained', 'check');
+select test.as_anon();
+select test.ok((select level = 'medium' from public.path_versions where id = :'lv'), 'visitors read the level');
+select test.ok((select kind = 'next_level' from public.path_next where path_id = :'lp'), 'visitors read the link kind');
+select test.as_user(:'uc');
+update public.path_versions set level = 'easy' where id = :'lv';
+select test.ok((select level = 'medium' from public.path_versions where id = :'lv'), 'users cannot change levels');
 
 select 'ALL TESTS PASSED' as result;
 rollback;
